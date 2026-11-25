@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import json
 import os
 import re
 import time
@@ -11,6 +12,8 @@ from datetime import datetime
 from flask import Flask, jsonify, request, send_from_directory
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
+INBOX_DIR = os.path.join(ROOT, "data", "inbox")
+os.makedirs(INBOX_DIR, exist_ok=True)
 app = Flask(__name__, static_folder=ROOT, static_url_path="")
 
 FIELD_ALIASES = {
@@ -232,9 +235,64 @@ def extract_image(data: bytes):
     return fields, conf, text, "图片 OCR（RapidOCR）"
 
 
+def inbox_meta(obj, filename):
+    return {
+        "id": filename[:-5] if filename.endswith(".json") else filename,
+        "ticketNo": obj.get("ticketNo") or (obj.get("shipment") or {}).get("ticketNo") or "",
+        "from": obj.get("from") or {},
+        "to": obj.get("to") or "",
+        "remark": obj.get("remark") or "",
+        "sentAt": obj.get("sentAt") or "",
+        "docs": obj.get("docs") or list((obj.get("generated") or {}).keys()),
+    }
+
+
 @app.get("/api/health")
 def health():
-    return jsonify({"ok": True, "ocr": True, "engine": "rapidocr"})
+    return jsonify({"ok": True, "ocr": True, "engine": "rapidocr", "inbox": True})
+
+
+@app.get("/api/inbox")
+def inbox_list():
+    items = []
+    for name in sorted(os.listdir(INBOX_DIR), reverse=True):
+        if not name.endswith(".json"):
+            continue
+        path = os.path.join(INBOX_DIR, name)
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                obj = json.load(f)
+            items.append(inbox_meta(obj, name))
+        except Exception:
+            continue
+    return jsonify({"ok": True, "items": items})
+
+
+@app.post("/api/inbox")
+def inbox_post():
+    obj = request.get_json(silent=True)
+    if not obj:
+        return jsonify({"error": "missing json"}), 400
+    ticket = str(obj.get("ticketNo") or (obj.get("shipment") or {}).get("ticketNo") or "PACK")
+    safe = re.sub(r"[^A-Za-z0-9_-]+", "", ticket)[:24] or "PACK"
+    rid = datetime.now().strftime("%Y%m%d%H%M%S") + "-" + safe
+    obj.setdefault("kind", "smartdoc-pack")
+    obj.setdefault("sentAt", datetime.now().isoformat(timespec="seconds"))
+    path = os.path.join(INBOX_DIR, rid + ".json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(obj, f, ensure_ascii=False, indent=2)
+    return jsonify({"ok": True, "id": rid, **inbox_meta(obj, rid + ".json")})
+
+
+@app.get("/api/inbox/<item_id>")
+def inbox_get(item_id):
+    safe = re.sub(r"[^A-Za-z0-9_-]+", "", item_id)
+    path = os.path.join(INBOX_DIR, safe + ".json")
+    if not os.path.isfile(path):
+        return jsonify({"error": "not found"}), 404
+    with open(path, "r", encoding="utf-8") as f:
+        obj = json.load(f)
+    return jsonify(obj)
 
 
 @app.post("/api/extract")
@@ -254,8 +312,6 @@ def api_extract():
         elif ext in ("png", "jpg", "jpeg", "webp", "bmp", "tif", "tiff"):
             fields, conf, text, method = extract_image(data)
         elif ext == "json":
-            import json
-
             obj = json.loads(data.decode("utf-8-sig"))
             fields = empty_fields()
             conf = {}

@@ -1,0 +1,3 @@
+__pycache__/
+data/inbox/*.json
+.DS_Store

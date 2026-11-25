@@ -75,7 +75,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 
 .section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
 .section-title{font-size:1.1rem;font-weight:700;}
-.quick-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px;}
+.quick-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:32px;}
 .quick-btn{padding:16px;background:var(--white);border:1px solid var(--g200);border-radius:var(--radius);display:flex;align-items:center;gap:12px;cursor:pointer;transition:var(--tr);font-size:.9rem;font-weight:600;color:var(--dark);text-align:left;}
 .quick-btn:hover{border-color:var(--primary);box-shadow:var(--shadow-md);transform:translateY(-2px);}
 .quick-btn .qicon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;}
@@ -242,6 +242,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 .settings-card h3{font-size:1rem;font-weight:700;margin-bottom:16px;}
 .rule-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--g100);font-size:.85rem;}
 .rule-item:last-child{border:none;}
+.xchg-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.xchg-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--g200);padding:24px;}
+.xchg-card h3{font-size:1rem;font-weight:700;margin-bottom:12px;}
+.xchg-card textarea,.xchg-card input[type=text]{width:100%;border:1px solid var(--g200);border-radius:8px;padding:10px 12px;font-size:.88rem;margin-bottom:12px;font-family:inherit;}
+.inbox-item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--g100);font-size:.84rem;}
+.inbox-item:last-child{border:none;}
+@media(max-width:900px){.xchg-grid{grid-template-columns:1fr;}}
 
 /* RESPONSIVE */
 @media(max-width:900px){
@@ -280,6 +287,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
     <div class="menu-label">档案与规则</div>
     <button class="menu-item" data-tab="archive" onclick="switchTab('archive',this)">
       <span class="icon">📁</span>货物档案管理
+    </button>
+    <button class="menu-item" data-tab="exchange" onclick="switchTab('exchange',this)">
+      <span class="icon">📨</span>发单与收件
     </button>
     <button class="menu-item" data-tab="settings" onclick="switchTab('settings',this)">
       <span class="icon">⚙️</span>套餐与规则库
@@ -356,6 +366,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
         <button class="quick-btn" onclick="switchTab('check')">
           <div class="qicon" style="background:#d1fae5;">✅</div>
           <div><div>3. 一致性智能校验</div><div style="font-size:.76rem;color:var(--g500);font-weight:400;">三单交叉比对与一键修正</div></div>
+        </button>
+        <button class="quick-btn" onclick="switchTab('exchange')">
+          <div class="qicon" style="background:#fce7f3;">📨</div>
+          <div><div>4. 发单 / 收件</div><div style="font-size:.76rem;color:var(--g500);font-weight:400;">把同源单证交给协作方，或导入对方发来的包</div></div>
         </button>
       </div>
 
@@ -443,7 +457,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
       <div class="gen-results" id="genResults">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
           <h3 style="font-size:1rem;font-weight:700;">📄 同源单证生成结果</h3>
-          <button class="btn btn-ok" onclick="switchTab('check')">下一步：去执行一致性智能校验 →</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-s" onclick="switchTab('exchange')">📨 发送给协作方</button>
+            <button class="btn btn-ok" onclick="switchTab('check')">下一步：去执行一致性智能校验 →</button>
+          </div>
         </div>
         <div class="gen-cards" id="genCards"></div>
       </div>
@@ -516,6 +533,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
       </div>
     </div>
 
+    <!-- ========== EXCHANGE ========== -->
+    <div class="page" id="page-exchange">
+      <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:4px;">📨 发单与收件</h2>
+      <p style="color:var(--g500);font-size:.9rem;margin-bottom:20px;">把当前票的档案和已生成单证交给报关行 / 船司 / 同事；或导入对方发来的智单通数据包。<span id="inboxBadge" class="engine-pill">检测收件箱...</span></p>
+      <div class="xchg-grid">
+        <div class="xchg-card">
+          <h3>发送当前票</h3>
+          <p style="font-size:.82rem;color:var(--g500);margin-bottom:12px;">票号 <strong id="xchgTicket"></strong> · 已生成 <span id="xchgDocCount">0</span> 套单证</p>
+          <input type="text" id="xchgTo" placeholder="接收方（报关行 / 船司 / 同事名称）">
+          <textarea id="xchgRemark" rows="3" placeholder="备注，例如：请按此套核对 AMS 后申报"></textarea>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-p" onclick="sendCurrentPack()">📤 下载发单包并写入收件箱</button>
+            <button class="btn btn-s" onclick="copyPackSummary()">📋 复制摘要</button>
+          </div>
+        </div>
+        <div class="xchg-card">
+          <h3>接收发单包</h3>
+          <p style="font-size:.82rem;color:var(--g500);margin-bottom:12px;">导入 .json 智单通包，或从本机收件箱取件。</p>
+          <input type="file" id="packInput" accept=".json,.txt" hidden>
+          <button class="btn btn-p" onclick="document.getElementById('packInput').click()">📂 选择发单包文件</button>
+          <div id="inboxList" style="margin-top:16px;"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- ========== SETTINGS ========== -->
     <div class="page" id="page-settings">
       <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:4px;">⚙️ 商业套餐、规则库与用户共创反馈</h2>
@@ -574,6 +616,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 <script src="js/auth.js"></script>
 <script src="js/pipeline.js"></script>
 <script src="js/file-extract.js"></script>
+<script src="js/exchange.js"></script>
 <script>
 SmartAuth.require();
 const AUTH_USER = SmartAuth.current() || { name: 'Demo 单证专员', company: 'Demo 国际货代有限公司', plan: '专业会员版', email: 'demo@smartdoc.com' };
@@ -664,12 +707,13 @@ function switchTab(tab, menuEl) {
   pageEl.classList.add('active');
   const targetBtn = menuEl || document.querySelector(`.menu-item[data-tab="${tab}"]`);
   if(targetBtn) targetBtn.classList.add('active');
-  const names = { dashboard:'工作台', upload:'单据上传与提取', generate:'同源单证生成', check:'一致性智能校验', archive:'货物档案管理', settings:'套餐与规则库' };
+  const names = { dashboard:'工作台', upload:'单据上传与提取', generate:'同源单证生成', check:'一致性智能校验', archive:'货物档案管理', exchange:'发单与收件', settings:'套餐与规则库' };
   document.getElementById('pageName').textContent = names[tab] || tab;
   document.getElementById('sidebar').classList.remove('open');
   if(tab === 'generate') renderGenSummary();
   if(tab === 'archive') renderArchive();
   if(tab === 'dashboard') renderDashboard();
+  if(tab === 'exchange') renderExchange();
 }
 
 function renderDashboard() {
@@ -711,6 +755,16 @@ fileInput.addEventListener('change', e => {
 });
 
 async function handleRealFile(file) {
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (ext === 'json') {
+    try {
+      const obj = JSON.parse(await file.text());
+      if (obj && (obj.kind === 'smartdoc-pack' || obj.generated)) {
+        importPack(SmartExchange.parsePack(obj), '文件 ' + file.name);
+        return;
+      }
+    } catch (e) { /* fall through to field extract */ }
+  }
   const sizeStr = (file.size / 1024 > 1024) ? (file.size / 1048576).toFixed(2) + ' MB' : Math.max(1, Math.round(file.size / 1024)) + ' KB';
   dropZone.innerHTML = `<div class="dz-icon">⏳</div><h3>正在解析：${escapeHtml(file.name)}</h3><p>大小 ${escapeHtml(sizeStr)}</p>`;
   dropZone.style.borderColor = 'var(--primary)';
@@ -1303,6 +1357,137 @@ function loadArchiveIntoWorkspace(ticketNo, action) {
 }
 
 // ===== SETTINGS / BILLING / FEEDBACK =====
+function currentPack() {
+  return SmartExchange.buildPack({
+    from: { name: AUTH_USER.name, company: AUTH_USER.company, email: AUTH_USER.email },
+    to: (document.getElementById('xchgTo') && document.getElementById('xchgTo').value.trim()) || '',
+    remark: (document.getElementById('xchgRemark') && document.getElementById('xchgRemark').value.trim()) || '',
+    shipment: state.shipment,
+    generated: state.generated || {}
+  });
+}
+
+function packSummaryText(pack) {
+  const s = pack.shipment || {};
+  return [
+    '【智单通发单】票号 ' + (pack.ticketNo || ''),
+    '发件：' + ((pack.from && pack.from.company) || '') + ' / ' + ((pack.from && pack.from.name) || ''),
+    '收件：' + (pack.to || '（未填）'),
+    'Shipper: ' + (s.shipper || ''),
+    'Consignee: ' + (s.consignee || ''),
+    '柜号: ' + (s.containerNo || '') + '  HS: ' + (s.hsCode || ''),
+    '航线: ' + (s.pol || '') + ' → ' + (s.pod || ''),
+    '已附单证: ' + ((pack.docs && pack.docs.length) ? pack.docs.join(', ') : '仅档案字段'),
+    pack.remark ? ('备注: ' + pack.remark) : ''
+  ].filter(Boolean).join('\n');
+}
+
+async function sendCurrentPack() {
+  const pack = currentPack();
+  if (!pack.ticketNo) { showToast('当前没有可发送的档案'); return; }
+  triggerDownload('SmartDoc_' + pack.ticketNo + '.json', JSON.stringify(pack, null, 2), 'application/json;charset=utf-8');
+  SmartExchange.localPush(pack, 'out');
+  try {
+    const r = await SmartExchange.pushInbox(pack);
+    addActivity('blue', `已发单 ${pack.ticketNo} 至本机收件箱（${r.id}）`);
+    showToast('📤 已下载发单包，并写入本机收件箱 ' + r.id);
+  } catch (e) {
+    addActivity('blue', `已导出发单包 ${pack.ticketNo}（浏览器文件互换）`);
+    showToast('📤 已下载发单包。在线站点请把 JSON 发给对方导入。');
+  }
+  renderExchange();
+}
+
+async function copyPackSummary() {
+  const text = packSummaryText(currentPack());
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast('📋 摘要已复制');
+  } catch (e) {
+    showToast(text);
+  }
+}
+
+function importPack(pack, sourceLabel) {
+  const fields = { ...SmartDoc.emptyShipment(), ...(pack.shipment || {}) };
+  if (!fields.ticketNo) fields.ticketNo = SmartDoc.newTicket();
+  state.shipment = fields;
+  state.generated = pack.generated || {};
+  state.extractMeta = { method: '收件导入', engine: sourceLabel || 'pack', rawText: packSummaryText(pack) };
+  SmartExchange.localPush(pack, 'in');
+  upsertArchive(Object.keys(state.generated).length ? '待校验' : '待校验');
+  const rec = state.archive.find(a => a.ticketNo === state.shipment.ticketNo);
+  if (rec) rec.status = rec.status || '待校验';
+  saveState();
+  addActivity('green', `已收单 ${fields.ticketNo}（${sourceLabel || '导入'}）`);
+  renderDashboard();
+  renderExchange();
+  showToast('✅ 已收入档案 ' + fields.ticketNo + '，可去制单或校验');
+  switchTab('generate');
+}
+
+async function renderExchange() {
+  const s = state.shipment || {};
+  const elT = document.getElementById('xchgTicket');
+  const elC = document.getElementById('xchgDocCount');
+  if (elT) elT.textContent = s.ticketNo || '-';
+  if (elC) elC.textContent = String(Object.keys(state.generated || {}).length);
+  const box = document.getElementById('inboxList');
+  if (!box) return;
+  const data = await SmartExchange.listInbox();
+  const server = data.server || [];
+  const local = data.local || [];
+  const badge = document.getElementById('inboxBadge');
+  if (badge) badge.textContent = server.length ? '本机收件箱已连接' : '文件互换模式（GitHub Pages / 无服务）';
+  const rows = [];
+  server.forEach(it => rows.push({ ...it, via: 'server' }));
+  local.forEach(it => {
+    if (!rows.find(r => r.id === it.id || (r.ticketNo === it.ticketNo && r.sentAt === it.sentAt))) {
+      rows.push({ ...it, via: 'local' });
+    }
+  });
+  if (!rows.length) {
+    box.innerHTML = '<p style="color:var(--g500);font-size:.82rem;margin-top:8px;">收件箱为空。发送一票或导入 JSON 包即可。</p>';
+    return;
+  }
+  box.innerHTML = rows.slice(0, 12).map(it => `
+    <div class="inbox-item">
+      <div>
+        <strong>${escapeHtml(it.ticketNo || it.id || '')}</strong>
+        <div style="color:var(--g500);font-size:.76rem;">${escapeHtml((it.from && (it.from.company || it.from.name)) || '')} → ${escapeHtml(it.to || '协作方')} · ${escapeHtml((it.docs || []).join('/') || '档案')} · ${escapeHtml(it.via)}</div>
+      </div>
+      <button class="action-btn" onclick="openInboxItem('${escapeHtml(it.id)}','${it.via}')">载入</button>
+    </div>`).join('');
+}
+
+async function openInboxItem(id, via) {
+  try {
+    let pack;
+    if (via === 'server') {
+      pack = SmartExchange.parsePack(await SmartExchange.getInbox(id));
+    } else {
+      const found = SmartExchange.localList().find(x => x.id === id);
+      if (!found) throw new Error('本地记录不存在');
+      pack = found.pack;
+    }
+    importPack(pack, via === 'server' ? '本机收件箱' : '本地发件记录');
+  } catch (e) {
+    showToast('载入失败：' + (e.message || e));
+  }
+}
+
+document.getElementById('packInput').addEventListener('change', async e => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  try {
+    const obj = JSON.parse(await file.text());
+    importPack(SmartExchange.parsePack(obj), file.name);
+  } catch (err) {
+    showToast('无法解析发单包：' + (err.message || err));
+  }
+  e.target.value = '';
+});
+
 function buyPack(count) {
   state.payPerCount += count;
   saveState();
