@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>登录 - 智单通 SmartDoc</title>
+<link rel="stylesheet" href="css/home.css">
+<style>
+.auth-page{min-height:calc(100vh - 64px);display:grid;grid-template-columns:1.1fr .9fr;background:#f6f8fb}
+.auth-visual{background:linear-gradient(160deg,#0b3d91 0%,#006aff 55%,#4aa3ff 100%);color:#fff;padding:72px 64px;display:flex;flex-direction:column;justify-content:center}
+.auth-visual h1{font-size:36px;line-height:46px;font-weight:600}
+.auth-visual p{margin-top:16px;font-size:16px;opacity:.9;max-width:420px}
+.auth-visual ul{margin-top:32px;list-style:none}
+.auth-visual li{padding:10px 0;font-size:15px}
+.auth-visual li:before{content:"▸ ";color:#fff}
+.auth-box{display:flex;align-items:center;justify-content:center;padding:40px 24px}
+.card-auth{width:420px;max-width:100%;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(5,38,99,.08);padding:36px 32px}
+.tabs{display:flex;border-bottom:1px solid #eef2f6;margin-bottom:24px}
+.tabs button{flex:1;background:none;border:0;padding:10px;font-size:16px;cursor:pointer;color:#7a8699}
+.tabs button.on{color:#006aff;border-bottom:2px solid #006aff;font-weight:600}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:13px;color:#4b5669;margin-bottom:6px}
+.field input{width:100%;height:42px;border:1px solid #e5e6eb;border-radius:4px;padding:0 12px;font-size:14px;outline:none}
+.field input:focus{border-color:#006aff;box-shadow:0 0 0 3px rgba(0,106,255,.12)}
+.hint{font-size:12px;color:#7a8699;margin:8px 0 16px}
+.err{color:#c24f4a;font-size:13px;min-height:18px;margin-bottom:8px}
+.full{width:100%;height:44px}
+.demo{margin-top:16px;background:#f7faff;border:1px solid #e8f1ff;border-radius:4px;padding:12px;font-size:13px;color:#4b5669}
+@media(max-width:900px){.auth-page{grid-template-columns:1fr}.auth-visual{display:none}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="index.html"><span class="brand-mark">智</span>智单通 SmartDoc</a>
+    <div class="top-actions"><a class="login" href="index.html">返回首页</a></div>
+  </div>
+</header>
+<div class="auth-page">
+  <div class="auth-visual">
+    <h1>货代自主可控的<br>单证智能工作台</h1>
+    <p>识别提取、同源制单、一致性校验，一套流程覆盖提单、AMS、报关单与 ISF。</p>
+    <ul>
+      <li>多格式单据自动建档</li>
+      <li>四大单证同源输出</li>
+      <li>装船前三单交叉校验</li>
+      <li>海关规则库持续更新</li>
+    </ul>
+  </div>
+  <div class="auth-box">
+    <div class="card-auth">
+      <div class="tabs">
+        <button class="on" id="tabLogin" onclick="showPane('login')">登录</button>
+        <button id="tabReg" onclick="showPane('reg')">注册企业账号</button>
+      </div>
+      <form id="loginForm" onsubmit="return doLogin(event)">
+        <div class="field"><label>企业邮箱</label><input type="email" id="loginEmail" value="demo@smartdoc.com" required></div>
+        <div class="field"><label>密码</label><input type="password" id="loginPwd" value="demo123" required></div>
+        <div class="err" id="loginErr"></div>
+        <button class="btn btn-blue full" type="submit">进入工作台</button>
+        <p class="hint">演示账号已预填，也可注册后使用。</p>
+      </form>
+      <form id="regForm" style="display:none" onsubmit="return doReg(event)">
+        <div class="field"><label>姓名</label><input id="regName" placeholder="单证专员姓名" required></div>
+        <div class="field"><label>企业名称</label><input id="regCompany" placeholder="货代公司名称"></div>
+        <div class="field"><label>企业邮箱</label><input type="email" id="regEmail" required></div>
+        <div class="field"><label>密码</label><input type="password" id="regPwd" minlength="6" required></div>
+        <div class="err" id="regErr"></div>
+        <button class="btn btn-blue full" type="submit">注册并进入</button>
+      </form>
+      <div class="demo">演示账号：demo@smartdoc.com　密码：demo123</div>
+    </div>
+  </div>
+</div>
+<script src="js/auth.js"></script>
+<script>
+if (SmartAuth.current()) location.replace('app.html');
+function showPane(which){
+  document.getElementById('loginForm').style.display = which==='login'?'block':'none';
+  document.getElementById('regForm').style.display = which==='reg'?'block':'none';
+  document.getElementById('tabLogin').classList.toggle('on', which==='login');
+  document.getElementById('tabReg').classList.toggle('on', which==='reg');
+}
+function doLogin(e){
+  e.preventDefault();
+  const r = SmartAuth.login(document.getElementById('loginEmail').value, document.getElementById('loginPwd').value);
+  if(!r.ok){ document.getElementById('loginErr').textContent = r.msg; return false; }
+  location.href = 'app.html';
+  return false;
+}
+function doReg(e){
+  e.preventDefault();
+  const r = SmartAuth.register({
+    name: document.getElementById('regName').value,
+    company: document.getElementById('regCompany').value,
+    email: document.getElementById('regEmail').value,
+    password: document.getElementById('regPwd').value
+  });
+  if(!r.ok){ document.getElementById('regErr').textContent = r.msg; return false; }
+  location.href = 'app.html';
+  return false;
+}
+</script>
+</body>
+</html>

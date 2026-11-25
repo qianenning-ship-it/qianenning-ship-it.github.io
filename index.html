@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智单通 - 货代自主可控的单证智能填报与校验平台</title>
+<meta name="description" content="面向国际货代企业的单证智能填报与校验SaaS。多格式识别、同源制单、提单/AMS/ISF一致性校验，前置规避三单不符与海关禁装风险。">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23006aff'/><text x='16' y='22' text-anchor='middle' font-size='16' fill='white' font-family='Arial'>智</text></svg>">
+<link rel="stylesheet" href="css/home.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="index.html">
+      <span class="brand-mark">智</span>智单通 SmartDoc
+    </a>
+    <nav class="nav" id="nav">
+      <a class="active" href="index.html">首页</a>
+      <div class="nav-drop">
+        <a href="#products">产品</a>
+        <div class="menu">
+          <a href="login.html">单据智能识别</a>
+          <a href="login.html">同源单证生成</a>
+          <a href="login.html">三单一致性校验</a>
+          <a href="login.html">海关规则库</a>
+        </div>
+      </div>
+      <a href="#solutions">解决方案</a>
+      <a href="#pricing">定价</a>
+      <a href="#about">关于我们</a>
+    </nav>
+    <div class="top-actions">
+      <a class="login" href="login.html">登录</a>
+      <a class="btn btn-blue cta-sm" href="login.html">免费试用</a>
+      <button class="hamb" onclick="document.getElementById('nav').style.display=document.getElementById('nav').style.display==='flex'?'none':'flex'">☰</button>
+    </div>
+  </div>
+</header>
+
+<section class="banner-wrap">
+  <div class="banner" id="banner">
+    <div class="slide active" style="background-image:linear-gradient(120deg,#e8f1ff,#f7f9fc 42%,#d7e8ff)">
+      <div class="slide-overlay"></div>
+      <div class="slide-inner">
+        <h1>国际货代单证<br>智能填报与校验</h1>
+        <p>支持 <em>Excel / PDF / 扫描件</em><br>AI 驱动，同源制单，装船前完成合规筛查</p>
+        <a class="btn btn-blue cta-lg" href="login.html">立即试用</a>
+      </div>
+    </div>
+    <div class="slide" style="background-image:linear-gradient(120deg,#eef5ff,#f8fbff 40%,#dce9ff)">
+      <div class="slide-overlay"></div>
+      <div class="slide-inner">
+        <h1>AMS · ISF 一致性校验</h1>
+        <p>自动比对提单、舱单、ISF 公共字段<br>机器校验代替人工核对，规避海关禁装风险</p>
+        <a class="btn btn-blue cta-lg" href="login.html">立即试用</a>
+      </div>
+    </div>
+    <div class="slide" style="background-image:linear-gradient(120deg,#f4f8ff,#fff 45%,#e4efff)">
+      <div class="slide-overlay"></div>
+      <div class="slide-inner">
+        <h1>同源数据批量制单</h1>
+        <p>一次建档，一键生成海运提单、AMS 舱单、出口报关单、ISF 申报表</p>
+        <a class="btn btn-blue cta-lg" href="login.html">立即试用</a>
+      </div>
+    </div>
+    <div class="pager" id="pager"><span class="on"></span><span></span><span></span></div>
+  </div>
+  <div class="intro-row">
+    <a class="intro-item" href="login.html">
+      <div class="intro-ico">📄</div>
+      <div><div class="t">单据识别</div><div class="d">多格式实时提取字段</div></div>
+    </a>
+    <a class="intro-item" href="login.html">
+      <div class="intro-ico">🚢</div>
+      <div><div class="t">货代制单</div><div class="d">同源输出四大单证</div></div>
+    </a>
+    <a class="intro-item" href="login.html">
+      <div class="intro-ico">✅</div>
+      <div><div class="t">智能校验</div><div class="d">三单不符一键修正</div></div>
+    </a>
+    <a class="intro-item" href="login.html">
+      <div class="intro-ico">📝</div>
+      <div><div class="t">ISF / AMS</div><div class="d">规则库对接海关要求</div></div>
+    </a>
+  </div>
+</section>
+
+<section class="sol" id="solutions">
+  <h2>国际货代单证解决方案</h2>
+  <p class="sub">系统服务、功能完整、操作简单，专为中小货代一线单证打造</p>
+  <div class="toolbar">
+    <div class="tb on" data-tab="id" onclick="switchSol(this,'id')"><div class="ico">📤</div><p>单据识别</p></div>
+    <div class="tb" data-tab="gen" onclick="switchSol(this,'gen')"><div class="ico">📋</div><p>同源制单</p></div>
+    <div class="tb" data-tab="chk" onclick="switchSol(this,'chk')"><div class="ico">🔍</div><p>智能校验</p></div>
+    <div class="tb" data-tab="biz" onclick="switchSol(this,'biz')"><div class="ico">💼</div><p>商业套餐</p></div>
+  </div>
+</section>
+<section class="sol-body" id="products">
+  <div class="sol-grid" id="solGrid"></div>
+</section>
+
+<section class="plain" id="pain">
+  <div class="wrap">
+    <h2 class="sec-title" style="text-align:center">行业痛点，正是我们要填的空档</h2>
+    <p class="sec-sub" style="text-align:center">行业数字化程度低，人工处理导致高错漏率，直接造成改单费、滞柜费与客户流失</p>
+    <div class="pain-grid">
+      <div class="pain"><div style="font-size:28px">📄</div><h3>数据来源分散，重复录入</h3><p>货代接收的资料格式杂乱（Excel、PDF、扫描件等），同一批货物信息需手动录入至多份不同单证，效率低且容易出错。</p></div>
+      <div class="pain"><div style="font-size:28px">⚠️</div><h3>交叉校验繁琐，处罚风险高</h3><p>提单、舱单、ISF 需保持极高一致性。一旦关键信息不一致，就会触发海关指令禁止装船，带来不必要的经济损失。</p></div>
+      <div class="pain"><div style="font-size:28px">📈</div><h3>旺季压力倍增，成本飙升</h3><p>电商旺季订单爆发时，单证处理量超出人工负荷。错漏率攀升，企业不得不临时加人，运营成本大幅上升。</p></div>
+    </div>
+    <h2 class="sec-title" style="text-align:center;margin-top:72px">四步完成装船前合规</h2>
+    <p class="sec-sub" style="text-align:center">从杂乱资料到可申报单证，全程同源、可追溯</p>
+    <div class="flow">
+      <div class="step"><div class="num">1</div><h4>上传资料</h4><p>一键上传 Excel、PDF、扫描件、手机截图或 CSV/JSON</p></div>
+      <div class="step"><div class="num">2</div><h4>AI 智能提取</h4><p>自动提取柜号、HS 编码、收发货人等核心字段并建档</p></div>
+      <div class="step"><div class="num">3</div><h4>同源生成单证</h4><p>一键输出海运提单、AMS 舱单、出口报关单、ISF 申报表</p></div>
+      <div class="step"><div class="num">4</div><h4>一致性校验</h4><p>机器比对公共字段与必填项，发现问题可一键按档案修正</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="safe" id="about">
+  <div class="wrap safe-inner">
+    <h2 class="sec-title">企业信息与数据安全</h2>
+    <p class="sec-sub">专业、安全、可靠的系统，多层防护保障货代单证数据</p>
+    <div class="safe-grid">
+      <div class="safe-card"><h3>数据不出域可控</h3><p>单证字段本地浏览器处理，演示环境不上传原始文件。</p></div>
+      <div class="safe-card"><h3>安全能力</h3><p>传输与存储加密，账户会话隔离，操作可追溯。</p></div>
+      <div class="safe-card"><h3>合规规则库</h3><p>对接 AMS 24 小时舱单、ISF 10+2、ISO 6346 柜号规范。</p></div>
+      <div class="safe-card"><h3>敏感字段保护</h3><p>收发货人、柜号等关键字段分级展示与导出管控。</p></div>
+    </div>
+  </div>
+  <div class="nums">
+    <div class="wrap nums-inner">
+      <div><div class="n">95%+</div><div class="l">字段提取准确率</div></div>
+      <div><div class="n">80%</div><div class="l">单证处理时间缩减</div></div>
+      <div><div class="n">99.5%</div><div class="l">一致性校验覆盖率</div></div>
+      <div><div class="n">70%</div><div class="l">人力成本节省</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="trust">
+  <div class="wrap">
+    <h2 class="sec-title" style="text-align:center">客户选择与信任</h2>
+    <div class="trust-grid">
+      <div class="quote"><div style="font-weight:700;color:var(--blue)">华南中小货代</div><p style="margin-top:28px;font-size:14px;line-height:24px;color:#1d2129">旺季再也不用加人盯单。柜号和品名不一致，系统会在装船前直接标红，改单费明显下降。</p><p class="who">操作主管 ｜ 王女士</p></div>
+      <div class="quote"><div style="font-weight:700;color:var(--blue)">跨境电商物流</div><p style="margin-top:28px;font-size:14px;line-height:24px;color:#1d2129">同一票货从发票到提单、AMS、ISF 同源输出，专员人均产能提升明显，管理者也能看清差错率。</p><p class="who">运营负责人 ｜ 李先生</p></div>
+      <div class="quote"><div style="font-weight:700;color:var(--blue)">口岸报关行协作</div><p style="margin-top:28px;font-size:14px;line-height:24px;color:#1d2129">把海关规则变成自动核查逻辑，一线同事反馈识别盲区后，规则库迭代很快。</p><p class="who">单证经理 ｜ 陈先生</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="price-sec" id="pricing">
+  <div class="wrap">
+    <h2 class="sec-title" style="text-align:center">基础免费 + 高阶订阅 + 按次计费</h2>
+    <p class="sec-sub" style="text-align:center">降低中小货代试错门槛，旺季可按票加购，淡季不背月费</p>
+    <div class="price-grid">
+      <div class="plan">
+        <div class="name">免费体验版</div>
+        <div class="fee">¥0 <span>/月</span></div>
+        <ul>
+          <li>每月 5 票免费额度</li>
+          <li>基础格式识别与提取</li>
+          <li>单票单证生成</li>
+          <li>社区支持</li>
+        </ul>
+        <a class="btn btn-blue" href="login.html">免费开始</a>
+      </div>
+      <div class="plan">
+        <div class="name">按次弹性包</div>
+        <div class="fee">¥8.9 <span>/票起</span></div>
+        <ul>
+          <li>按实际生成票数计费</li>
+          <li>无月费绑定</li>
+          <li>含全套 4 单生成与校验</li>
+          <li>旺季不限并发</li>
+        </ul>
+        <a class="btn btn-blue" href="login.html">按需购买</a>
+      </div>
+      <div class="plan hot">
+        <div class="name">专业会员版 <span class="tip">推荐</span></div>
+        <div class="fee">¥299 <span>/月</span></div>
+        <ul>
+          <li>每月 100 票（年付 8 折）</li>
+          <li>全格式智能识别</li>
+          <li>批量生成四大单证</li>
+          <li>一致性校验与规则库</li>
+          <li>优先技术支持</li>
+        </ul>
+        <a class="btn btn-blue" href="login.html">立即订阅</a>
+      </div>
+      <div class="plan">
+        <div class="name">企业定制版</div>
+        <div class="fee" style="font-size:24px">联系销售</div>
+        <ul>
+          <li>不限票数与子账号</li>
+          <li>私有化规则库定制</li>
+          <li>开放 API 集成</li>
+          <li>专属客户经理与 SLA</li>
+        </ul>
+        <a class="btn btn-blue" href="login.html">联系我们</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slogan">
+  <div class="wrap">
+    <p>让货代单证处理像发快递一样简单</p>
+    <a class="btn" href="login.html">进入工作台</a>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="wrap">
+    <div class="ft-grid">
+      <div>
+        <a class="brand" href="index.html" style="color:#fff;margin-bottom:12px"><span class="brand-mark">智</span>智单通 SmartDoc</a>
+        <p>面向国际货代企业的单证智能填报与校验 SaaS。解决重复录入、三单不符、合规风险高的核心痛点。</p>
+      </div>
+      <div>
+        <h5>产品</h5>
+        <a href="#products">核心功能</a>
+        <a href="#pricing">定价方案</a>
+        <a href="login.html">在线工作台</a>
+      </div>
+      <div>
+        <h5>解决方案</h5>
+        <a href="#solutions">单据识别</a>
+        <a href="#solutions">同源制单</a>
+        <a href="#solutions">智能校验</a>
+      </div>
+      <div>
+        <h5>演示账号</h5>
+        <p>邮箱 demo@smartdoc.com</p>
+        <p>密码 demo123</p>
+      </div>
+    </div>
+    <div class="copy">© 2026 智单通 SmartDoc · 货代单证智能填报与校验平台</div>
+  </div>
+</footer>
+
+<script>
+const SOL = {
+  id: [
+    {first:true,title:'多格式识别',desc:'把杂乱发票、装箱单、托书变成标准货物档案',points:['Excel / CSV / JSON 实时解析','PDF、扫描件、手机截图 OCR 提取']},
+    {title:'柜号提取',desc:'自动识别 ISO 6346 集装箱号',tags:['4字母+7数字','格式校验']},
+    {title:'HS 编码',desc:'抽取并核验 10 位商品编码格式',tags:['xxxx.xx.xxxx','报关可用']},
+    {title:'收发货人',desc:'Shipper / Consignee / Notify 一次落档',tags:['可编辑修正']},
+    {title:'件毛体',desc:'件数、毛重、体积同步建档',tags:['CTNS','KGS','CBM']},
+    {title:'航线港口',desc:'起运港、目的港自动映射到后续单证',tags:['POL','POD']},
+    {title:'档案库',desc:'每票货形成可检索标准档案',tags:['票号检索','载入工作台']}
+  ],
+  gen: [
+    {first:true,title:'同源制单',desc:'一套档案输出全部申报单证，从源头消灭抄写误差',points:['一次确认，四单同步','字段同源可追溯']},
+    {title:'海运提单草稿',desc:'Ocean B/L Draft 按船司格式预填',tags:['B/L No.','柜封号'],hot:'HOT'},
+    {title:'AMS 舱单',desc:'美国 24 小时舱单字段自动带出',tags:['House Bill','HTS']},
+    {title:'出口报关单',desc:'中国海关预录入草稿',tags:['HS','境内发货人']},
+    {title:'ISF 10+2',desc:'装船前进口安全申报',tags:['Importer','Manufacturer']},
+    {title:'单证预览',desc:'浏览器内预览正式版式',tags:['打印','下载 HTML']},
+    {title:'批量导出',desc:'按票打包下载已生成单证',tags:['同源','可追溯']}
+  ],
+  chk: [
+    {first:true,title:'智能校验',desc:'装船前提交海关前的最后一道机器关卡',points:['提单 × AMS × ISF 交叉比对','必填项与格式规则双重核验']},
+    {title:'三单不符',desc:'品名单复数、拼写偏差即时标黄',tags:['Description','一键修正'],hot:'HOT'},
+    {title:'必填缺失',desc:'Notify Party 等空值直接标红',tags:['禁装风险']},
+    {title:'柜号规范',desc:'ISO 6346 格式校验',tags:['MSKU1234567']},
+    {title:'HS 格式',desc:'10 位编码规则检查',tags:['中国出口','美国 HTS']},
+    {title:'校验报告',desc:'导出 HTML 报告存档或发给客户',tags:['可打印']},
+    {title:'规则库同步',desc:'AMS 24h / ISF 10+2 持续更新',tags:['v2026.11']}
+  ],
+  biz: [
+    {first:true,title:'按需付费',desc:'基础免费吸引试用，会员订阅覆盖高频制单，旺季按票加购',points:['降低中小货代试错门槛','淡旺季成本可调节']},
+    {title:'免费体验',desc:'每月 5 票，适合评估流程',tags:['¥0']},
+    {title:'专业会员',desc:'每月 100 票，含全套校验',tags:['¥299/月'],hot:'HOT'},
+    {title:'按次包',desc:'20 / 50 票弹性加购',tags:['永不过期']},
+    {title:'企业版',desc:'不限票数、API、私有规则',tags:['SLA']},
+    {title:'操作员共创',desc:'一线反馈驱动识别盲区迭代',tags:['规则建议']},
+    {title:'管理者看板',desc:'票量、通过率、待校验一目了然',tags:['产能']}
+  ]
+};
+
+function renderSol(key){
+  const grid = document.getElementById('solGrid');
+  grid.innerHTML = SOL[key].map(c => {
+    if(c.first){
+      return `<div class="card first"><h3>${c.title}</h3><p>${c.desc}</p><ul class="check">${c.points.map(p=>`<li>${p}</li>`).join('')}</ul></div>`;
+    }
+    return `<a class="card" href="login.html"><h3>${c.title}${c.hot?`<span class="tip">${c.hot}</span>`:''}${c.new?`<span class="tip new">NEW</span>`:''}</h3><p>${c.desc}</p><div class="tags">${(c.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div></a>`;
+  }).join('');
+}
+function switchSol(el,key){
+  document.querySelectorAll('.tb').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  renderSol(key);
+}
+renderSol('id');
+
+(function(){
+  const slides = [...document.querySelectorAll('.slide')];
+  const dots = [...document.querySelectorAll('#pager span')];
+  let i = 0, timer;
+  function go(n){
+    i = n % slides.length;
+    slides.forEach((s,idx)=>s.classList.toggle('active', idx===i));
+    dots.forEach((d,idx)=>d.classList.toggle('on', idx===i));
+  }
+  function loop(){ timer = setInterval(()=>go(i+1), 5000); }
+  dots.forEach((d,idx)=>d.onclick=()=>{clearInterval(timer);go(idx);loop();});
+  loop();
+})();
+</script>
+</body>
+</html>

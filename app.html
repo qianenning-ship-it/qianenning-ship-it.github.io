@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智单通工作台 - 单证智能填报与校验</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23006aff'/><text x='16' y='22' text-anchor='middle' font-size='16' fill='white' font-family='Arial'>智</text></svg>">
+<style>
+:root{--primary:#006aff;--primary-light:#e8f3ff;--accent:#0051d2;--success:#10b981;--warning:#f59e0b;--danger:#ef4444;--dark:#1d2129;--g900:#1d2129;--g700:#4b5669;--g500:#7a8699;--g400:#9aa4b2;--g300:#d7dbe0;--g200:#e5e6eb;--g100:#f2f3f5;--g50:#f7faff;--white:#fff;--shadow:0 1px 3px rgba(0,0,0,0.08);--shadow-md:0 4px 12px rgba(5,38,99,0.08);--shadow-lg:0 10px 25px rgba(5,38,99,0.12);--radius:4px;--tr:all .25s ease;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--g100);color:var(--dark);display:flex;min-height:100vh;}
+
+/* SIDEBAR */
+.sidebar{width:260px;background:var(--g900);color:var(--white);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:200;transition:var(--tr);}
+.sidebar-header{padding:20px 24px;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:space-between;}
+.sidebar-header .logo-icon{width:32px;height:32px;background:var(--primary);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:1rem;color:white;font-weight:800;}
+.sidebar-header .logo-text{font-size:1.15rem;font-weight:700;color:#fff;}
+.sidebar-header a{text-decoration:none;display:flex;align-items:center;gap:10px;}
+.sidebar-menu{flex:1;padding:12px;overflow-y:auto;}
+.menu-label{font-size:.7rem;text-transform:uppercase;color:var(--g400);letter-spacing:1px;padding:16px 12px 8px;font-weight:600;}
+.menu-item{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:10px;cursor:pointer;transition:var(--tr);font-size:.9rem;color:var(--g400);margin-bottom:2px;border:none;background:none;width:100%;text-align:left;}
+.menu-item:hover{background:rgba(255,255,255,0.06);color:var(--white);}
+.menu-item.active{background:rgba(0,106,255,0.22);color:var(--white);font-weight:600;}
+.menu-item .icon{font-size:1.15rem;width:24px;text-align:center;}
+.sidebar-quota{margin:12px;padding:14px;background:rgba(255,255,255,0.06);border-radius:10px;font-size:.78rem;color:var(--g300);}
+.quota-bar{height:6px;background:rgba(255,255,255,0.12);border-radius:3px;margin:8px 0 4px;overflow:hidden;}
+.quota-fill{height:100%;background:var(--primary);border-radius:3px;transition:width .4s ease;}
+.sidebar-user{padding:16px 20px;border-top:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;gap:10px;}
+.user-avatar{width:36px;height:36px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:.9rem;font-weight:700;flex-shrink:0;}
+.logout-btn{background:none;border:0;color:#9aa4b2;font-size:.72rem;cursor:pointer;margin-top:2px;}
+.logout-btn:hover{color:#fff;}
+.user-info{flex:1;min-width:0;}
+.user-name{font-size:.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.user-role{font-size:.7rem;color:var(--g400);}
+
+/* MAIN */
+.main{flex:1;margin-left:260px;display:flex;flex-direction:column;min-height:100vh;width:calc(100% - 260px);}
+
+/* TOPBAR */
+.topbar{background:var(--white);padding:0 32px;height:64px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--g200);position:sticky;top:0;z-index:50;gap:12px;}
+.topbar-left{display:flex;align-items:center;gap:12px;}
+.mobile-menu-btn{display:none;background:var(--g100);border:1px solid var(--g200);border-radius:8px;padding:6px 10px;font-size:1.1rem;cursor:pointer;}
+.breadcrumb{font-size:.9rem;color:var(--g500);}
+.breadcrumb strong{color:var(--dark);font-weight:700;}
+.topbar-right{display:flex;align-items:center;gap:16px;}
+.search-box{background:var(--g100);border:1px solid var(--g200);border-radius:8px;padding:8px 14px;font-size:.85rem;width:230px;outline:none;transition:var(--tr);}
+.search-box:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(26,115,232,0.1);}
+.ticket-pill{background:var(--primary-light);color:var(--primary);font-size:.78rem;font-weight:700;padding:6px 12px;border-radius:50px;white-space:nowrap;}
+.notif-btn{position:relative;background:none;border:none;font-size:1.3rem;cursor:pointer;padding:4px;}
+.notif-badge{position:absolute;top:-2px;right:-4px;width:16px;height:16px;background:var(--danger);border-radius:50%;font-size:.6rem;color:white;display:flex;align-items:center;justify-content:center;font-weight:700;}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--g900);color:white;padding:12px 20px;border-radius:10px;font-size:.88rem;font-weight:500;box-shadow:var(--shadow-lg);z-index:2000;opacity:0;transform:translateY(16px);pointer-events:none;transition:var(--tr);display:flex;align-items:center;gap:8px;}
+.toast.show{opacity:1;transform:translateY(0);}
+
+/* CONTENT */
+.content{padding:32px;flex:1;}
+.page{display:none;}
+.page.active{display:block;animation:fadeIn .25s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+/* DASHBOARD */
+.welcome{font-size:1.5rem;font-weight:800;margin-bottom:4px;}
+.welcome-sub{color:var(--g500);font-size:.9rem;margin-bottom:28px;}
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-bottom:32px;}
+.stat-card{background:var(--white);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);border:1px solid var(--g200);transition:var(--tr);}
+.stat-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px);}
+.stat-card-top{display:flex;justify-content:space-between;align-items:start;margin-bottom:12px;}
+.stat-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;}
+.stat-trend{font-size:.75rem;font-weight:600;padding:3px 8px;border-radius:50px;}
+.stat-trend.up{background:#d1fae5;color:#059669;}
+.stat-trend.warn{background:#fef3c7;color:#d97706;}
+.stat-value{font-size:2rem;font-weight:800;color:var(--dark);margin-bottom:4px;}
+.stat-label{font-size:.8rem;color:var(--g500);}
+
+.section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+.section-title{font-size:1.1rem;font-weight:700;}
+.quick-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px;}
+.quick-btn{padding:16px;background:var(--white);border:1px solid var(--g200);border-radius:var(--radius);display:flex;align-items:center;gap:12px;cursor:pointer;transition:var(--tr);font-size:.9rem;font-weight:600;color:var(--dark);text-align:left;}
+.quick-btn:hover{border-color:var(--primary);box-shadow:var(--shadow-md);transform:translateY(-2px);}
+.quick-btn .qicon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;}
+
+.activity-list{background:var(--white);border-radius:var(--radius);border:1px solid var(--g200);overflow:hidden;}
+.activity-item{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--g100);transition:var(--tr);}
+.activity-item:last-child{border:none;}
+.activity-item:hover{background:var(--g50);}
+.activity-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.activity-dot.green{background:var(--success);}
+.activity-dot.blue{background:var(--primary);}
+.activity-dot.yellow{background:var(--warning);}
+.activity-text{flex:1;font-size:.85rem;color:var(--g700);}
+.activity-time{font-size:.75rem;color:var(--g400);white-space:nowrap;}
+
+/* BUTTONS */
+.btn{padding:10px 20px;border-radius:8px;font-size:.88rem;font-weight:600;cursor:pointer;transition:var(--tr);border:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;}
+.btn-p{background:var(--primary);color:white;border-radius:4px;}
+.btn-p:hover{box-shadow:0 4px 15px rgba(26,115,232,0.35);transform:translateY(-1px);}
+.btn-s{background:var(--g100);color:var(--g700);border:1px solid var(--g200);}
+.btn-s:hover{background:var(--g200);}
+.btn-ok{background:var(--success);color:white;}
+.btn-lg{padding:13px 32px;font-size:.98rem;border-radius:10px;}
+
+/* UPLOAD PAGE */
+.upload-area{background:var(--white);border-radius:var(--radius);padding:32px;border:1px solid var(--g200);margin-bottom:24px;}
+.drop-zone{border:2px dashed var(--g300);border-radius:16px;padding:44px 24px;text-align:center;transition:var(--tr);cursor:pointer;background:var(--g50);}
+.drop-zone:hover,.drop-zone.dragover{border-color:var(--primary);background:var(--primary-light);}
+.drop-zone .dz-icon{font-size:2.8rem;margin-bottom:12px;}
+.drop-zone h3{font-size:1.1rem;font-weight:700;margin-bottom:6px;}
+.drop-zone p{color:var(--g500);font-size:.88rem;margin-bottom:14px;}
+.format-tags{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;}
+.format-tag{background:var(--g100);border:1px solid var(--g200);padding:4px 12px;border-radius:6px;font-size:.78rem;color:var(--g700);}
+.sample-bar{margin-top:18px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;align-items:center;}
+
+.recognition-area{display:none;background:var(--white);border-radius:var(--radius);padding:28px;border:1px solid var(--g200);}
+.recog-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
+.recog-status{font-size:1rem;font-weight:700;}
+.progress-bar{width:100%;height:6px;background:var(--g200);border-radius:3px;margin-bottom:24px;overflow:hidden;}
+.progress-fill{height:100%;background:var(--primary);border-radius:3px;width:0;transition:width 1s ease;}
+.fields-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.field-card{background:var(--g50);border:1px solid var(--g200);border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;opacity:0;transform:translateY(8px);transition:all .35s ease;}
+.field-card.show{opacity:1;transform:translateY(0);}
+.field-card .f-body{flex:1;min-width:0;}
+.field-card .fl{font-size:.76rem;color:var(--g500);margin-bottom:4px;}
+.field-card .f-input{width:100%;border:1px solid transparent;background:transparent;font-size:.9rem;font-weight:600;color:var(--dark);padding:3px 6px;border-radius:6px;transition:var(--tr);}
+.field-card .f-input:focus,.field-card .f-input.editing{background:white;border-color:var(--primary);outline:none;}
+.field-card .f-right{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.conf-badge{background:#d1fae5;color:#059669;padding:2px 8px;border-radius:50px;font-size:.7rem;font-weight:700;}
+.field-actions{margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;}
+
+/* GENERATE PAGE */
+.source-summary{background:var(--white);border-radius:var(--radius);padding:24px;border:1px solid var(--g200);margin-bottom:24px;}
+.source-summary h3{font-size:1rem;font-weight:700;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.summary-fields{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.sf{font-size:.82rem;background:var(--g50);padding:10px 12px;border-radius:8px;border:1px solid var(--g100);}
+.sf .sl{color:var(--g500);font-size:.74rem;margin-bottom:2px;}
+.sf .sv{font-weight:600;color:var(--dark);word-break:break-word;}
+.doc-selector{background:var(--white);border-radius:var(--radius);padding:24px;border:1px solid var(--g200);margin-bottom:24px;}
+.doc-selector h3{font-size:1rem;font-weight:700;margin-bottom:16px;}
+.doc-checks{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+.doc-check{display:flex;align-items:center;gap:10px;padding:14px 16px;background:var(--g50);border:1px solid var(--g200);border-radius:10px;cursor:pointer;transition:var(--tr);}
+.doc-check:hover{border-color:var(--primary);}
+.doc-check input{accent-color:var(--primary);width:18px;height:18px;cursor:pointer;}
+.doc-check label{font-size:.9rem;font-weight:500;cursor:pointer;flex:1;}
+.gen-results{display:none;}
+.gen-cards{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+.gen-card{background:var(--white);border:1px solid var(--g200);border-radius:var(--radius);padding:22px;transition:var(--tr);opacity:0;transform:scale(.96);}
+.gen-card.show{opacity:1;transform:scale(1);}
+.gen-card:hover{box-shadow:var(--shadow-lg);}
+.gen-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.gen-card-title{font-size:1rem;font-weight:700;display:flex;align-items:center;gap:8px;}
+.gen-badge{padding:3px 10px;border-radius:50px;font-size:.72rem;font-weight:600;}
+.gen-badge.done{background:#d1fae5;color:#059669;}
+.gen-badge.loading{background:#fef3c7;color:#d97706;}
+.gen-fields{margin-bottom:16px;}
+.gen-field{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--g100);font-size:.8rem;}
+.gen-field .gfl{color:var(--g500);flex-shrink:0;}
+.gen-field .gfv{font-weight:600;color:var(--dark);text-align:right;word-break:break-word;}
+.gen-actions{display:flex;gap:8px;}
+.gen-actions .btn{padding:7px 14px;font-size:.8rem;}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.55);z-index:1000;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--white);border-radius:16px;width:100%;max-width:840px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);}
+.modal-header{padding:18px 24px;border-bottom:1px solid var(--g200);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:white;z-index:10;}
+.modal-header h3{font-size:1.05rem;font-weight:700;}
+.modal-close{background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--g500);padding:4px 8px;}
+.modal-body{padding:24px;}
+.bl-doc{border:2px solid var(--g300);border-radius:8px;padding:28px;font-family:"Courier New",monospace;font-size:.8rem;background:var(--g50);}
+.bl-title{text-align:center;font-size:1.2rem;font-weight:800;margin-bottom:4px;letter-spacing:2px;font-family:sans-serif;}
+.bl-subtitle{text-align:center;font-size:.8rem;color:var(--g500);margin-bottom:20px;font-family:sans-serif;}
+.bl-row{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--g300);margin-bottom:-1px;}
+.bl-cell{padding:10px 12px;border-right:1px solid var(--g300);}
+.bl-cell:last-child{border-right:none;}
+.bl-cell .bl-label{font-size:.65rem;color:var(--g500);text-transform:uppercase;margin-bottom:4px;font-family:sans-serif;}
+.bl-cell .bl-value{font-weight:700;font-size:.84rem;word-break:break-word;}
+.bl-table{width:100%;border-collapse:collapse;margin-top:16px;font-size:.8rem;}
+.bl-table th,.bl-table td{border:1px solid var(--g300);padding:8px 10px;text-align:left;}
+.bl-table th{background:var(--g100);font-weight:600;font-size:.7rem;text-transform:uppercase;}
+
+/* CHECK PAGE */
+.check-selector{background:var(--white);border-radius:var(--radius);padding:24px;border:1px solid var(--g200);margin-bottom:24px;}
+.check-docs{display:flex;gap:12px;margin:16px 0;flex-wrap:wrap;}
+.check-doc{padding:10px 18px;background:var(--g50);border:2px solid var(--g200);border-radius:10px;cursor:pointer;transition:var(--tr);font-size:.85rem;font-weight:600;user-select:none;}
+.check-doc.selected{border-color:var(--primary);background:var(--primary-light);color:var(--primary);}
+.check-mode{display:flex;gap:16px;align-items:center;margin:12px 0 18px;flex-wrap:wrap;font-size:.85rem;}
+.check-process{display:none;background:var(--white);border-radius:var(--radius);padding:24px;border:1px solid var(--g200);margin-bottom:24px;}
+.check-step{padding:8px 0;font-size:.9rem;color:var(--g500);display:flex;align-items:center;gap:8px;opacity:.5;}
+.check-step.active{color:var(--primary);font-weight:600;opacity:1;}
+.check-step.done{color:var(--success);opacity:1;}
+.check-results{display:none;background:var(--white);border-radius:var(--radius);border:1px solid var(--g200);overflow:hidden;}
+.result-header{padding:20px 24px;border-bottom:1px solid var(--g200);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
+.result-badge{padding:6px 16px;border-radius:8px;font-size:.85rem;font-weight:600;}
+.result-badge.warn{background:#fef3c7;color:#92400e;border:1px solid #fcd34d;}
+.result-badge.ok{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;}
+.table-wrap{overflow-x:auto;}
+.check-table{width:100%;border-collapse:collapse;}
+.check-table th,.check-table td{padding:12px 16px;text-align:left;border-bottom:1px solid var(--g100);font-size:.84rem;}
+.check-table th{background:var(--g50);font-weight:600;color:var(--g500);font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;}
+.check-table tr:hover{background:var(--g50);}
+.check-table tr.warn-row{background:#fffbeb;}
+.check-table tr.error-row{background:#fef2f2;}
+.check-table .status{font-weight:700;white-space:nowrap;}
+.check-table .status.ok{color:var(--success);}
+.check-table .status.warn{color:var(--warning);}
+.check-table .status.err{color:var(--danger);}
+.issue-panel{background:#fffbeb;border:1px solid #fcd34d;border-radius:var(--radius);padding:16px 20px;margin:16px 24px;font-size:.85rem;}
+.issue-panel.error{background:#fef2f2;border-color:#fca5a5;}
+.issue-panel h4{font-size:.9rem;font-weight:700;margin-bottom:6px;color:#92400e;}
+.issue-panel.error h4{color:#991b1b;}
+.issue-panel p{color:#78350f;margin-bottom:10px;}
+.issue-panel.error p{color:#7f1d1d;}
+.result-summary{padding:16px 24px;border-top:1px solid var(--g200);display:flex;justify-content:space-between;align-items:center;background:var(--g50);flex-wrap:wrap;gap:12px;}
+.summary-text{font-size:.85rem;color:var(--g700);}
+
+/* ARCHIVE */
+.archive-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px;}
+.filter-pills{display:flex;gap:8px;flex-wrap:wrap;}
+.filter-pill{padding:6px 14px;border-radius:50px;border:1px solid var(--g200);background:white;font-size:.8rem;cursor:pointer;font-weight:600;color:var(--g700);}
+.filter-pill.active{background:var(--primary);color:white;border-color:var(--primary);}
+.archive-table{background:var(--white);border-radius:var(--radius);border:1px solid var(--g200);overflow:hidden;}
+.archive-table table{width:100%;border-collapse:collapse;}
+.archive-table th,.archive-table td{padding:12px 16px;text-align:left;border-bottom:1px solid var(--g100);font-size:.84rem;}
+.archive-table th{background:var(--g50);font-weight:600;color:var(--g500);font-size:.75rem;text-transform:uppercase;}
+.archive-table tr:hover td{background:var(--g50);}
+.status-badge{padding:3px 10px;border-radius:50px;font-size:.72rem;font-weight:600;white-space:nowrap;}
+.status-badge.pass{background:#d1fae5;color:#059669;}
+.status-badge.pending{background:#fef3c7;color:#d97706;}
+.status-badge.fail{background:#fee2e2;color:#ef4444;}
+.action-btns{display:flex;gap:6px;}
+.action-btn{padding:4px 10px;border-radius:6px;font-size:.75rem;border:1px solid var(--g200);background:var(--white);cursor:pointer;transition:var(--tr);font-weight:500;}
+.action-btn:hover{border-color:var(--primary);color:var(--primary);}
+
+/* SETTINGS GRID */
+.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.settings-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--g200);padding:24px;}
+.settings-card h3{font-size:1rem;font-weight:700;margin-bottom:16px;}
+.rule-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--g100);font-size:.85rem;}
+.rule-item:last-child{border:none;}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:translateX(0);}
+  .main{margin-left:0;width:100%;}
+  .mobile-menu-btn{display:inline-flex;}
+  .stat-row,.doc-checks,.gen-cards,.fields-grid,.summary-fields,.quick-actions,.settings-grid{grid-template-columns:1fr;}
+  .search-box{width:140px;}
+}
+</style>
+</head>
+<body>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <a href="index.html">
+      <div class="logo-icon">智</div>
+      <span class="logo-text">智单通</span>
+    </a>
+  </div>
+  <nav class="sidebar-menu">
+    <div class="menu-label">核心作业</div>
+    <button class="menu-item active" data-tab="dashboard" onclick="switchTab('dashboard',this)">
+      <span class="icon">📊</span>工作台
+    </button>
+    <button class="menu-item" data-tab="upload" onclick="switchTab('upload',this)">
+      <span class="icon">📤</span>单据上传与提取
+    </button>
+    <button class="menu-item" data-tab="generate" onclick="switchTab('generate',this)">
+      <span class="icon">📋</span>同源单证生成
+    </button>
+    <button class="menu-item" data-tab="check" onclick="switchTab('check',this)">
+      <span class="icon">✅</span>一致性智能校验
+    </button>
+    <div class="menu-label">档案与规则</div>
+    <button class="menu-item" data-tab="archive" onclick="switchTab('archive',this)">
+      <span class="icon">📁</span>货物档案管理
+    </button>
+    <button class="menu-item" data-tab="settings" onclick="switchTab('settings',this)">
+      <span class="icon">⚙️</span>套餐与规则库
+    </button>
+  </nav>
+  <div class="sidebar-quota">
+    <div style="display:flex;justify-content:space-between;"><span>本月套餐额度</span><strong id="quotaText">128 / 500 票</strong></div>
+    <div class="quota-bar"><div class="quota-fill" id="quotaFill" style="width:25.6%"></div></div>
+    <div>按次弹性余量：<strong id="payPerCount">15</strong> 票</div>
+  </div>
+  <div class="sidebar-user">
+    <div class="user-avatar" id="userAvatar">D</div>
+    <div class="user-info">
+      <div class="user-name" id="userName">Demo 单证专员</div>
+      <div class="user-role" id="userRole">专业会员版 · 在线</div>
+      <button class="logout-btn" onclick="SmartAuth.logout()">退出登录</button>
+    </div>
+  </div>
+</aside>
+
+<div class="main">
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="mobile-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+      <div class="breadcrumb">智单通 / <strong id="pageName">工作台</strong></div>
+    </div>
+    <div class="topbar-right">
+      <span class="ticket-pill" id="activeTicketPill">当前档案: SH2024081501</span>
+      <input class="search-box" id="globalSearch" placeholder="搜索票号、发货人、柜号..." oninput="handleGlobalSearch(this.value)">
+      <button class="notif-btn" onclick="showToast('🔔 海关规则库已同步最新 ISF 10+2 及 AMS 24小时舱单校验规则')">🔔<span class="notif-badge">3</span></button>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- ========== DASHBOARD ========== -->
+    <div class="page active" id="page-dashboard">
+      <div class="welcome" id="welcomeTitle">欢迎回来</div>
+      <div class="welcome-sub" id="currentDate"></div>
+
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="stat-card-top"><div class="stat-icon" style="background:#dbeafe;">📦</div><span class="stat-trend up">↑ 12%</span></div>
+          <div class="stat-value" id="statProcessed">128</div>
+          <div class="stat-label">本月处理票数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top"><div class="stat-icon" style="background:#fef3c7;">📋</div><span class="stat-trend warn">待校验</span></div>
+          <div class="stat-value" id="statPending">2</div>
+          <div class="stat-label">待校验 / 异常单据</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top"><div class="stat-icon" style="background:#d1fae5;">✅</div><span class="stat-trend up">↑ 2.3%</span></div>
+          <div class="stat-value">98.5%</div>
+          <div class="stat-label">三单一致性通过率</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-top"><div class="stat-icon" style="background:#ede9fe;">⏱️</div><span class="stat-trend up">↑ 80%</span></div>
+          <div class="stat-value">46h</div>
+          <div class="stat-label">本月节省人工工时</div>
+        </div>
+      </div>
+
+      <div class="section-header"><div class="section-title">核心功能快捷入口</div></div>
+      <div class="quick-actions">
+        <button class="quick-btn" onclick="switchTab('upload')">
+          <div class="qicon" style="background:#dbeafe;">📤</div>
+          <div><div>1. 上传杂乱单据</div><div style="font-size:.76rem;color:var(--g500);font-weight:400;">Excel / PDF / 扫描件识别</div></div>
+        </button>
+        <button class="quick-btn" onclick="switchTab('generate')">
+          <div class="qicon" style="background:#ede9fe;">📋</div>
+          <div><div>2. 同源批量制单</div><div style="font-size:.76rem;color:var(--g500);font-weight:400;">一键生成提单/AMS/报关/ISF</div></div>
+        </button>
+        <button class="quick-btn" onclick="switchTab('check')">
+          <div class="qicon" style="background:#d1fae5;">✅</div>
+          <div><div>3. 一致性智能校验</div><div style="font-size:.76rem;color:var(--g500);font-weight:400;">三单交叉比对与一键修正</div></div>
+        </button>
+      </div>
+
+      <div class="section-header"><div class="section-title">最近作业动态</div></div>
+      <div class="activity-list" id="activityList"></div>
+    </div>
+
+    <!-- ========== UPLOAD ========== -->
+    <div class="page" id="page-upload">
+      <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:4px;">📤 多格式单据自动识别与提取</h2>
+      <p style="color:var(--g500);font-size:.9rem;margin-bottom:20px;">上传杂乱格式的商业发票、装箱单、托书（支持真实 CSV/TXT/JSON 解析与 PDF/图片智能识别模拟）</p>
+
+      <div class="upload-area">
+        <input type="file" id="fileInput" accept=".csv,.txt,.json,.xlsx,.xls,.pdf,.png,.jpg,.jpeg,.webp" hidden>
+        <div class="drop-zone" id="dropZone">
+          <div class="dz-icon">📁</div>
+          <h3>拖拽文件到此处，或点击选择本地文件</h3>
+          <p>支持直接上传 .csv / .txt / .json 进行实时字段解析，也支持 PDF / Excel / 扫描件 / 手机截图</p>
+          <div class="format-tags">
+            <span class="format-tag">📊 Excel / CSV</span>
+            <span class="format-tag">📄 电子 PDF</span>
+            <span class="format-tag">🖼️ 扫描件</span>
+            <span class="format-tag">📱 手机截图</span>
+          </div>
+        </div>
+        <div class="sample-bar">
+          <span style="font-size:.82rem;color:var(--g500);">没有现成文件？一键体验示例单据：</span>
+          <button class="btn btn-s" onclick="loadSampleDoc('laptop')">📄 示例1：深圳电子笔记本发票 (PDF)</button>
+          <button class="btn btn-s" onclick="loadSampleDoc('furniture')">📊 示例2：佛山家具出口托书 (Excel)</button>
+        </div>
+      </div>
+
+      <div class="recognition-area" id="recogArea">
+        <div class="recog-header">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:1.4rem;" id="recogIcon">⏳</span>
+            <span class="recog-status" id="recogStatus">AI正在识别文档...</span>
+          </div>
+          <span style="font-size:.82rem;color:var(--g500);" id="recogFileMeta"></span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+          <h3 style="font-size:1rem;font-weight:700;">📋 标准化货物档案字段（可直接点击字段值编辑修正）</h3>
+          <span style="font-size:.78rem;color:var(--primary);">支持实时修改后同步到后续制单与校验</span>
+        </div>
+        <div class="fields-grid" id="fieldsGrid"></div>
+        <div class="field-actions">
+          <button class="btn btn-p" onclick="confirmExtracted()">✅ 确认建档并去批量生成单证 →</button>
+          <button class="btn btn-s" onclick="saveOnlyArchive()">💾 仅保存至货物档案</button>
+          <button class="btn btn-s" onclick="resetUpload()">🔄 重新上传识别</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== GENERATE ========== -->
+    <div class="page" id="page-generate">
+      <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:4px;">📋 单证同源数据批量生成</h2>
+      <p style="color:var(--g500);font-size:.9rem;margin-bottom:20px;">依托统一标准货物档案，同源输出四大核心单证，彻底消除重复录入导致的错漏</p>
+
+      <div class="source-summary">
+        <h3>
+          <span>📦 当前标准货物档案 — 票号 <span id="genTicketNo"></span></span>
+          <button class="btn btn-s" style="padding:6px 12px;font-size:.78rem;" onclick="switchTab('upload')">✏️ 修改源字段</button>
+        </h3>
+        <div class="summary-fields" id="genSummaryFields"></div>
+      </div>
+
+      <div class="doc-selector">
+        <h3>📑 选择要同源生成的单证</h3>
+        <div class="doc-checks">
+          <div class="doc-check"><input type="checkbox" checked id="chk-bl"><label for="chk-bl">🚢 海运提单草稿 (Ocean Bill of Lading)</label></div>
+          <div class="doc-check"><input type="checkbox" checked id="chk-ams"><label for="chk-ams">📋 AMS 舱单 (US 24-Hour Manifest)</label></div>
+          <div class="doc-check"><input type="checkbox" checked id="chk-export"><label for="chk-export">📑 出口报关单 (Export Customs Declaration)</label></div>
+          <div class="doc-check"><input type="checkbox" checked id="chk-isf"><label for="chk-isf">📝 ISF 申报表 (Importer Security Filing 10+2)</label></div>
+        </div>
+        <div style="margin-top:20px;text-align:center;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+          <button class="btn btn-p btn-lg" onclick="generateDocs()">🚀 一键同源生成选中单证</button>
+        </div>
+      </div>
+
+      <div class="gen-results" id="genResults">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+          <h3 style="font-size:1rem;font-weight:700;">📄 同源单证生成结果</h3>
+          <button class="btn btn-ok" onclick="switchTab('check')">下一步：去执行一致性智能校验 →</button>
+        </div>
+        <div class="gen-cards" id="genCards"></div>
+      </div>
+    </div>
+
+    <!-- ========== CHECK ========== -->
+    <div class="page" id="page-check">
+      <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:4px;">✅ 多套单证一致性智能校验</h2>
+      <p style="color:var(--g500);font-size:.9rem;margin-bottom:20px;">自动比对提单、AMS、ISF及报关单公共字段，结合海关必填项规则在装船前完成合规筛查</p>
+
+      <div class="check-selector">
+        <h3 style="font-size:1rem;font-weight:700;margin-bottom:4px;">选择参与校验的单证集合</h3>
+        <div class="check-docs" id="checkDocSelector">
+          <div class="check-doc selected" data-doc="bl" onclick="this.classList.toggle('selected')">🚢 海运提单 (B/L)</div>
+          <div class="check-doc selected" data-doc="ams" onclick="this.classList.toggle('selected')">📋 AMS舱单</div>
+          <div class="check-doc selected" data-doc="isf" onclick="this.classList.toggle('selected')">📝 ISF申报表</div>
+          <div class="check-doc" data-doc="export" onclick="this.classList.toggle('selected')">📑 出口报关单</div>
+        </div>
+        <div class="check-mode">
+          <span style="color:var(--g500);font-weight:600;">校验数据模式：</span>
+          <label style="cursor:pointer;"><input type="radio" name="checkMode" value="simulate_error" checked> 模拟人工录入异常（演示发现错漏与一键修正）</label>
+          <label style="cursor:pointer;"><input type="radio" name="checkMode" value="clean_source"> 校验当前同源生成单证（100%一致性验证）</label>
+        </div>
+        <button class="btn btn-p btn-lg" onclick="startCheck()">🔍 开始智能校验</button>
+      </div>
+
+      <div class="check-process" id="checkProcess">
+        <h3 style="font-size:1rem;font-weight:700;margin-bottom:16px;">智能校验引擎运行中...</h3>
+        <div class="progress-bar"><div class="progress-fill" id="checkProgress"></div></div>
+        <div class="check-step" id="cs1"><span>⏳</span> 正在比对提单(B/L)与AMS舱单公共字段...</div>
+        <div class="check-step" id="cs2"><span>⏳</span> 正在比对AMS舱单与ISF 10+2申报表...</div>
+        <div class="check-step" id="cs3"><span>⏳</span> 正在核查海关必填项及柜号/HS编码格式规范...</div>
+        <div class="check-step" id="cs4"><span>⏳</span> 正在生成合规风险与修正建议报告...</div>
+      </div>
+
+      <div class="check-results" id="checkResults">
+        <div class="result-header">
+          <h3 style="font-size:1rem;font-weight:700;">📊 多套单证交叉校验结果 — <span id="checkTicketLabel"></span></h3>
+          <span class="result-badge warn" id="resultBadge"></span>
+        </div>
+        <div class="table-wrap">
+          <table class="check-table" id="checkTable"></table>
+        </div>
+        <div id="issuesContainer"></div>
+        <div class="result-summary">
+          <div class="summary-text" id="summaryText"></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-s" onclick="exportCheckReport()">📥 导出校验报告 (.html)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== ARCHIVE ========== -->
+    <div class="page" id="page-archive">
+      <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:4px;">📁 货物单证档案管理</h2>
+      <p style="color:var(--g500);font-size:.9rem;margin-bottom:20px;">集中管理所有标准化货物档案，点击“载入工作台”可直接生成单证或重新校验</p>
+      <div class="archive-toolbar">
+        <div class="filter-pills">
+          <button class="filter-pill active" onclick="filterArchive('all',this)">全部</button>
+          <button class="filter-pill" onclick="filterArchive('已校验',this)">已校验</button>
+          <button class="filter-pill" onclick="filterArchive('待校验',this)">待校验</button>
+          <button class="filter-pill" onclick="filterArchive('有异常',this)">有异常</button>
+        </div>
+        <button class="btn btn-p" onclick="switchTab('upload')">+ 新建单据识别</button>
+      </div>
+      <div class="archive-table">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>票号</th><th>创建时间</th><th>发货人</th><th>柜号</th><th>目的港</th><th>单证数</th><th>校验状态</th><th>操作</th></tr></thead>
+            <tbody id="archiveTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== SETTINGS ========== -->
+    <div class="page" id="page-settings">
+      <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:4px;">⚙️ 商业套餐、规则库与用户共创反馈</h2>
+      <p style="color:var(--g500);font-size:.9rem;margin-bottom:20px;">对应商业模式：基础免费 + 会员订阅 + 旺季按次计费 + 海关规则库同步 + 操作员反馈闭环</p>
+      <div class="settings-grid">
+        <div class="settings-card">
+          <h3>💳 账户与按次计费管理</h3>
+          <div style="display:grid;grid-template-columns:110px 1fr;gap:12px;font-size:.88rem;margin-bottom:20px;">
+            <span style="color:var(--g500);">企业名称</span><span style="font-weight:600;" id="settingsCompany">Demo 国际货代有限公司</span>
+            <span style="color:var(--g500);">当前套餐</span><span style="font-weight:600;" id="settingsPlan">专业会员版（¥299/月）</span>
+            <span style="color:var(--g500);">月度额度</span><span style="font-weight:600;" id="settingsQuota">128 / 500 票</span>
+            <span style="color:var(--g500);">按次余量</span><span style="font-weight:600;" id="settingsPayPer">15 票（永不过期）</span>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-p" onclick="buyPack(20)">+ 加购 20 票旺季按次包</button>
+            <button class="btn btn-s" onclick="buyPack(50)">+ 加购 50 票旺季按次包</button>
+          </div>
+        </div>
+        <div class="settings-card">
+          <h3>🛡️ 海关与船司合规规则库（实时更新）</h3>
+          <div class="rule-item"><span>🇺🇸 美国海关 AMS 24小时舱单必填校验</span><span class="status-badge pass">已启用 v2026.11</span></div>
+          <div class="rule-item"><span>🇺🇸 美国海关 ISF 10+2 装船前申报核验</span><span class="status-badge pass">已启用 v2026.11</span></div>
+          <div class="rule-item"><span>🇨🇳 中国出口报关单 HS 编码 10 位格式校验</span><span class="status-badge pass">已启用 v2026.10</span></div>
+          <div class="rule-item"><span>🚢 ISO 6346 集装箱柜号（4字母+7数字）校验</span><span class="status-badge pass">已启用 v2026.09</span></div>
+        </div>
+        <div class="settings-card" style="grid-column:1 / -1;">
+          <h3>💬 一线单证操作员反馈（AI识别盲区与规则建议）</h3>
+          <p style="font-size:.84rem;color:var(--g500);margin-bottom:12px;">遇到特殊船司格式或识别盲区？提交反馈后，平台规则库与模型将持续迭代优化。</p>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;">
+            <input id="feedbackInput" class="search-box" style="flex:1;min-width:240px;background:white;" placeholder="例如：希望增加 MSC 船司新版托书模板的自动识别...">
+            <button class="btn btn-p" onclick="submitFeedback()">提交反馈</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- DOCUMENT PREVIEW MODAL -->
+<div class="modal-overlay" id="docModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">单证预览</h3>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-s" style="padding:6px 12px;font-size:.8rem;" onclick="downloadCurrentModalDoc()">⬇️ 下载该单证</button>
+        <button class="modal-close" onclick="closeDocModal()">✕</button>
+      </div>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="js/auth.js"></script>
+<script>
+SmartAuth.require();
+const AUTH_USER = SmartAuth.current() || { name: 'Demo 单证专员', company: 'Demo 国际货代有限公司', plan: '专业会员版', email: 'demo@smartdoc.com' };
+const DEFAULT_SHIPMENT = {
+  ticketNo: 'SH2024081501',
+  shipper: 'SHENZHEN ELECTRONICS CO., LTD',
+  consignee: 'AMERICAN IMPORT LLC',
+  notifyParty: 'SAME AS CONSIGNEE',
+  containerNo: 'MSKU1234567',
+  sealNo: 'SH20240815',
+  hsCode: '8471.30.0100',
+  description: 'LAPTOP COMPUTERS',
+  packages: '500 CTNS',
+  grossWeight: '8,500 KGS',
+  volume: '45.6 CBM',
+  pol: 'SHANGHAI, CHINA',
+  pod: 'LOS ANGELES, USA'
+};
+
+const FIELD_META = [
+  { key: 'shipper', label: '发货人 / Shipper', conf: '99%' },
+  { key: 'consignee', label: '收货人 / Consignee', conf: '98%' },
+  { key: 'notifyParty', label: '通知方 / Notify Party', conf: '97%' },
+  { key: 'containerNo', label: '柜号 / Container No.', conf: '100%' },
+  { key: 'sealNo', label: '封号 / Seal No.', conf: '99%' },
+  { key: 'hsCode', label: 'HS编码 / HS Code', conf: '98%' },
+  { key: 'description', label: '品名 / Description', conf: '96%' },
+  { key: 'packages', label: '件数 / Packages', conf: '99%' },
+  { key: 'grossWeight', label: '毛重 / Gross Weight', conf: '98%' },
+  { key: 'volume', label: '体积 / Volume', conf: '97%' },
+  { key: 'pol', label: '起运港 / POL', conf: '100%' },
+  { key: 'pod', label: '目的港 / POD', conf: '100%' }
+];
+
+const INITIAL_ARCHIVE = [
+  { ...DEFAULT_SHIPMENT, createdAt: '2026-11-25 09:30', docCount: 4, status: '已校验' },
+  { ticketNo: 'SH2026112502', createdAt: '2026-11-25 10:15', shipper: 'GUANGZHOU TEXTILE LTD', consignee: 'EAST COAST APPAREL INC', notifyParty: 'SAME AS CONSIGNEE', containerNo: 'COSU8842109', sealNo: 'GZ261102', hsCode: '6204.62.0000', description: 'COTTON TROUSERS', packages: '320 CTNS', grossWeight: '6,200 KGS', volume: '34.2 CBM', pol: 'NANSHA, CHINA', pod: 'NEW YORK, USA', docCount: 3, status: '待校验' },
+  { ticketNo: 'SH2026112503', createdAt: '2026-11-25 11:00', shipper: 'NINGBO MACHINERY CO., LTD', consignee: 'EURO TECH GMBH', notifyParty: 'EURO TECH GMBH', containerNo: 'MAEU9912034', sealNo: 'NB261103', hsCode: '8483.40.9000', description: 'INDUSTRIAL GEARBOXES', packages: '45 PLTS', grossWeight: '14,800 KGS', volume: '28.0 CBM', pol: 'NINGBO, CHINA', pod: 'HAMBURG, GERMANY', docCount: 4, status: '有异常' },
+  { ticketNo: 'SH2026112499', createdAt: '2026-11-24 16:20', shipper: 'FOSHAN FURNITURE GROUP', consignee: 'PACIFIC HOME PTY LTD', notifyParty: 'SAME AS CONSIGNEE', containerNo: 'OOCL7731205', sealNo: 'FS261199', hsCode: '9403.60.9990', description: 'WOODEN DINING TABLES', packages: '180 CTNS', grossWeight: '9,400 KGS', volume: '58.5 CBM', pol: 'YANTIAN, CHINA', pod: 'MELBOURNE, AUSTRALIA', docCount: 4, status: '已校验' },
+  { ticketNo: 'SH2026112498', createdAt: '2026-11-24 14:45', shipper: 'XIAMEN CERAMICS CO., LTD', consignee: 'LONDON HOMEWARES LTD', notifyParty: 'SAME AS CONSIGNEE', containerNo: 'MSCU5512890', sealNo: 'XM261198', hsCode: '6912.00.1000', description: 'CERAMIC TABLEWARE', packages: '640 CTNS', grossWeight: '11,200 KGS', volume: '32.0 CBM', pol: 'XIAMEN, CHINA', pod: 'FELIXSTOWE, UK', docCount: 4, status: '已校验' }
+];
+
+let state = {
+  shipment: JSON.parse(localStorage.getItem('smartdoc_shipment') || 'null') || { ...DEFAULT_SHIPMENT },
+  archive: JSON.parse(localStorage.getItem('smartdoc_archive') || 'null') || INITIAL_ARCHIVE,
+  processedCount: parseInt(localStorage.getItem('smartdoc_processed') || '128', 10),
+  payPerCount: parseInt(localStorage.getItem('smartdoc_payper') || '15', 10),
+  activities: JSON.parse(localStorage.getItem('smartdoc_activities') || 'null') || [
+    { dot: 'green', text: '票号 SH2024081501 — 4套单证全部校验通过', time: '10分钟前' },
+    { dot: 'blue', text: '票号 SH2026112502 — 已生成海运提单、AMS舱单', time: '35分钟前' },
+    { dot: 'yellow', text: '票号 SH2026112503 — 校验发现2项不一致，待修正', time: '1小时前' },
+    { dot: 'green', text: '系统规则库已更新：美国海关 ISF 10+2 申报核验规则', time: '2小时前' }
+  ],
+  archiveFilter: 'all',
+  searchQuery: '',
+  currentModalDocType: 'bl',
+  checkRows: []
+};
+
+function saveState() {
+  localStorage.setItem('smartdoc_shipment', JSON.stringify(state.shipment));
+  localStorage.setItem('smartdoc_archive', JSON.stringify(state.archive));
+  localStorage.setItem('smartdoc_processed', String(state.processedCount));
+  localStorage.setItem('smartdoc_payper', String(state.payPerCount));
+  localStorage.setItem('smartdoc_activities', JSON.stringify(state.activities.slice(0, 12)));
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+function addActivity(dot, text) {
+  state.activities.unshift({ dot, text, time: '刚刚' });
+  saveState();
+  renderDashboard();
+}
+
+document.getElementById('currentDate').textContent = new Date().toLocaleDateString('zh-CN', { year:'numeric', month:'long', day:'numeric', weekday:'long' }) + ' · ' + AUTH_USER.company;
+document.getElementById('welcomeTitle').textContent = '欢迎回来，' + AUTH_USER.name;
+document.getElementById('userName').textContent = AUTH_USER.name;
+document.getElementById('userRole').textContent = (AUTH_USER.plan || '专业会员版') + ' · 在线';
+document.getElementById('userAvatar').textContent = (AUTH_USER.name || 'D').slice(0,1).toUpperCase();
+document.getElementById('settingsCompany').textContent = AUTH_USER.company;
+document.getElementById('settingsPlan').textContent = AUTH_USER.plan || '专业会员版';
+
+function switchTab(tab, menuEl) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+  const pageEl = document.getElementById('page-' + tab);
+  if(!pageEl) return;
+  pageEl.classList.add('active');
+  const targetBtn = menuEl || document.querySelector(`.menu-item[data-tab="${tab}"]`);
+  if(targetBtn) targetBtn.classList.add('active');
+  const names = { dashboard:'工作台', upload:'单据上传与提取', generate:'同源单证生成', check:'一致性智能校验', archive:'货物档案管理', settings:'套餐与规则库' };
+  document.getElementById('pageName').textContent = names[tab] || tab;
+  document.getElementById('sidebar').classList.remove('open');
+  if(tab === 'generate') renderGenSummary();
+  if(tab === 'archive') renderArchive();
+  if(tab === 'dashboard') renderDashboard();
+}
+
+function renderDashboard() {
+  document.getElementById('activeTicketPill').textContent = '当前档案: ' + state.shipment.ticketNo;
+  document.getElementById('statProcessed').textContent = state.processedCount;
+  const pendingCount = state.archive.filter(a => a.status !== '已校验').length;
+  document.getElementById('statPending').textContent = pendingCount;
+  document.getElementById('quotaText').textContent = state.processedCount + ' / 500 票';
+  document.getElementById('quotaFill').style.width = Math.min(100, (state.processedCount / 500) * 100).toFixed(1) + '%';
+  document.getElementById('payPerCount').textContent = state.payPerCount;
+  document.getElementById('settingsQuota').textContent = state.processedCount + ' / 500 票';
+  document.getElementById('settingsPayPer').textContent = state.payPerCount + ' 票（永不过期）';
+
+  const list = document.getElementById('activityList');
+  list.innerHTML = state.activities.slice(0, 6).map(a =>
+    `<div class="activity-item"><div class="activity-dot ${a.dot}"></div><div class="activity-text">${escapeHtml(a.text)}</div><div class="activity-time">${escapeHtml(a.time)}</div></div>`
+  ).join('');
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ===== CORE FEATURE 1: UPLOAD & EXTRACTION =====
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const recogArea = document.getElementById('recogArea');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  if(e.dataTransfer.files && e.dataTransfer.files[0]) handleRealFile(e.dataTransfer.files[0]);
+});
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => {
+  if(e.target.files && e.target.files[0]) handleRealFile(e.target.files[0]);
+});
+
+function handleRealFile(file) {
+  const sizeStr = (file.size / 1024 > 1024) ? (file.size / 1048576).toFixed(2) + ' MB' : Math.max(1, Math.round(file.size / 1024)) + ' KB';
+  const ext = file.name.split('.').pop().toLowerCase();
+  if(['csv','txt','json'].includes(ext)) {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const parsed = parseTextDocument(ev.target.result, file.name);
+      runRecognitionUI(file.name, sizeStr, parsed, '实时文本/表格解析完成');
+    };
+    reader.readAsText(file);
+  } else {
+    const sample = { ...DEFAULT_SHIPMENT, ticketNo: 'SH' + new Date().toISOString().slice(2,10).replace(/-/g,'') + String(Math.floor(Math.random()*90+10)) };
+    runRecognitionUI(file.name, sizeStr, sample, 'AI OCR 智能识别完成');
+  }
+}
+
+function parseTextDocument(text, fileName) {
+  const base = { ...DEFAULT_SHIPMENT, ticketNo: 'SH' + new Date().toISOString().slice(2,10).replace(/-/g,'') + String(Math.floor(Math.random()*90+10)) };
+  try {
+    if(fileName.toLowerCase().endsWith('.json')) {
+      const obj = JSON.parse(text);
+      Object.keys(base).forEach(k => { if(obj[k]) base[k] = String(obj[k]); });
+      return base;
+    }
+  } catch(e) {}
+
+  const lines = text.split(/\r?\n/);
+  const map = [
+    [/shipper|发货人/i, 'shipper'],
+    [/consignee|收货人/i, 'consignee'],
+    [/notify|通知方/i, 'notifyParty'],
+    [/container|柜号/i, 'containerNo'],
+    [/seal|封号/i, 'sealNo'],
+    [/hs|编码/i, 'hsCode'],
+    [/description|goods|品名/i, 'description'],
+    [/package|qty|件数/i, 'packages'],
+    [/weight|毛重/i, 'grossWeight'],
+    [/volume|cbm|体积/i, 'volume'],
+    [/pol|起运港|loading/i, 'pol'],
+    [/pod|目的港|discharge/i, 'pod']
+  ];
+  lines.forEach(line => {
+    const parts = line.split(/[:：,;\t]/);
+    if(parts.length >= 2) {
+      const k = parts[0].trim();
+      const v = parts.slice(1).join(' ').trim();
+      if(v) {
+        map.forEach(([rx, key]) => { if(rx.test(k)) base[key] = v; });
+      }
+    }
+  });
+  const containerMatch = text.match(/\b[A-Z]{4}\d{7}\b/);
+  if(containerMatch) base.containerNo = containerMatch[0];
+  const hsMatch = text.match(/\b\d{4}\.\d{2}\.\d{2,4}\b/);
+  if(hsMatch) base.hsCode = hsMatch[0];
+  return base;
+}
+
+function loadSampleDoc(type) {
+  if(type === 'laptop') {
+    runRecognitionUI('Invoice_Shenzhen_Laptop_2026.pdf', '2.3 MB', { ...DEFAULT_SHIPMENT, ticketNo: 'SH2024081501' }, 'AI识别完成');
+  } else {
+    runRecognitionUI('Foshan_Furniture_Booking_2026.xlsx', '480 KB', {
+      ticketNo: 'SH2026112588',
+      shipper: 'FOSHAN FURNITURE GROUP CO., LTD',
+      consignee: 'PACIFIC HOME INTERIORS PTY LTD',
+      notifyParty: 'SAME AS CONSIGNEE',
+      containerNo: 'OOCL7731205',
+      sealNo: 'FS20261188',
+      hsCode: '9403.60.9990',
+      description: 'WOODEN DINING TABLES & CHAIRS',
+      packages: '180 CTNS',
+      grossWeight: '9,400 KGS',
+      volume: '58.5 CBM',
+      pol: 'YANTIAN, CHINA',
+      pod: 'MELBOURNE, AUSTRALIA'
+    }, 'Excel 表格解析完成');
+  }
+}
+
+function runRecognitionUI(fileName, sizeStr, data, doneLabel) {
+  state.shipment = { ...data };
+  saveState();
+  renderDashboard();
+
+  dropZone.innerHTML = `<div class="dz-icon">✅</div><h3>已接收文件：${escapeHtml(fileName)}</h3><p>大小 ${escapeHtml(sizeStr)} — 已创建标准化档案 ${escapeHtml(state.shipment.ticketNo)}</p>`;
+  dropZone.style.borderColor = 'var(--success)';
+  dropZone.style.background = '#f0fdf4';
+
+  recogArea.style.display = 'block';
+  const fill = document.getElementById('progressFill');
+  fill.style.width = '0';
+  document.getElementById('recogIcon').textContent = '⏳';
+  document.getElementById('recogStatus').textContent = 'AI 正在识别并提取关键字段...';
+  document.getElementById('recogFileMeta').textContent = fileName + ' · ' + sizeStr;
+
+  const grid = document.getElementById('fieldsGrid');
+  grid.innerHTML = FIELD_META.map((f, idx) => `
+    <div class="field-card" data-delay="${idx * 50}">
+      <div class="f-body">
+        <div class="fl">${f.label}</div>
+        <input class="f-input" value="${escapeHtml(state.shipment[f.key])}" data-key="${f.key}" oninput="updateShipmentField('${f.key}', this.value)">
+      </div>
+      <div class="f-right">
+        <span class="conf-badge">${f.conf}</span>
+      </div>
+    </div>
+  `).join('');
+
+  setTimeout(() => { fill.style.width = '100%'; }, 50);
+  setTimeout(() => {
+    document.getElementById('recogIcon').textContent = '✅';
+    document.getElementById('recogStatus').textContent = `${doneLabel} — 共提取 ${FIELD_META.length} 个标准字段`;
+    document.querySelectorAll('.field-card').forEach(card => {
+      setTimeout(() => card.classList.add('show'), parseInt(card.dataset.delay, 10));
+    });
+  }, 1000);
+}
+
+function updateShipmentField(key, val) {
+  state.shipment[key] = val;
+  saveState();
+}
+
+function upsertArchive(status) {
+  const idx = state.archive.findIndex(a => a.ticketNo === state.shipment.ticketNo);
+  const record = {
+    ...state.shipment,
+    createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+    docCount: 4,
+    status
+  };
+  if(idx >= 0) state.archive[idx] = record;
+  else {
+    state.archive.unshift(record);
+    state.processedCount += 1;
+  }
+  saveState();
+  renderDashboard();
+}
+
+function saveOnlyArchive() {
+  upsertArchive('待校验');
+  addActivity('blue', `档案 ${state.shipment.ticketNo} (${state.shipment.shipper}) 已保存至货物档案库`);
+  showToast('✅ 货物档案已保存');
+}
+
+function confirmExtracted() {
+  upsertArchive('待校验');
+  addActivity('green', `完成单据识别并建档：${state.shipment.ticketNo}，准备批量生成单证`);
+  showToast('✅ 档案已确认，正在前往同源单证生成');
+  switchTab('generate');
+}
+
+function resetUpload() {
+  recogArea.style.display = 'none';
+  fileInput.value = '';
+  dropZone.innerHTML = `<div class="dz-icon">📁</div><h3>拖拽文件到此处，或点击选择本地文件</h3><p>支持直接上传 .csv / .txt / .json 进行实时字段解析，也支持 PDF / Excel / 扫描件 / 手机截图</p><div class="format-tags"><span class="format-tag">📊 Excel / CSV</span><span class="format-tag">📄 电子 PDF</span><span class="format-tag">🖼️ 扫描件</span><span class="format-tag">📱 手机截图</span></div>`;
+  dropZone.style.borderColor = '';
+  dropZone.style.background = '';
+}
+
+// ===== CORE FEATURE 2: DOCUMENT GENERATION =====
+function renderGenSummary() {
+  const s = state.shipment;
+  document.getElementById('genTicketNo').textContent = s.ticketNo;
+  document.getElementById('genSummaryFields').innerHTML = [
+    ['发货人 Shipper', s.shipper],
+    ['收货人 Consignee', s.consignee],
+    ['品名 Description', s.description],
+    ['HS编码', s.hsCode],
+    ['柜号 / 封号', `${s.containerNo} / ${s.sealNo}`],
+    ['航线 POL → POD', `${s.pol} → ${s.pod}`],
+    ['件数 / 毛重', `${s.packages} / ${s.grossWeight}`],
+    ['体积 Volume', s.volume],
+    ['通知方 Notify Party', s.notifyParty]
+  ].map(([l, v]) => `<div class="sf"><div class="sl">${l}</div><div class="sv">${escapeHtml(v)}</div></div>`).join('');
+}
+
+function generateDocs() {
+  const selected = [];
+  if(document.getElementById('chk-bl').checked) selected.push('bl');
+  if(document.getElementById('chk-ams').checked) selected.push('ams');
+  if(document.getElementById('chk-export').checked) selected.push('export');
+  if(document.getElementById('chk-isf').checked) selected.push('isf');
+  if(selected.length === 0) {
+    showToast('⚠️ 请至少勾选一种要生成的单证');
+    return;
+  }
+
+  const s = state.shipment;
+  const defs = {
+    bl: { title: '🚢 海运提单草稿 (B/L)', fields: [['B/L No.', s.ticketNo.replace('SH','SHSE')], ['Shipper', s.shipper], ['POL → POD', `${s.pol} → ${s.pod}`], ['Container', `${s.containerNo} / ${s.packages}`]] },
+    ams: { title: '📋 AMS 舱单 (24h Manifest)', fields: [['AMS Ref', 'AMS' + s.ticketNo.slice(2)], ['Shipper', s.shipper], ['Goods', s.description], ['Weight', s.grossWeight]] },
+    export: { title: '📑 出口报关单', fields: [['报关单号', '3102' + s.ticketNo.slice(2)], ['HS编码', s.hsCode], ['数量/毛重', `${s.packages} / ${s.grossWeight}`], ['目的港', s.pod]] },
+    isf: { title: '📝 ISF 申报表 (10+2)', fields: [['ISF No.', 'ISF' + s.ticketNo.slice(2)], ['Importer', s.consignee], ['Manufacturer', s.shipper], ['Container', s.containerNo]] }
+  };
+
+  const results = document.getElementById('genResults');
+  const cards = document.getElementById('genCards');
+  results.style.display = 'block';
+  cards.innerHTML = selected.map(id => {
+    const d = defs[id];
+    return `
+      <div class="gen-card" id="gc-${id}">
+        <div class="gen-card-header">
+          <div class="gen-card-title">${d.title}</div>
+          <span class="gen-badge loading" id="gb-${id}">同源生成中...</span>
+        </div>
+        <div class="gen-fields">
+          ${d.fields.map(([k,v]) => `<div class="gen-field"><span class="gfl">${k}</span><span class="gfv">${escapeHtml(v)}</span></div>`).join('')}
+        </div>
+        <div class="gen-actions">
+          <button class="btn btn-p" onclick="openDocModal('${id}')">👁️ 预览单证</button>
+          <button class="btn btn-s" onclick="downloadSingleDoc('${id}')">⬇️ 下载单证</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  selected.forEach((id, i) => {
+    setTimeout(() => document.getElementById('gc-' + id)?.classList.add('show'), i * 160);
+    setTimeout(() => {
+      const b = document.getElementById('gb-' + id);
+      if(b) { b.textContent = '生成完成 ✅'; b.className = 'gen-badge done'; }
+    }, i * 160 + 450);
+  });
+
+  upsertArchive('待校验');
+  addActivity('blue', `票号 ${s.ticketNo} — 同源批量生成了 ${selected.length} 套单证`);
+  showToast(`🚀 已基于同源档案生成 ${selected.length} 套单证`);
+}
+
+function buildDocHTML(type) {
+  const s = state.shipment;
+  if(type === 'bl') {
+    return `
+      <div class="bl-doc">
+        <div class="bl-title">OCEAN BILL OF LADING (DRAFT)</div>
+        <div class="bl-subtitle">COSCO SHIPPING LINES CO., LTD. · 同源智单通生成</div>
+        <div class="bl-row">
+          <div class="bl-cell"><div class="bl-label">B/L No.</div><div class="bl-value">${escapeHtml(s.ticketNo.replace('SH','SHSE'))}</div></div>
+          <div class="bl-cell"><div class="bl-label">Booking / Ticket Ref</div><div class="bl-value">${escapeHtml(s.ticketNo)}</div></div>
+        </div>
+        <div class="bl-row">
+          <div class="bl-cell"><div class="bl-label">Shipper</div><div class="bl-value">${escapeHtml(s.shipper)}</div></div>
+          <div class="bl-cell"><div class="bl-label">Consignee</div><div class="bl-value">${escapeHtml(s.consignee)}</div></div>
+        </div>
+        <div class="bl-row">
+          <div class="bl-cell"><div class="bl-label">Notify Party</div><div class="bl-value">${escapeHtml(s.notifyParty)}</div></div>
+          <div class="bl-cell"><div class="bl-label">Port of Loading → Discharge</div><div class="bl-value">${escapeHtml(s.pol)} → ${escapeHtml(s.pod)}</div></div>
+        </div>
+        <table class="bl-table">
+          <thead><tr><th>Container No.</th><th>Seal No.</th><th>Packages</th><th>Description & HS Code</th><th>Gross Weight</th><th>Volume</th></tr></thead>
+          <tbody><tr><td>${escapeHtml(s.containerNo)}</td><td>${escapeHtml(s.sealNo)}</td><td>${escapeHtml(s.packages)}</td><td>${escapeHtml(s.description)}<br>HS: ${escapeHtml(s.hsCode)}</td><td>${escapeHtml(s.grossWeight)}</td><td>${escapeHtml(s.volume)}</td></tr></tbody>
+        </table>
+      </div>`;
+  }
+  if(type === 'ams') {
+    return `
+      <div class="bl-doc">
+        <div class="bl-title">US CUSTOMS AMS MANIFEST</div>
+        <div class="bl-subtitle">Automated Manifest System (24-Hour Rule Filing)</div>
+        <div class="bl-row">
+          <div class="bl-cell"><div class="bl-label">AMS House Bill No.</div><div class="bl-value">AMS${escapeHtml(s.ticketNo.slice(2))}</div></div>
+          <div class="bl-cell"><div class="bl-label">Master B/L Reference</div><div class="bl-value">${escapeHtml(s.ticketNo.replace('SH','SHSE'))}</div></div>
+        </div>
+        <div class="bl-row">
+          <div class="bl-cell"><div class="bl-label">Shipper</div><div class="bl-value">${escapeHtml(s.shipper)}</div></div>
+          <div class="bl-cell"><div class="bl-label">Consignee</div><div class="bl-value">${escapeHtml(s.consignee)}</div></div>
+        </div>
+        <div class="bl-row">
+          <div class="bl-cell"><div class="bl-label">Notify Party</div><div class="bl-value">${escapeHtml(s.notifyParty)}</div></div>
+          <div class="bl-cell"><div class="bl-label">Container / Seal</div><div class="bl-value">${escapeHtml(s.containerNo)} / ${escapeHtml(s.sealNo)}</div></div>
+        </div>
+        <table class="bl-table">
+          <thead><tr><th>HS Code (HTS)</th><th>Cargo Description</th><th>Quantity</th><th>Gross Weight</th><th>Load → Discharge</th></tr></thead>
+          <tbody><tr><td>${escapeHtml(s.hsCode)}</td><td>${escapeHtml(s.description)}</td><td>${escapeHtml(s.packages)}</td><td>${escapeHtml(s.grossWeight)}</td><td>${escapeHtml(s.pol)} → ${escapeHtml(s.pod)}</td></tr></tbody>
+        </table>
+      </div>`;
+  }
+  if(type === 'export') {
+    return `
+      <div class="bl-doc">
+        <div class="bl-title">中华人民共和国海关出口货物报关单</div>
+        <div class="bl-subtitle">Export Customs Declaration · 预录入草稿</div>
+        <div class="bl-row">
+          <div class="bl-cell"><div class="bl-label">预录入编号</div><div class="bl-value">3102${escapeHtml(s.ticketNo.slice(2))}</div></div>
+          <div class="bl-cell"><div class="bl-label">境内发货人</div><div class="bl-value">${escapeHtml(s.shipper)}</div></div>
+        </div>
+        <div class="bl-row">
+          <div class="bl-cell"><div class="bl-label">境外收货人</div><div class="bl-value">${escapeHtml(s.consignee)}</div></div>
+          <div class="bl-cell"><div class="bl-label">提运单号 / 集装箱号</div><div class="bl-value">${escapeHtml(s.ticketNo.replace('SH','SHSE'))} / ${escapeHtml(s.containerNo)}</div></div>
+        </div>
+        <div class="bl-row">
+          <div class="bl-cell"><div class="bl-label">起运港 / 指运港</div><div class="bl-value">${escapeHtml(s.pol)} → ${escapeHtml(s.pod)}</div></div>
+          <div class="bl-cell"><div class="bl-label">件数 / 毛重 / 体积</div><div class="bl-value">${escapeHtml(s.packages)} / ${escapeHtml(s.grossWeight)} / ${escapeHtml(s.volume)}</div></div>
+        </div>
+        <table class="bl-table">
+          <thead><tr><th>商品编号 (HS)</th><th>商品名称及规格型号</th><th>成交数量/件数</th><th>毛重</th></tr></thead>
+          <tbody><tr><td>${escapeHtml(s.hsCode)}</td><td>${escapeHtml(s.description)}</td><td>${escapeHtml(s.packages)}</td><td>${escapeHtml(s.grossWeight)}</td></tr></tbody>
+        </table>
+      </div>`;
+  }
+  return `
+    <div class="bl-doc">
+      <div class="bl-title">IMPORTER SECURITY FILING (ISF 10+2)</div>
+      <div class="bl-subtitle">US CBP Compliance Pre-Stowage Declaration</div>
+      <div class="bl-row">
+        <div class="bl-cell"><div class="bl-label">ISF Reference No.</div><div class="bl-value">ISF${escapeHtml(s.ticketNo.slice(2))}</div></div>
+        <div class="bl-cell"><div class="bl-label">Bill of Lading No.</div><div class="bl-value">${escapeHtml(s.ticketNo.replace('SH','SHSE'))}</div></div>
+      </div>
+      <div class="bl-row">
+        <div class="bl-cell"><div class="bl-label">Importer of Record / Consignee</div><div class="bl-value">${escapeHtml(s.consignee)}</div></div>
+        <div class="bl-cell"><div class="bl-label">Manufacturer / Seller</div><div class="bl-value">${escapeHtml(s.shipper)}</div></div>
+      </div>
+      <div class="bl-row">
+        <div class="bl-cell"><div class="bl-label">Container Stuffing / Container No.</div><div class="bl-value">${escapeHtml(s.pol)} · ${escapeHtml(s.containerNo)}</div></div>
+        <div class="bl-cell"><div class="bl-label">HTSUS / Commodity</div><div class="bl-value">${escapeHtml(s.hsCode)} · ${escapeHtml(s.description)}</div></div>
+      </div>
+    </div>`;
+}
+
+function openDocModal(type) {
+  state.currentModalDocType = type;
+  const names = { bl:'🚢 海运提单草稿预览', ams:'📋 AMS 舱单预览', export:'📑 出口报关单预览', isf:'📝 ISF 10+2 申报表预览' };
+  document.getElementById('modalTitle').textContent = `${names[type]} — ${state.shipment.ticketNo}`;
+  document.getElementById('modalBody').innerHTML = buildDocHTML(type);
+  document.getElementById('docModal').classList.add('show');
+}
+function closeDocModal() { document.getElementById('docModal').classList.remove('show'); }
+document.getElementById('docModal').addEventListener('click', e => { if(e.target.id === 'docModal') closeDocModal(); });
+
+function downloadSingleDoc(type) {
+  const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>${type.toUpperCase()}-${state.shipment.ticketNo}</title><style>body{font-family:sans-serif;padding:24px;}.bl-doc{border:2px solid #cbd5e1;padding:28px;font-family:"Courier New",monospace;font-size:13px;}.bl-title{text-align:center;font-size:18px;font-weight:800;margin-bottom:4px;}.bl-subtitle{text-align:center;color:#64748b;margin-bottom:20px;}.bl-row{display:grid;grid-template-columns:1fr 1fr;border:1px solid #cbd5e1;margin-bottom:-1px;}.bl-cell{padding:10px;border-right:1px solid #cbd5e1;}.bl-cell:last-child{border-right:none;}.bl-label{font-size:11px;color:#64748b;margin-bottom:4px;font-family:sans-serif;}.bl-value{font-weight:700;}.bl-table{width:100%;border-collapse:collapse;margin-top:16px;}.bl-table th,.bl-table td{border:1px solid #cbd5e1;padding:8px;text-align:left;}.bl-table th{background:#f1f5f9;}</style></head><body>${buildDocHTML(type)}</body></html>`;
+  triggerDownload(`${type.toUpperCase()}_${state.shipment.ticketNo}.html`, html, 'text/html;charset=utf-8');
+  showToast(`⬇️ 已下载 ${type.toUpperCase()}_${state.shipment.ticketNo}.html（可直接打印为PDF）`);
+}
+function downloadCurrentModalDoc() { downloadSingleDoc(state.currentModalDocType); }
+
+function triggerDownload(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// ===== CORE FEATURE 3: CONSISTENCY CHECK =====
+function startCheck() {
+  const selectedDocs = Array.from(document.querySelectorAll('#checkDocSelector .check-doc.selected')).map(el => el.dataset.doc);
+  if(selectedDocs.length < 2) {
+    showToast('⚠️ 请至少选择 2 套单证进行交叉一致性校验');
+    return;
+  }
+
+  const mode = document.querySelector('input[name="checkMode"]:checked').value;
+  const process = document.getElementById('checkProcess');
+  const results = document.getElementById('checkResults');
+  const progress = document.getElementById('checkProgress');
+  process.style.display = 'block';
+  results.style.display = 'none';
+  progress.style.width = '0';
+
+  const steps = ['cs1','cs2','cs3','cs4'];
+  steps.forEach(id => {
+    const el = document.getElementById(id);
+    el.className = 'check-step';
+    el.querySelector('span').textContent = '⏳';
+  });
+
+  steps.forEach((s, i) => {
+    setTimeout(() => {
+      if(i > 0) {
+        const prev = document.getElementById(steps[i-1]);
+        prev.classList.remove('active');
+        prev.classList.add('done');
+        prev.querySelector('span').textContent = '✅';
+      }
+      const cur = document.getElementById(s);
+      cur.classList.add('active');
+      cur.querySelector('span').textContent = '🔄';
+      progress.style.width = ((i + 1) / steps.length * 100) + '%';
+    }, i * 450);
+  });
+
+  setTimeout(() => {
+    const last = document.getElementById(steps[3]);
+    last.classList.remove('active');
+    last.classList.add('done');
+    last.querySelector('span').textContent = '✅';
+    progress.style.width = '100%';
+    setTimeout(() => {
+      process.style.display = 'none';
+      buildCheckResults(selectedDocs, mode);
+      results.style.display = 'block';
+    }, 300);
+  }, 1800);
+}
+
+function buildCheckResults(selectedDocs, mode) {
+  const s = state.shipment;
+  document.getElementById('checkTicketLabel').textContent = s.ticketNo;
+
+  const amsDesc = mode === 'simulate_error'
+    ? (s.description.endsWith('S') ? s.description.slice(0, -1) : s.description + 'S')
+    : s.description;
+  const amsNotify = mode === 'simulate_error' ? '（空）' : s.notifyParty;
+
+  const containerValid = /^[A-Z]{4}\d{7}$/.test(s.containerNo.trim());
+  const hsValid = /^\d{4}\.\d{2}\.\d{2,4}$/.test(s.hsCode.trim());
+
+  state.checkRows = [
+    { key:'shipper', label:'发货人 Shipper', bl:s.shipper, ams:s.shipper, isf:s.shipper, export:s.shipper, required:true },
+    { key:'consignee', label:'收货人 Consignee', bl:s.consignee, ams:s.consignee, isf:s.consignee, export:s.consignee, required:true },
+    { key:'hsCode', label:'HS编码 (格式校验)', bl:s.hsCode, ams:s.hsCode, isf:s.hsCode, export:s.hsCode, required:true, ruleWarn: !hsValid ? 'HS编码建议采用 xxxx.xx.xxxx 10位标准格式' : '' },
+    { key:'containerNo', label:'柜号 Container (ISO 6346)', bl:s.containerNo, ams:s.containerNo, isf:s.containerNo, export:s.containerNo, required:true, ruleWarn: !containerValid ? '柜号应为4位大写字母+7位数字' : '' },
+    { key:'description', label:'品名 Description', bl:s.description, ams:amsDesc, isf:s.description, export:s.description, required:true, suggestion:s.description },
+    { key:'grossWeight', label:'毛重 Gross Weight', bl:s.grossWeight, ams:s.grossWeight, isf:s.grossWeight, export:s.grossWeight, required:true },
+    { key:'packages', label:'件数 Packages', bl:s.packages, ams:s.packages, isf:s.packages, export:s.packages, required:true },
+    { key:'notifyParty', label:'通知方 Notify Party', bl:s.notifyParty, ams:amsNotify, isf:s.notifyParty, export:s.notifyParty, required:true, suggestion:s.notifyParty }
+  ];
+
+  renderCheckTable(selectedDocs);
+}
+
+function renderCheckTable(selectedDocs) {
+  const docLabels = { bl:'提单 (B/L)', ams:'AMS舱单', isf:'ISF申报', export:'出口报关单' };
+  const table = document.getElementById('checkTable');
+  let okCount = 0, warnCount = 0, errCount = 0;
+  const issues = [];
+
+  const thead = `<thead><tr><th>字段名称</th>${selectedDocs.map(d => `<th>${docLabels[d]}</th>`).join('')}<th>校验状态</th></tr></thead>`;
+  const tbodyRows = state.checkRows.map((row, idx) => {
+    const vals = selectedDocs.map(d => row[d]);
+    const hasEmpty = vals.some(v => !v || v === '（空）');
+    const unique = new Set(vals.map(v => String(v).trim()));
+    let statusType = 'ok', statusText = '✅ 一致', rowClass = '';
+
+    if(hasEmpty) {
+      statusType = 'err'; statusText = '❌ 必填项缺失'; rowClass = 'error-row'; errCount++;
+      issues.push({ idx, type:'error', title:`缺失项：${row.label}`, desc:`部分单证（如 AMS 舱单）中该必填字段为空，可能触发海关禁装或退单指令。建议统一补全为 "${row.suggestion || row.bl}"。`, targetVal: row.suggestion || row.bl });
+    } else if(unique.size > 1) {
+      statusType = 'warn'; statusText = '⚠️ 多单不一致'; rowClass = 'warn-row'; warnCount++;
+      issues.push({ idx, type:'warn', title:`不一致项：${row.label}`, desc:`各套单证录入内容存在差异（如单复数或拼写偏差），建议以标准货物档案 "${row.suggestion || row.bl}" 统一替换。`, targetVal: row.suggestion || row.bl });
+    } else if(row.ruleWarn) {
+      statusType = 'warn'; statusText = '⚠️ 格式风险'; rowClass = 'warn-row'; warnCount++;
+      issues.push({ idx, type:'warn', title:`合规规则提示：${row.label}`, desc:row.ruleWarn, targetVal: null });
+    } else {
+      okCount++;
+    }
+
+    return `<tr class="${rowClass}">
+      <td><strong>${row.label}</strong></td>
+      ${selectedDocs.map(d => {
+        const val = row[d];
+        const diff = (statusType === 'err' && (!val || val === '（空）')) || (statusType === 'warn' && val !== row.bl);
+        return `<td style="${diff ? 'color:' + (statusType==='err'?'var(--danger)':'var(--warning)') + ';font-weight:700;' : ''}">${escapeHtml(val)}</td>`;
+      }).join('')}
+      <td class="status ${statusType}">${statusText}</td>
+    </tr>`;
+  }).join('');
+
+  table.innerHTML = thead + `<tbody>${tbodyRows}</tbody>`;
+
+  const badge = document.getElementById('resultBadge');
+  const totalIssues = warnCount + errCount;
+  if(totalIssues === 0) {
+    badge.className = 'result-badge ok';
+    badge.textContent = '✅ 全部校验通过 — 0 项异常（可安全向海关申报）';
+    upsertArchive('已校验');
+  } else {
+    badge.className = 'result-badge warn';
+    badge.textContent = `⚠️ 校验完成 — 发现 ${totalIssues} 项风险（请装船前修正）`;
+    upsertArchive('有异常');
+  }
+
+  document.getElementById('summaryText').innerHTML = `共校验 <strong>${state.checkRows.length}</strong> 个公共及必填字段：<span style="color:var(--success);font-weight:600;">${okCount} 个通过</span>，<span style="color:var(--warning);font-weight:600;">${warnCount} 个不一致/风险</span>，<span style="color:var(--danger);font-weight:600;">${errCount} 个缺失</span>`;
+
+  document.getElementById('issuesContainer').innerHTML = issues.map(iss => `
+    <div class="issue-panel ${iss.type === 'error' ? 'error' : ''}">
+      <h4>${iss.type === 'error' ? '❌' : '⚠️'} ${escapeHtml(iss.title)}</h4>
+      <p>${escapeHtml(iss.desc)}</p>
+      ${iss.targetVal !== null ? `<button class="btn btn-p" style="font-size:.8rem;padding:7px 16px;" onclick="fixIssue(${iss.idx}, '${selectedDocs.join(',')}')">🔧 一键按同源档案修正</button>` : ''}
+    </div>
+  `).join('');
+
+  state._lastSelectedDocs = selectedDocs;
+}
+
+function fixIssue(rowIdx, docsCsv) {
+  const row = state.checkRows[rowIdx];
+  const val = row.suggestion || row.bl;
+  ['bl','ams','isf','export'].forEach(d => row[d] = val);
+  const selectedDocs = docsCsv.split(',');
+  renderCheckTable(selectedDocs);
+  const remaining = document.querySelectorAll('#issuesContainer .issue-panel').length;
+  if(remaining === 0) {
+    addActivity('green', `票号 ${state.shipment.ticketNo} — 一致性异常已全部修正并校验通过`);
+    showToast('🎉 所有单证已与同源档案对齐，校验 100% 通过！');
+  } else {
+    showToast('✅ 该字段已同步修正');
+  }
+}
+
+function exportCheckReport() {
+  const tableHtml = document.getElementById('checkTable').outerHTML;
+  const summary = document.getElementById('summaryText').textContent;
+  const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>一致性校验报告-${state.shipment.ticketNo}</title><style>body{font-family:sans-serif;padding:28px;color:#1e293b;}h1{font-size:20px;}table{width:100%;border-collapse:collapse;margin-top:16px;}th,td{border:1px solid #cbd5e1;padding:10px;text-align:left;font-size:13px;}th{background:#f1f5f9;}.warn-row{background:#fffbeb;}.error-row{background:#fef2f2;}</style></head><body><h1>智单通 SmartDoc — 多套单证一致性校验报告</h1><p>票号：${escapeHtml(state.shipment.ticketNo)} | 生成时间：${new Date().toLocaleString('zh-CN')}</p><p>${escapeHtml(summary)}</p>${tableHtml}</body></html>`;
+  triggerDownload(`CheckReport_${state.shipment.ticketNo}.html`, html, 'text/html;charset=utf-8');
+  showToast('📥 校验报告已导出');
+}
+
+// ===== ARCHIVE =====
+function filterArchive(status, btn) {
+  state.archiveFilter = status;
+  document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderArchive();
+}
+
+function handleGlobalSearch(q) {
+  state.searchQuery = q.trim().toLowerCase();
+  if(!document.getElementById('page-archive').classList.contains('active') && state.searchQuery) {
+    switchTab('archive');
+  } else {
+    renderArchive();
+  }
+}
+
+function renderArchive() {
+  const rows = state.archive.filter(a => {
+    const matchStatus = state.archiveFilter === 'all' || a.status === state.archiveFilter;
+    const q = state.searchQuery;
+    const matchSearch = !q || [a.ticketNo, a.shipper, a.containerNo, a.pod].some(v => String(v || '').toLowerCase().includes(q));
+    return matchStatus && matchSearch;
+  });
+
+  const tbody = document.getElementById('archiveTbody');
+  if(rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--g500);padding:28px;">没有匹配的货物档案记录</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(a => {
+    const cls = a.status === '已校验' ? 'pass' : (a.status === '有异常' ? 'fail' : 'pending');
+    return `<tr>
+      <td><strong>${escapeHtml(a.ticketNo)}</strong></td>
+      <td>${escapeHtml(a.createdAt)}</td>
+      <td>${escapeHtml(a.shipper)}</td>
+      <td>${escapeHtml(a.containerNo || '-')}</td>
+      <td>${escapeHtml(a.pod)}</td>
+      <td>${a.docCount} 套</td>
+      <td><span class="status-badge ${cls}">${escapeHtml(a.status)}</span></td>
+      <td><div class="action-btns">
+        <button class="action-btn" onclick="loadArchiveIntoWorkspace('${escapeHtml(a.ticketNo)}','generate')">制单</button>
+        <button class="action-btn" onclick="loadArchiveIntoWorkspace('${escapeHtml(a.ticketNo)}','check')">校验</button>
+        <button class="action-btn" onclick="loadArchiveIntoWorkspace('${escapeHtml(a.ticketNo)}','preview')">预览提单</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+function loadArchiveIntoWorkspace(ticketNo, action) {
+  const found = state.archive.find(a => a.ticketNo === ticketNo);
+  if(!found) return;
+  state.shipment = { ...DEFAULT_SHIPMENT, ...found };
+  saveState();
+  renderDashboard();
+  if(action === 'preview') {
+    openDocModal('bl');
+  } else if(action === 'generate') {
+    switchTab('generate');
+    showToast(`📦 已载入档案 ${ticketNo}`);
+  } else {
+    switchTab('check');
+    showToast(`📦 已载入档案 ${ticketNo}，点击“开始智能校验”即可核查`);
+  }
+}
+
+// ===== SETTINGS / BILLING / FEEDBACK =====
+function buyPack(count) {
+  state.payPerCount += count;
+  saveState();
+  renderDashboard();
+  addActivity('blue', `按次计费账户已充值 ${count} 票旺季弹性额度`);
+  showToast(`✅ 成功加购 ${count} 票按次弹性包！`);
+}
+
+function submitFeedback() {
+  const input = document.getElementById('feedbackInput');
+  const val = input.value.trim();
+  if(!val) { showToast('请填写反馈内容'); return; }
+  addActivity('green', `操作员已提交规则与识别优化反馈：${val.slice(0, 30)}`);
+  input.value = '';
+  showToast('🙏 感谢反馈！已纳入平台规则库迭代队列');
+}
+
+renderDashboard();
+renderArchive();
+const initTab = new URLSearchParams(location.search).get('tab');
+if(initTab) switchTab(initTab);
+</script>
+</body>
+</html>
