@@ -32,8 +32,26 @@
     return await file.text();
   }
 
+  async function loadFirst(urls) {
+    let last = null;
+    for (const src of urls) {
+      try {
+        await loadScript(src);
+        return src;
+      } catch (e) {
+        last = e;
+      }
+    }
+    throw last || new Error("script load failed");
+  }
+
   async function extractSpreadsheet(file) {
-    if (!w.XLSX) await loadScript("vendor/xlsx.full.min.js");
+    if (!w.XLSX) {
+      await loadFirst([
+        "vendor/xlsx.full.min.js",
+        "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
+      ]);
+    }
     const buf = await file.arrayBuffer();
     const wb = w.XLSX.read(buf, { type: "array" });
     let fields = SmartDoc.emptyShipment();
@@ -62,8 +80,17 @@
   }
 
   async function extractPdfClient(file) {
-    if (!w.pdfjsLib) await loadScript("vendor/pdf.min.js");
-    w.pdfjsLib.GlobalWorkerOptions.workerSrc = "vendor/pdf.worker.min.js";
+    if (!w.pdfjsLib) {
+      const src = await loadFirst([
+        "vendor/pdf.min.js",
+        "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js",
+      ]);
+      w.pdfjsLib.GlobalWorkerOptions.workerSrc = src.includes("cdn.jsdelivr.net")
+        ? "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js"
+        : "vendor/pdf.worker.min.js";
+    } else if (!w.pdfjsLib.GlobalWorkerOptions.workerSrc) {
+      w.pdfjsLib.GlobalWorkerOptions.workerSrc = "vendor/pdf.worker.min.js";
+    }
     const data = await file.arrayBuffer();
     const pdf = await w.pdfjsLib.getDocument({ data }).promise;
     let text = "";
