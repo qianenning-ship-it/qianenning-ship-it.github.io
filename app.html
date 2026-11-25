@@ -126,6 +126,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 .field-card .f-right{display:flex;align-items:center;gap:6px;flex-shrink:0;}
 .conf-badge{background:#d1fae5;color:#059669;padding:2px 8px;border-radius:50px;font-size:.7rem;font-weight:700;}
 .field-actions{margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;}
+.extract-meta{margin-top:16px;padding:12px 14px;background:var(--g50);border:1px solid var(--g200);border-radius:10px;font-size:.82rem;color:var(--g700);}
+.raw-text{margin-top:10px;max-height:140px;overflow:auto;background:#0f172a;color:#e2e8f0;padding:10px 12px;border-radius:8px;font-family:Consolas,"Courier New",monospace;font-size:.72rem;white-space:pre-wrap;word-break:break-word;}
+.engine-pill{display:inline-block;font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:50px;background:var(--primary-light);color:var(--primary);margin-left:8px;vertical-align:middle;}
+.conf-badge.low{background:#fef3c7;color:#d97706;}
+.stale-note{font-size:.78rem;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:8px 12px;margin:8px 0 16px;}
 
 /* GENERATE PAGE */
 .source-summary{background:var(--white);border-radius:var(--radius);padding:24px;border:1px solid var(--g200);margin-bottom:24px;}
@@ -361,14 +366,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
     <!-- ========== UPLOAD ========== -->
     <div class="page" id="page-upload">
       <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:4px;">📤 多格式单据自动识别与提取</h2>
-      <p style="color:var(--g500);font-size:.9rem;margin-bottom:20px;">上传杂乱格式的商业发票、装箱单、托书（支持真实 CSV/TXT/JSON 解析与 PDF/图片智能识别模拟）</p>
+      <p style="color:var(--g500);font-size:.9rem;margin-bottom:20px;">上传商业发票、装箱单、托书，真实解析 Excel / CSV / PDF 文本；扫描件走 OCR。<span id="engineBadge" class="engine-pill">检测识别引擎...</span></p>
 
       <div class="upload-area">
         <input type="file" id="fileInput" accept=".csv,.txt,.json,.xlsx,.xls,.pdf,.png,.jpg,.jpeg,.webp" hidden>
         <div class="drop-zone" id="dropZone">
           <div class="dz-icon">📁</div>
           <h3>拖拽文件到此处，或点击选择本地文件</h3>
-          <p>支持直接上传 .csv / .txt / .json 进行实时字段解析，也支持 PDF / Excel / 扫描件 / 手机截图</p>
+          <p>支持 Excel / CSV / JSON / 电子 PDF 实时抽字段；扫描件与图片走 OCR（本地 RapidOCR 或浏览器 Tesseract）</p>
           <div class="format-tags">
             <span class="format-tag">📊 Excel / CSV</span>
             <span class="format-tag">📄 电子 PDF</span>
@@ -380,6 +385,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <span style="font-size:.82rem;color:var(--g500);">没有现成文件？一键体验示例单据：</span>
           <button class="btn btn-s" onclick="loadSampleDoc('laptop')">📄 示例1：深圳电子笔记本发票 (PDF)</button>
           <button class="btn btn-s" onclick="loadSampleDoc('furniture')">📊 示例2：佛山家具出口托书 (Excel)</button>
+          <button class="btn btn-s" onclick="loadSampleDoc('csv')">📑 示例3：同票发票 (CSV)</button>
+          <button class="btn btn-s" onclick="loadSampleDoc('scan')">🖼️ 示例4：装箱单扫描件 (PNG)</button>
         </div>
       </div>
 
@@ -398,6 +405,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <span style="font-size:.78rem;color:var(--primary);">支持实时修改后同步到后续制单与校验</span>
         </div>
         <div class="fields-grid" id="fieldsGrid"></div>
+        <div class="extract-meta" id="extractMeta"></div>
         <div class="field-actions">
           <button class="btn btn-p" onclick="confirmExtracted()">✅ 确认建档并去批量生成单证 →</button>
           <button class="btn btn-s" onclick="saveOnlyArchive()">💾 仅保存至货物档案</button>
@@ -454,11 +462,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <div class="check-doc selected" data-doc="isf" onclick="this.classList.toggle('selected')">📝 ISF申报表</div>
           <div class="check-doc" data-doc="export" onclick="this.classList.toggle('selected')">📑 出口报关单</div>
         </div>
-        <div class="check-mode">
-          <span style="color:var(--g500);font-weight:600;">校验数据模式：</span>
-          <label style="cursor:pointer;"><input type="radio" name="checkMode" value="simulate_error" checked> 模拟人工录入异常（演示发现错漏与一键修正）</label>
-          <label style="cursor:pointer;"><input type="radio" name="checkMode" value="clean_source"> 校验当前同源生成单证（100%一致性验证）</label>
-        </div>
+        <p class="stale-note" style="margin-top:12px;">校验对象是「已生成的单证快照」对照当前货物档案，并叠加 ISO 6346 柜号、HS 格式、AMS 24h / ISF 10+2 必填规则。请先在「同源单证生成」落快照；若改过档案请重新生成。</p>
         <button class="btn btn-p btn-lg" onclick="startCheck()">🔍 开始智能校验</button>
       </div>
 
@@ -557,7 +561,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
     <div class="modal-header">
       <h3 id="modalTitle">单证预览</h3>
       <div style="display:flex;gap:8px;align-items:center;">
-        <button class="btn btn-s" style="padding:6px 12px;font-size:.8rem;" onclick="downloadCurrentModalDoc()">⬇️ 下载该单证</button>
+        <button class="btn btn-s" style="padding:6px 12px;font-size:.8rem;" onclick="downloadCurrentModalDoc(false)">⬇️ HTML</button>
+        <button class="btn btn-s" style="padding:6px 12px;font-size:.8rem;" onclick="downloadCurrentModalDoc(true)">⬇️ Word</button>
         <button class="modal-close" onclick="closeDocModal()">✕</button>
       </div>
     </div>
@@ -567,6 +572,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 
 <div class="toast" id="toast"></div>
 <script src="js/auth.js"></script>
+<script src="js/pipeline.js"></script>
+<script src="js/file-extract.js"></script>
 <script>
 SmartAuth.require();
 const AUTH_USER = SmartAuth.current() || { name: 'Demo 单证专员', company: 'Demo 国际货代有限公司', plan: '专业会员版', email: 'demo@smartdoc.com' };
@@ -575,38 +582,25 @@ const DEFAULT_SHIPMENT = {
   shipper: 'SHENZHEN ELECTRONICS CO., LTD',
   consignee: 'AMERICAN IMPORT LLC',
   notifyParty: 'SAME AS CONSIGNEE',
-  containerNo: 'MSKU1234567',
+  containerNo: 'MSKU1234565',
   sealNo: 'SH20240815',
   hsCode: '8471.30.0100',
   description: 'LAPTOP COMPUTERS',
   packages: '500 CTNS',
-  grossWeight: '8,500 KGS',
+  grossWeight: '8500 KGS',
   volume: '45.6 CBM',
   pol: 'SHANGHAI, CHINA',
   pod: 'LOS ANGELES, USA'
 };
 
-const FIELD_META = [
-  { key: 'shipper', label: '发货人 / Shipper', conf: '99%' },
-  { key: 'consignee', label: '收货人 / Consignee', conf: '98%' },
-  { key: 'notifyParty', label: '通知方 / Notify Party', conf: '97%' },
-  { key: 'containerNo', label: '柜号 / Container No.', conf: '100%' },
-  { key: 'sealNo', label: '封号 / Seal No.', conf: '99%' },
-  { key: 'hsCode', label: 'HS编码 / HS Code', conf: '98%' },
-  { key: 'description', label: '品名 / Description', conf: '96%' },
-  { key: 'packages', label: '件数 / Packages', conf: '99%' },
-  { key: 'grossWeight', label: '毛重 / Gross Weight', conf: '98%' },
-  { key: 'volume', label: '体积 / Volume', conf: '97%' },
-  { key: 'pol', label: '起运港 / POL', conf: '100%' },
-  { key: 'pod', label: '目的港 / POD', conf: '100%' }
-];
+const FIELD_META = SmartDoc.FIELD_META;
 
 const INITIAL_ARCHIVE = [
   { ...DEFAULT_SHIPMENT, createdAt: '2026-11-25 09:30', docCount: 4, status: '已校验' },
   { ticketNo: 'SH2026112502', createdAt: '2026-11-25 10:15', shipper: 'GUANGZHOU TEXTILE LTD', consignee: 'EAST COAST APPAREL INC', notifyParty: 'SAME AS CONSIGNEE', containerNo: 'COSU8842109', sealNo: 'GZ261102', hsCode: '6204.62.0000', description: 'COTTON TROUSERS', packages: '320 CTNS', grossWeight: '6,200 KGS', volume: '34.2 CBM', pol: 'NANSHA, CHINA', pod: 'NEW YORK, USA', docCount: 3, status: '待校验' },
   { ticketNo: 'SH2026112503', createdAt: '2026-11-25 11:00', shipper: 'NINGBO MACHINERY CO., LTD', consignee: 'EURO TECH GMBH', notifyParty: 'EURO TECH GMBH', containerNo: 'MAEU9912034', sealNo: 'NB261103', hsCode: '8483.40.9000', description: 'INDUSTRIAL GEARBOXES', packages: '45 PLTS', grossWeight: '14,800 KGS', volume: '28.0 CBM', pol: 'NINGBO, CHINA', pod: 'HAMBURG, GERMANY', docCount: 4, status: '有异常' },
-  { ticketNo: 'SH2026112499', createdAt: '2026-11-24 16:20', shipper: 'FOSHAN FURNITURE GROUP', consignee: 'PACIFIC HOME PTY LTD', notifyParty: 'SAME AS CONSIGNEE', containerNo: 'OOCL7731205', sealNo: 'FS261199', hsCode: '9403.60.9990', description: 'WOODEN DINING TABLES', packages: '180 CTNS', grossWeight: '9,400 KGS', volume: '58.5 CBM', pol: 'YANTIAN, CHINA', pod: 'MELBOURNE, AUSTRALIA', docCount: 4, status: '已校验' },
-  { ticketNo: 'SH2026112498', createdAt: '2026-11-24 14:45', shipper: 'XIAMEN CERAMICS CO., LTD', consignee: 'LONDON HOMEWARES LTD', notifyParty: 'SAME AS CONSIGNEE', containerNo: 'MSCU5512890', sealNo: 'XM261198', hsCode: '6912.00.1000', description: 'CERAMIC TABLEWARE', packages: '640 CTNS', grossWeight: '11,200 KGS', volume: '32.0 CBM', pol: 'XIAMEN, CHINA', pod: 'FELIXSTOWE, UK', docCount: 4, status: '已校验' }
+  { ticketNo: 'SH2026112499', createdAt: '2026-11-24 16:20', shipper: 'FOSHAN FURNITURE GROUP', consignee: 'PACIFIC HOME PTY LTD', notifyParty: 'SAME AS CONSIGNEE', containerNo: 'OOCU7731203', sealNo: 'FS261199', hsCode: '9403.60.9990', description: 'WOODEN DINING TABLES', packages: '180 CTNS', grossWeight: '9,400 KGS', volume: '58.5 CBM', pol: 'YANTIAN, CHINA', pod: 'MELBOURNE, AUSTRALIA', docCount: 4, status: '已校验' },
+  { ticketNo: 'SH2026112498', createdAt: '2026-11-24 14:45', shipper: 'XIAMEN CERAMICS CO., LTD', consignee: 'LONDON HOMEWARES LTD', notifyParty: 'SAME AS CONSIGNEE', containerNo: 'MSCU5512897', sealNo: 'XM261198', hsCode: '6912.00.1000', description: 'CERAMIC TABLEWARE', packages: '640 CTNS', grossWeight: '11,200 KGS', volume: '32.0 CBM', pol: 'XIAMEN, CHINA', pod: 'FELIXSTOWE, UK', docCount: 4, status: '已校验' }
 ];
 
 let state = {
@@ -623,7 +617,10 @@ let state = {
   archiveFilter: 'all',
   searchQuery: '',
   currentModalDocType: 'bl',
-  checkRows: []
+  checkRows: [],
+  generated: JSON.parse(localStorage.getItem('smartdoc_generated') || 'null') || {},
+  fieldConf: JSON.parse(localStorage.getItem('smartdoc_fieldconf') || 'null') || {},
+  extractMeta: JSON.parse(localStorage.getItem('smartdoc_extractmeta') || 'null') || { method: '', engine: '', rawText: '' }
 };
 
 function saveState() {
@@ -632,6 +629,9 @@ function saveState() {
   localStorage.setItem('smartdoc_processed', String(state.processedCount));
   localStorage.setItem('smartdoc_payper', String(state.payPerCount));
   localStorage.setItem('smartdoc_activities', JSON.stringify(state.activities.slice(0, 12)));
+  localStorage.setItem('smartdoc_generated', JSON.stringify(state.generated || {}));
+  localStorage.setItem('smartdoc_fieldconf', JSON.stringify(state.fieldConf || {}));
+  localStorage.setItem('smartdoc_extractmeta', JSON.stringify(state.extractMeta || {}));
 }
 
 function showToast(msg) {
@@ -710,123 +710,107 @@ fileInput.addEventListener('change', e => {
   if(e.target.files && e.target.files[0]) handleRealFile(e.target.files[0]);
 });
 
-function handleRealFile(file) {
+async function handleRealFile(file) {
   const sizeStr = (file.size / 1024 > 1024) ? (file.size / 1048576).toFixed(2) + ' MB' : Math.max(1, Math.round(file.size / 1024)) + ' KB';
-  const ext = file.name.split('.').pop().toLowerCase();
-  if(['csv','txt','json'].includes(ext)) {
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const parsed = parseTextDocument(ev.target.result, file.name);
-      runRecognitionUI(file.name, sizeStr, parsed, '实时文本/表格解析完成');
-    };
-    reader.readAsText(file);
-  } else {
-    const sample = { ...DEFAULT_SHIPMENT, ticketNo: 'SH' + new Date().toISOString().slice(2,10).replace(/-/g,'') + String(Math.floor(Math.random()*90+10)) };
-    runRecognitionUI(file.name, sizeStr, sample, 'AI OCR 智能识别完成');
-  }
-}
-
-function parseTextDocument(text, fileName) {
-  const base = { ...DEFAULT_SHIPMENT, ticketNo: 'SH' + new Date().toISOString().slice(2,10).replace(/-/g,'') + String(Math.floor(Math.random()*90+10)) };
+  dropZone.innerHTML = `<div class="dz-icon">⏳</div><h3>正在解析：${escapeHtml(file.name)}</h3><p>大小 ${escapeHtml(sizeStr)}</p>`;
+  dropZone.style.borderColor = 'var(--primary)';
+  dropZone.style.background = 'var(--primary-light)';
+  recogArea.style.display = 'block';
+  const fill = document.getElementById('progressFill');
+  fill.style.width = '18%';
+  document.getElementById('recogIcon').textContent = '⏳';
+  document.getElementById('recogStatus').textContent = '正在识别并映射标准字段...';
+  document.getElementById('recogFileMeta').textContent = file.name + ' · ' + sizeStr;
+  document.getElementById('fieldsGrid').innerHTML = '';
+  document.getElementById('extractMeta').innerHTML = '';
   try {
-    if(fileName.toLowerCase().endsWith('.json')) {
-      const obj = JSON.parse(text);
-      Object.keys(base).forEach(k => { if(obj[k]) base[k] = String(obj[k]); });
-      return base;
-    }
-  } catch(e) {}
-
-  const lines = text.split(/\r?\n/);
-  const map = [
-    [/shipper|发货人/i, 'shipper'],
-    [/consignee|收货人/i, 'consignee'],
-    [/notify|通知方/i, 'notifyParty'],
-    [/container|柜号/i, 'containerNo'],
-    [/seal|封号/i, 'sealNo'],
-    [/hs|编码/i, 'hsCode'],
-    [/description|goods|品名/i, 'description'],
-    [/package|qty|件数/i, 'packages'],
-    [/weight|毛重/i, 'grossWeight'],
-    [/volume|cbm|体积/i, 'volume'],
-    [/pol|起运港|loading/i, 'pol'],
-    [/pod|目的港|discharge/i, 'pod']
-  ];
-  lines.forEach(line => {
-    const parts = line.split(/[:：,;\t]/);
-    if(parts.length >= 2) {
-      const k = parts[0].trim();
-      const v = parts.slice(1).join(' ').trim();
-      if(v) {
-        map.forEach(([rx, key]) => { if(rx.test(k)) base[key] = v; });
-      }
-    }
-  });
-  const containerMatch = text.match(/\b[A-Z]{4}\d{7}\b/);
-  if(containerMatch) base.containerNo = containerMatch[0];
-  const hsMatch = text.match(/\b\d{4}\.\d{2}\.\d{2,4}\b/);
-  if(hsMatch) base.hsCode = hsMatch[0];
-  return base;
-}
-
-function loadSampleDoc(type) {
-  if(type === 'laptop') {
-    runRecognitionUI('Invoice_Shenzhen_Laptop_2026.pdf', '2.3 MB', { ...DEFAULT_SHIPMENT, ticketNo: 'SH2024081501' }, 'AI识别完成');
-  } else {
-    runRecognitionUI('Foshan_Furniture_Booking_2026.xlsx', '480 KB', {
-      ticketNo: 'SH2026112588',
-      shipper: 'FOSHAN FURNITURE GROUP CO., LTD',
-      consignee: 'PACIFIC HOME INTERIORS PTY LTD',
-      notifyParty: 'SAME AS CONSIGNEE',
-      containerNo: 'OOCL7731205',
-      sealNo: 'FS20261188',
-      hsCode: '9403.60.9990',
-      description: 'WOODEN DINING TABLES & CHAIRS',
-      packages: '180 CTNS',
-      grossWeight: '9,400 KGS',
-      volume: '58.5 CBM',
-      pol: 'YANTIAN, CHINA',
-      pod: 'MELBOURNE, AUSTRALIA'
-    }, 'Excel 表格解析完成');
+    fill.style.width = '55%';
+    const result = await SmartExtract.extractFromFile(file);
+    fill.style.width = '100%';
+    applyExtractResult(file.name, sizeStr, result);
+  } catch (err) {
+    fill.style.width = '100%';
+    document.getElementById('recogIcon').textContent = '❌';
+    document.getElementById('recogStatus').textContent = '识别失败：' + (err && err.message ? err.message : err);
+    showToast('❌ 识别失败：' + (err && err.message ? err.message : err));
   }
 }
 
-function runRecognitionUI(fileName, sizeStr, data, doneLabel) {
-  state.shipment = { ...data };
+async function loadSampleDoc(type) {
+  const map = {
+    laptop: ['samples/invoice_laptop.pdf', 'samples/invoice_laptop.csv', 'samples/invoice_laptop.json'],
+    furniture: ['samples/booking_furniture.xlsx', 'samples/booking_furniture.json'],
+    csv: ['samples/invoice_laptop.csv', 'samples/invoice_laptop.json'],
+    scan: ['samples/scan_packinglist.png', 'samples/scan_packinglist.json']
+  };
+  const paths = map[type] || [];
+  for (const path of paths) {
+    try {
+      const r = await fetch(path, { cache: 'no-store' });
+      if (!r.ok) continue;
+      const name = path.split('/').pop();
+      if (path.endsWith('.json')) {
+        const obj = await r.json();
+        const conf = {};
+        Object.keys(obj).forEach(k => { if (obj[k]) conf[k] = 100; });
+        applyExtractResult(name, 'sample', { fields: obj, conf, method: '示例字段包', engine: 'sample', rawText: JSON.stringify(obj, null, 2) });
+        return;
+      }
+      const blob = await r.blob();
+      const file = new File([blob], name, { type: blob.type || 'application/octet-stream' });
+      await handleRealFile(file);
+      return;
+    } catch (e) { /* try next candidate */ }
+  }
+  showToast('示例文件加载失败。请用 python server.py 打开本站，或直接上传本地文件。');
+}
+
+function applyExtractResult(fileName, sizeStr, result) {
+  const fields = { ...SmartDoc.emptyShipment(), ...(result.fields || {}) };
+  if (!fields.ticketNo) fields.ticketNo = SmartDoc.newTicket();
+  state.shipment = fields;
+  state.fieldConf = result.conf || {};
+  state.extractMeta = {
+    method: result.method || '解析完成',
+    engine: result.engine || '',
+    rawText: result.rawText || '',
+    fileName,
+    elapsedMs: result.elapsedMs
+  };
+  state.generated = {};
   saveState();
   renderDashboard();
 
-  dropZone.innerHTML = `<div class="dz-icon">✅</div><h3>已接收文件：${escapeHtml(fileName)}</h3><p>大小 ${escapeHtml(sizeStr)} — 已创建标准化档案 ${escapeHtml(state.shipment.ticketNo)}</p>`;
+  dropZone.innerHTML = `<div class="dz-icon">✅</div><h3>已接收文件：${escapeHtml(fileName)}</h3><p>大小 ${escapeHtml(sizeStr)} — 档案 ${escapeHtml(state.shipment.ticketNo)} · ${escapeHtml(result.method || '')}</p>`;
   dropZone.style.borderColor = 'var(--success)';
   dropZone.style.background = '#f0fdf4';
 
-  recogArea.style.display = 'block';
-  const fill = document.getElementById('progressFill');
-  fill.style.width = '0';
-  document.getElementById('recogIcon').textContent = '⏳';
-  document.getElementById('recogStatus').textContent = 'AI 正在识别并提取关键字段...';
+  const filled = FIELD_META.filter(f => String(state.shipment[f.key] || '').trim()).length;
+  document.getElementById('recogIcon').textContent = '✅';
+  document.getElementById('recogStatus').textContent = `${result.method || '解析完成'} — 抽出 ${filled} / ${FIELD_META.length} 个字段`;
   document.getElementById('recogFileMeta').textContent = fileName + ' · ' + sizeStr;
 
   const grid = document.getElementById('fieldsGrid');
-  grid.innerHTML = FIELD_META.map((f, idx) => `
-    <div class="field-card" data-delay="${idx * 50}">
+  grid.innerHTML = FIELD_META.map((f, idx) => {
+    const conf = state.fieldConf[f.key];
+    const confText = conf ? (conf + '%') : (String(state.shipment[f.key] || '').trim() ? '已填' : '空');
+    const low = !conf || conf < 92 || !String(state.shipment[f.key] || '').trim();
+    return `
+    <div class="field-card show" data-delay="${idx * 50}">
       <div class="f-body">
-        <div class="fl">${f.label}</div>
+        <div class="fl">${f.label}${f.required ? ' *' : ''}</div>
         <input class="f-input" value="${escapeHtml(state.shipment[f.key])}" data-key="${f.key}" oninput="updateShipmentField('${f.key}', this.value)">
       </div>
       <div class="f-right">
-        <span class="conf-badge">${f.conf}</span>
+        <span class="conf-badge ${low ? 'low' : ''}">${escapeHtml(confText)}</span>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 
-  setTimeout(() => { fill.style.width = '100%'; }, 50);
-  setTimeout(() => {
-    document.getElementById('recogIcon').textContent = '✅';
-    document.getElementById('recogStatus').textContent = `${doneLabel} — 共提取 ${FIELD_META.length} 个标准字段`;
-    document.querySelectorAll('.field-card').forEach(card => {
-      setTimeout(() => card.classList.add('show'), parseInt(card.dataset.delay, 10));
-    });
-  }, 1000);
+  const raw = state.extractMeta.rawText || '';
+  document.getElementById('extractMeta').innerHTML = `
+    <div>识别引擎：<strong>${escapeHtml(result.engine || 'browser')}</strong>　方法：<strong>${escapeHtml(result.method || '')}</strong>${result.elapsedMs ? '　耗时 ' + result.elapsedMs + ' ms' : ''}</div>
+    ${raw ? `<div class="raw-text">${escapeHtml(raw)}</div>` : ''}`;
 }
 
 function updateShipmentField(key, val) {
@@ -836,13 +820,17 @@ function updateShipmentField(key, val) {
 
 function upsertArchive(status) {
   const idx = state.archive.findIndex(a => a.ticketNo === state.shipment.ticketNo);
+  const prev = idx >= 0 ? state.archive[idx] : {};
   const record = {
     ...state.shipment,
-    createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-    docCount: 4,
-    status
+    createdAt: (prev && prev.createdAt) || new Date().toISOString().slice(0, 16).replace('T', ' '),
+    updatedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+    docCount: Object.keys(state.generated || {}).length,
+    status,
+    generated: state.generated || {},
+    extractMeta: state.extractMeta || {}
   };
-  if(idx >= 0) state.archive[idx] = record;
+  if(idx >= 0) state.archive[idx] = { ...prev, ...record };
   else {
     state.archive.unshift(record);
     state.processedCount += 1;
@@ -867,7 +855,7 @@ function confirmExtracted() {
 function resetUpload() {
   recogArea.style.display = 'none';
   fileInput.value = '';
-  dropZone.innerHTML = `<div class="dz-icon">📁</div><h3>拖拽文件到此处，或点击选择本地文件</h3><p>支持直接上传 .csv / .txt / .json 进行实时字段解析，也支持 PDF / Excel / 扫描件 / 手机截图</p><div class="format-tags"><span class="format-tag">📊 Excel / CSV</span><span class="format-tag">📄 电子 PDF</span><span class="format-tag">🖼️ 扫描件</span><span class="format-tag">📱 手机截图</span></div>`;
+  dropZone.innerHTML = `<div class="dz-icon">📁</div><h3>拖拽文件到此处，或点击选择本地文件</h3><p>支持 Excel / CSV / JSON / 电子 PDF 实时抽字段；扫描件与图片走 OCR（本地 RapidOCR 或浏览器 Tesseract）</p><div class="format-tags"><span class="format-tag">📊 Excel / CSV</span><span class="format-tag">📄 电子 PDF</span><span class="format-tag">🖼️ 扫描件</span><span class="format-tag">📱 手机截图</span></div>`;
   dropZone.style.borderColor = '';
   dropZone.style.background = '';
 }
@@ -901,6 +889,13 @@ function generateDocs() {
   }
 
   const s = state.shipment;
+  const hash = SmartDoc.sourceHash(s);
+  const snap = SmartDoc.snapshot(s);
+  if (!state.generated) state.generated = {};
+  selected.forEach(id => {
+    state.generated[id] = { fields: { ...snap }, sourceHash: hash, generatedAt: new Date().toISOString(), type: id };
+  });
+
   const defs = {
     bl: { title: '🚢 海运提单草稿 (B/L)', fields: [['B/L No.', s.ticketNo.replace('SH','SHSE')], ['Shipper', s.shipper], ['POL → POD', `${s.pol} → ${s.pod}`], ['Container', `${s.containerNo} / ${s.packages}`]] },
     ams: { title: '📋 AMS 舱单 (24h Manifest)', fields: [['AMS Ref', 'AMS' + s.ticketNo.slice(2)], ['Shipper', s.shipper], ['Goods', s.description], ['Weight', s.grossWeight]] },
@@ -924,7 +919,8 @@ function generateDocs() {
         </div>
         <div class="gen-actions">
           <button class="btn btn-p" onclick="openDocModal('${id}')">👁️ 预览单证</button>
-          <button class="btn btn-s" onclick="downloadSingleDoc('${id}')">⬇️ 下载单证</button>
+          <button class="btn btn-s" onclick="downloadSingleDoc('${id}', false)">⬇️ HTML</button>
+          <button class="btn btn-s" onclick="downloadSingleDoc('${id}', true)">⬇️ Word</button>
         </div>
       </div>
     `;
@@ -934,17 +930,24 @@ function generateDocs() {
     setTimeout(() => document.getElementById('gc-' + id)?.classList.add('show'), i * 160);
     setTimeout(() => {
       const b = document.getElementById('gb-' + id);
-      if(b) { b.textContent = '生成完成 ✅'; b.className = 'gen-badge done'; }
+      if(b) { b.textContent = '已落快照 ✅'; b.className = 'gen-badge done'; }
     }, i * 160 + 450);
   });
 
   upsertArchive('待校验');
-  addActivity('blue', `票号 ${s.ticketNo} — 同源批量生成了 ${selected.length} 套单证`);
-  showToast(`🚀 已基于同源档案生成 ${selected.length} 套单证`);
+  addActivity('blue', `票号 ${s.ticketNo} — 同源生成 ${selected.length} 套单证并写入档案快照`);
+  showToast(`🚀 已基于同源档案生成 ${selected.length} 套单证快照`);
+}
+
+function shipmentForDoc(type) {
+  if (state.generated && state.generated[type] && state.generated[type].fields) {
+    return { ...state.shipment, ...state.generated[type].fields };
+  }
+  return state.shipment;
 }
 
 function buildDocHTML(type) {
-  const s = state.shipment;
+  const s = shipmentForDoc(type);
   if(type === 'bl') {
     return `
       <div class="bl-doc">
@@ -1043,12 +1046,14 @@ function openDocModal(type) {
 function closeDocModal() { document.getElementById('docModal').classList.remove('show'); }
 document.getElementById('docModal').addEventListener('click', e => { if(e.target.id === 'docModal') closeDocModal(); });
 
-function downloadSingleDoc(type) {
+function downloadSingleDoc(type, asWord) {
   const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>${type.toUpperCase()}-${state.shipment.ticketNo}</title><style>body{font-family:sans-serif;padding:24px;}.bl-doc{border:2px solid #cbd5e1;padding:28px;font-family:"Courier New",monospace;font-size:13px;}.bl-title{text-align:center;font-size:18px;font-weight:800;margin-bottom:4px;}.bl-subtitle{text-align:center;color:#64748b;margin-bottom:20px;}.bl-row{display:grid;grid-template-columns:1fr 1fr;border:1px solid #cbd5e1;margin-bottom:-1px;}.bl-cell{padding:10px;border-right:1px solid #cbd5e1;}.bl-cell:last-child{border-right:none;}.bl-label{font-size:11px;color:#64748b;margin-bottom:4px;font-family:sans-serif;}.bl-value{font-weight:700;}.bl-table{width:100%;border-collapse:collapse;margin-top:16px;}.bl-table th,.bl-table td{border:1px solid #cbd5e1;padding:8px;text-align:left;}.bl-table th{background:#f1f5f9;}</style></head><body>${buildDocHTML(type)}</body></html>`;
-  triggerDownload(`${type.toUpperCase()}_${state.shipment.ticketNo}.html`, html, 'text/html;charset=utf-8');
-  showToast(`⬇️ 已下载 ${type.toUpperCase()}_${state.shipment.ticketNo}.html（可直接打印为PDF）`);
+  const ext = asWord ? 'doc' : 'html';
+  const mime = asWord ? 'application/msword' : 'text/html;charset=utf-8';
+  triggerDownload(`${type.toUpperCase()}_${state.shipment.ticketNo}.${ext}`, html, mime);
+  showToast(`⬇️ 已下载 ${type.toUpperCase()}_${state.shipment.ticketNo}.${ext}`);
 }
-function downloadCurrentModalDoc() { downloadSingleDoc(state.currentModalDocType); }
+function downloadCurrentModalDoc(asWord) { downloadSingleDoc(state.currentModalDocType, !!asWord); }
 
 function triggerDownload(filename, content, mime) {
   const blob = new Blob([content], { type: mime });
@@ -1067,7 +1072,12 @@ function startCheck() {
     return;
   }
 
-  const mode = document.querySelector('input[name="checkMode"]:checked').value;
+  const missing = selectedDocs.filter(d => !state.generated || !state.generated[d]);
+  if (missing.length) {
+    showToast('⚠️ 请先同源生成：' + missing.join(', ') + '，校验针对已落档的单证快照');
+    return;
+  }
+
   const process = document.getElementById('checkProcess');
   const results = document.getElementById('checkResults');
   const progress = document.getElementById('checkProgress');
@@ -1105,35 +1115,15 @@ function startCheck() {
     progress.style.width = '100%';
     setTimeout(() => {
       process.style.display = 'none';
-      buildCheckResults(selectedDocs, mode);
+      buildCheckResults(selectedDocs);
       results.style.display = 'block';
     }, 300);
   }, 1800);
 }
 
-function buildCheckResults(selectedDocs, mode) {
-  const s = state.shipment;
-  document.getElementById('checkTicketLabel').textContent = s.ticketNo;
-
-  const amsDesc = mode === 'simulate_error'
-    ? (s.description.endsWith('S') ? s.description.slice(0, -1) : s.description + 'S')
-    : s.description;
-  const amsNotify = mode === 'simulate_error' ? '（空）' : s.notifyParty;
-
-  const containerValid = /^[A-Z]{4}\d{7}$/.test(s.containerNo.trim());
-  const hsValid = /^\d{4}\.\d{2}\.\d{2,4}$/.test(s.hsCode.trim());
-
-  state.checkRows = [
-    { key:'shipper', label:'发货人 Shipper', bl:s.shipper, ams:s.shipper, isf:s.shipper, export:s.shipper, required:true },
-    { key:'consignee', label:'收货人 Consignee', bl:s.consignee, ams:s.consignee, isf:s.consignee, export:s.consignee, required:true },
-    { key:'hsCode', label:'HS编码 (格式校验)', bl:s.hsCode, ams:s.hsCode, isf:s.hsCode, export:s.hsCode, required:true, ruleWarn: !hsValid ? 'HS编码建议采用 xxxx.xx.xxxx 10位标准格式' : '' },
-    { key:'containerNo', label:'柜号 Container (ISO 6346)', bl:s.containerNo, ams:s.containerNo, isf:s.containerNo, export:s.containerNo, required:true, ruleWarn: !containerValid ? '柜号应为4位大写字母+7位数字' : '' },
-    { key:'description', label:'品名 Description', bl:s.description, ams:amsDesc, isf:s.description, export:s.description, required:true, suggestion:s.description },
-    { key:'grossWeight', label:'毛重 Gross Weight', bl:s.grossWeight, ams:s.grossWeight, isf:s.grossWeight, export:s.grossWeight, required:true },
-    { key:'packages', label:'件数 Packages', bl:s.packages, ams:s.packages, isf:s.packages, export:s.packages, required:true },
-    { key:'notifyParty', label:'通知方 Notify Party', bl:s.notifyParty, ams:amsNotify, isf:s.notifyParty, export:s.notifyParty, required:true, suggestion:s.notifyParty }
-  ];
-
+function buildCheckResults(selectedDocs) {
+  document.getElementById('checkTicketLabel').textContent = state.shipment.ticketNo;
+  state.checkRows = SmartDoc.buildCheck(state.shipment, state.generated || {}, selectedDocs);
   renderCheckTable(selectedDocs);
 }
 
@@ -1145,17 +1135,17 @@ function renderCheckTable(selectedDocs) {
 
   const thead = `<thead><tr><th>字段名称</th>${selectedDocs.map(d => `<th>${docLabels[d]}</th>`).join('')}<th>校验状态</th></tr></thead>`;
   const tbodyRows = state.checkRows.map((row, idx) => {
-    const vals = selectedDocs.map(d => row[d]);
-    const hasEmpty = vals.some(v => !v || v === '（空）');
-    const unique = new Set(vals.map(v => String(v).trim()));
     let statusType = 'ok', statusText = '✅ 一致', rowClass = '';
 
-    if(hasEmpty) {
+    if(row.hasEmpty) {
       statusType = 'err'; statusText = '❌ 必填项缺失'; rowClass = 'error-row'; errCount++;
-      issues.push({ idx, type:'error', title:`缺失项：${row.label}`, desc:`部分单证（如 AMS 舱单）中该必填字段为空，可能触发海关禁装或退单指令。建议统一补全为 "${row.suggestion || row.bl}"。`, targetVal: row.suggestion || row.bl });
-    } else if(unique.size > 1) {
+      issues.push({ idx, type:'error', title:`缺失项：${row.label}`, desc:`部分已生成单证中该必填字段为空。建议按货物档案「${row.source}」补全。`, targetVal: row.source });
+    } else if(row.mismatch || row.sourceMismatch) {
       statusType = 'warn'; statusText = '⚠️ 多单不一致'; rowClass = 'warn-row'; warnCount++;
-      issues.push({ idx, type:'warn', title:`不一致项：${row.label}`, desc:`各套单证录入内容存在差异（如单复数或拼写偏差），建议以标准货物档案 "${row.suggestion || row.bl}" 统一替换。`, targetVal: row.suggestion || row.bl });
+      issues.push({ idx, type:'warn', title:`不一致项：${row.label}`, desc:`单证快照与档案或彼此之间不一致。建议以档案「${row.source}」统一覆盖。`, targetVal: row.source });
+    } else if(row.stale) {
+      statusType = 'warn'; statusText = '⚠️ 快照过期'; rowClass = 'warn-row'; warnCount++;
+      issues.push({ idx, type:'warn', title:`快照过期：${row.label}`, desc:'档案已改过，单证仍是旧快照。一键修正会按当前档案覆盖已生成单证。', targetVal: row.source });
     } else if(row.ruleWarn) {
       statusType = 'warn'; statusText = '⚠️ 格式风险'; rowClass = 'warn-row'; warnCount++;
       issues.push({ idx, type:'warn', title:`合规规则提示：${row.label}`, desc:row.ruleWarn, targetVal: null });
@@ -1167,8 +1157,8 @@ function renderCheckTable(selectedDocs) {
       <td><strong>${row.label}</strong></td>
       ${selectedDocs.map(d => {
         const val = row[d];
-        const diff = (statusType === 'err' && (!val || val === '（空）')) || (statusType === 'warn' && val !== row.bl);
-        return `<td style="${diff ? 'color:' + (statusType==='err'?'var(--danger)':'var(--warning)') + ';font-weight:700;' : ''}">${escapeHtml(val)}</td>`;
+        const diff = (statusType === 'err' && !val) || (statusType === 'warn' && String(val).toUpperCase() !== String(row.source).toUpperCase());
+        return `<td style="${diff ? 'color:' + (statusType==='err'?'var(--danger)':'var(--warning)') + ';font-weight:700;' : ''}">${escapeHtml(val || '（未生成）')}</td>`;
       }).join('')}
       <td class="status ${statusType}">${statusText}</td>
     </tr>`;
@@ -1188,13 +1178,22 @@ function renderCheckTable(selectedDocs) {
     upsertArchive('有异常');
   }
 
+  const extra = [];
+  if (selectedDocs.includes('ams')) {
+    extra.push({ type:'warn', title:'AMS 24-Hour Rule', desc:'美国海关 AMS 舱单须在货物装船前至少 24 小时提交。本校验已核对公共字段，申报时限仍须由操作员按船期确认。', targetVal: null, idx: -1 });
+  }
+  if (selectedDocs.includes('isf')) {
+    extra.push({ type:'warn', title:'ISF 10+2 装船前申报', desc:'ISF 须在装船前申报。Importer/Consignee、Manufacturer/Seller、HTS、柜号、装柜地（POL）已纳入字段比对。', targetVal: null, idx: -1 });
+  }
+  issues.push(...extra);
+
   document.getElementById('summaryText').innerHTML = `共校验 <strong>${state.checkRows.length}</strong> 个公共及必填字段：<span style="color:var(--success);font-weight:600;">${okCount} 个通过</span>，<span style="color:var(--warning);font-weight:600;">${warnCount} 个不一致/风险</span>，<span style="color:var(--danger);font-weight:600;">${errCount} 个缺失</span>`;
 
   document.getElementById('issuesContainer').innerHTML = issues.map(iss => `
     <div class="issue-panel ${iss.type === 'error' ? 'error' : ''}">
       <h4>${iss.type === 'error' ? '❌' : '⚠️'} ${escapeHtml(iss.title)}</h4>
       <p>${escapeHtml(iss.desc)}</p>
-      ${iss.targetVal !== null ? `<button class="btn btn-p" style="font-size:.8rem;padding:7px 16px;" onclick="fixIssue(${iss.idx}, '${selectedDocs.join(',')}')">🔧 一键按同源档案修正</button>` : ''}
+      ${iss.targetVal !== null && iss.idx >= 0 ? `<button class="btn btn-p" style="font-size:.8rem;padding:7px 16px;" onclick="fixIssue(${iss.idx}, '${selectedDocs.join(',')}')">🔧 一键按同源档案修正</button>` : ''}
     </div>
   `).join('');
 
@@ -1203,16 +1202,27 @@ function renderCheckTable(selectedDocs) {
 
 function fixIssue(rowIdx, docsCsv) {
   const row = state.checkRows[rowIdx];
-  const val = row.suggestion || row.bl;
-  ['bl','ams','isf','export'].forEach(d => row[d] = val);
+  const val = row.source;
   const selectedDocs = docsCsv.split(',');
-  renderCheckTable(selectedDocs);
-  const remaining = document.querySelectorAll('#issuesContainer .issue-panel').length;
+  const hash = SmartDoc.sourceHash(state.shipment);
+  selectedDocs.forEach(d => {
+    if (!state.generated[d]) {
+      state.generated[d] = { fields: SmartDoc.snapshot(state.shipment), sourceHash: hash, generatedAt: new Date().toISOString(), type: d };
+    }
+    if (!state.generated[d].fields) state.generated[d].fields = SmartDoc.snapshot(state.shipment);
+    state.generated[d].fields[row.key] = val;
+    const aligned = SmartDoc.sourceHash(state.generated[d].fields) === hash;
+    if (aligned) state.generated[d].sourceHash = hash;
+  });
+  saveState();
+  upsertArchive(state.archive.find(a => a.ticketNo === state.shipment.ticketNo)?.status || '待校验');
+  buildCheckResults(selectedDocs);
+  const remaining = document.querySelectorAll('#issuesContainer .issue-panel button').length;
   if(remaining === 0) {
-    addActivity('green', `票号 ${state.shipment.ticketNo} — 一致性异常已全部修正并校验通过`);
-    showToast('🎉 所有单证已与同源档案对齐，校验 100% 通过！');
+    addActivity('green', `票号 ${state.shipment.ticketNo} — 单证快照已按档案修正`);
+    showToast('🎉 已生成单证已与同源档案对齐');
   } else {
-    showToast('✅ 该字段已同步修正');
+    showToast('✅ 该字段已写回已生成单证快照');
   }
 }
 
@@ -1276,7 +1286,9 @@ function renderArchive() {
 function loadArchiveIntoWorkspace(ticketNo, action) {
   const found = state.archive.find(a => a.ticketNo === ticketNo);
   if(!found) return;
-  state.shipment = { ...DEFAULT_SHIPMENT, ...found };
+  state.shipment = { ...SmartDoc.emptyShipment(), ...DEFAULT_SHIPMENT, ...found };
+  state.generated = found.generated || {};
+  state.extractMeta = found.extractMeta || state.extractMeta;
   saveState();
   renderDashboard();
   if(action === 'preview') {
@@ -1312,6 +1324,12 @@ renderDashboard();
 renderArchive();
 const initTab = new URLSearchParams(location.search).get('tab');
 if(initTab) switchTab(initTab);
+
+SmartExtract.health().then(h => {
+  const el = document.getElementById('engineBadge');
+  if (!el) return;
+  el.textContent = (h && h.ok) ? '本地 RapidOCR 已连接' : '浏览器解析（Excel/PDF 文本；扫描件走 Tesseract）';
+});
 </script>
 </body>
 </html>

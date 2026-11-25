@@ -14,19 +14,27 @@
 
 演示账号：`demo@smartdoc.com`　密码：`demo123`
 
-## 本地打开
+GitHub Pages 走浏览器解析（SheetJS / PDF.js；扫描件走 Tesseract.js CDN）。数据存在本机 `localStorage`。
 
-用浏览器打开本目录的 `index.html`，或在本目录运行：
+## 本地（含 RapidOCR）
+
+在本目录运行：
 
 ```
-python -m http.server 8080
+D:\Python\python.exe server.py
 ```
 
-然后访问 http://127.0.0.1:8080/
+然后访问 http://127.0.0.1:8090/
 
-## 核心功能
+依赖：`flask`、`openpyxl`、`pymupdf`、`pillow`、`rapidocr_onnxruntime`（见 `requirements.txt`）。
 
-1. 多格式单据识别与提取（Excel/CSV/JSON 实时解析，PDF/图片演示 OCR）
-2. 同源生成海运提单、AMS 舱单、出口报关单、ISF 申报表
-3. 多套单证一致性校验、必填项检查、一键修正、导出报告
-4. 货物档案、套餐额度、按次加购、规则库与一线反馈
+工作台会探测 `/api/health`：连上则 Excel/PDF/图片走服务端识别；否则自动退回浏览器解析。
+
+## 核心流程（不可跳过）
+
+1. 上传真实 Excel / CSV / PDF / 图片，抽出可改字段
+2. 确认建档后同源生成海运提单、AMS、出口报关单、ISF（写入档案快照）
+3. 对已生成快照做交叉校验：一致性、ISO 6346 柜号、HS 格式、AMS 24h / ISF 10+2 提示
+4. 一键按档案修正快照，导出 HTML 报告；单证可下载 HTML / Word
+
+示例文件在 `samples/`。

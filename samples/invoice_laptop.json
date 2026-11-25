@@ -1,0 +1,15 @@
+{
+  "ticketNo": "SH2024081501",
+  "shipper": "SHENZHEN ELECTRONICS CO., LTD",
+  "consignee": "AMERICAN IMPORT LLC",
+  "notifyParty": "SAME AS CONSIGNEE",
+  "containerNo": "MSKU1234565",
+  "sealNo": "SH20240815",
+  "hsCode": "8471.30.0100",
+  "description": "LAPTOP COMPUTERS",
+  "packages": "500 CTNS",
+  "grossWeight": "8500 KGS",
+  "volume": "45.6 CBM",
+  "pol": "SHANGHAI, CHINA",
+  "pod": "LOS ANGELES, USA"
+}

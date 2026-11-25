@@ -1,0 +1,15 @@
+{
+  "ticketNo": "SH2026112503",
+  "shipper": "NINGBO MACHINERY CO., LTD",
+  "consignee": "EURO TECH GMBH",
+  "notifyParty": "EURO TECH GMBH",
+  "containerNo": "MAEU9912038",
+  "sealNo": "NB261103",
+  "hsCode": "8483.40.9000",
+  "description": "INDUSTRIAL GEARBOXES",
+  "packages": "45 PLTS",
+  "grossWeight": "14800 KGS",
+  "volume": "28.0 CBM",
+  "pol": "NINGBO, CHINA",
+  "pod": "HAMBURG, GERMANY"
+}
