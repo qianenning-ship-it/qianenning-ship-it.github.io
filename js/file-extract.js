@@ -274,13 +274,22 @@
   async function extractMany(files, onProgress) {
     const list = Array.from(files || []);
     const results = [];
+    const failed = [];
     for (let i = 0; i < list.length; i++) {
       if (onProgress) onProgress(i, list.length, list[i].name);
-      const r = await extractFromFile(list[i]);
-      r.fileName = list[i].name;
-      results.push(r);
+      try {
+        const r = await extractFromFile(list[i]);
+        r.fileName = list[i].name;
+        results.push(r);
+      } catch (err) {
+        failed.push({ fileName: list[i].name, error: (err && err.message) ? err.message : String(err) });
+      }
     }
-    return { merged: SmartDoc.mergeExtracts(results), results };
+    if (!results.length) {
+      const msg = failed.map((f) => f.fileName + "：" + f.error).join("；");
+      throw new Error(msg || "全部文件识别失败");
+    }
+    return { merged: SmartDoc.mergeExtracts(results), results, failed };
   }
 
   async function preloadOcr() {

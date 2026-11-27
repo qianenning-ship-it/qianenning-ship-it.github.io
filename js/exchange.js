@@ -16,6 +16,13 @@
       shipment: w.SmartDoc ? w.SmartDoc.snapshot(shipment) : shipment,
       generated,
       docs: Object.keys(generated),
+      checkRows: opts.checkRows || [],
+      checkSummary: opts.checkSummary || "",
+      extractMeta: opts.extractMeta || {},
+      fieldSource: opts.fieldSource || {},
+      extractFiles: opts.extractFiles || [],
+      timeline: opts.timeline || [],
+      ack: opts.ack || null,
     };
   }
 
@@ -34,6 +41,13 @@
         shipment: obj.shipment || obj,
         generated: obj.generated || {},
         docs: Object.keys(obj.generated || {}),
+        checkRows: obj.checkRows || [],
+        checkSummary: obj.checkSummary || "",
+        extractMeta: obj.extractMeta || {},
+        fieldSource: obj.fieldSource || {},
+        extractFiles: obj.extractFiles || [],
+        timeline: obj.timeline || [],
+        ack: obj.ack || null,
       };
     }
     throw new Error("不是智单通发单包（缺少 kind=smartdoc-pack 或货物字段）");
