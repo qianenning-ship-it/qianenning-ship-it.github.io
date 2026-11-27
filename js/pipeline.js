@@ -20,6 +20,11 @@
     { key: "marks", label: "唛头 / Marks", required: false },
     { key: "currency", label: "币种 / Currency", required: false },
     { key: "incoterms", label: "贸易条款 / Incoterms", required: false },
+    { key: "originCountry", label: "原产国 / Country of Origin", required: false },
+    { key: "originCriterion", label: "原产地标准 / Origin Criterion", required: false },
+    { key: "imoClass", label: "危险品类别 / IMO Class", required: false },
+    { key: "unNumber", label: "联合国编号 / UN No.", required: false },
+    { key: "packingGroup", label: "包装等级 / Packing Group", required: false },
   ];
 
   const ALIASES = {
@@ -44,6 +49,11 @@
     marks: ["marks", "shipping marks", "shipping mark", "marks & nos", "marks and nos", "marks nos", "marksno", "唛头", "嘜头", "麦头"],
     currency: ["currency", "curr", "ccy", "币种", "货币", "币别"],
     incoterms: ["incoterms", "incoterm", "trade terms", "price term", "贸易条款", "成交方式", "价格条款"],
+    originCountry: ["country of origin", "origin country", "origin", "coo", "原产国", "原产地", "产地", "原产国别"],
+    originCriterion: ["origin criterion", "origin criteria", "原产地标准", "原产地规则"],
+    imoClass: ["imo class", "imo", "hazard class", "class no", "危险品类别", "危类", "危品类别"],
+    unNumber: ["un number", "un no", "unno", "un code", "联合国编号", "危品编号"],
+    packingGroup: ["packing group", "pg", "pack group", "包装等级", "包装类别"],
     unitPrice: ["unit price", "unitprice", "price", "单价", "unprice"],
     amount: ["amount", "amt", "value", "total amount", "金额", "总价", "货值"],
   };
@@ -415,6 +425,29 @@
       const m = t.match(/(?:incoterms?|trade\s*terms?|贸易条款|成交方式)\s*[:：]\s*(FOB|CIF|CFR|EXW|FCA|DAP|DDP|CPT|CIP)/i);
       if (m) fields.incoterms = m[1].toUpperCase();
     }
+    if (!fields.originCountry) {
+      const m = t.match(/(?:country of origin|origin country|原产国|原产地|产地)\s*[:：]\s*([A-Za-z\u4e00-\u9fff][^\n,]{1,40})/i);
+      if (m && !/^(no\.?|#|item|hs|marks)$/i.test(m[1].trim())) fields.originCountry = m[1].trim();
+    }
+    if (!fields.originCriterion) {
+      const m = t.match(/(?:origin criterion|原产地标准|原产地规则)\s*[:：]\s*(WO|WP|PSR|完全获得|实质性改变)/i);
+      if (m) fields.originCriterion = /完全/.test(m[1]) ? "WO" : /实质/.test(m[1]) ? "WP" : m[1].toUpperCase();
+    }
+    if (!fields.imoClass) {
+      const m = t.match(/(?:imo\s*class|hazard\s*class|危险品(?:类别|等级)|危类)\s*[:：]?\s*([1-9](?:\.[1-9])?[A-Z]?)/i);
+      if (m) fields.imoClass = m[1].toUpperCase();
+    }
+    if (!fields.unNumber) {
+      const m = t.match(/\bUN[\s-]?(\d{4})\b/i) || t.match(/(?:un\s*(?:no\.?|number)|联合国编号)\s*[:：]\s*(\d{4})/i);
+      if (m) fields.unNumber = "UN" + m[1];
+    }
+    if (!fields.packingGroup) {
+      const m = t.match(/(?:packing\s*group|包装等级|包装类别|\bPG\b)\s*[:：]?\s*(I{1,3}|[123])/i);
+      if (m) {
+        const g = m[1].toUpperCase();
+        fields.packingGroup = g === "1" ? "I" : g === "2" ? "II" : g === "3" ? "III" : g;
+      }
+    }
     harvestAllContainers(t, fields);
   }
 
@@ -606,7 +639,7 @@
       .filter(Boolean);
     const out = [];
     const seen = {};
-    const headerish = /^(no\.?|marks|#|item|description|goods|hs|hts|qty|pkgs|packages|gw|weight|cbm|volume|品名|税号|件数|毛重|体积|装箱单|packing|唛头|嘜头|单价|金额|currency|invoice)/i;
+    const headerish = /^(no\.?|marks|#|item|description|goods|hs|hts|qty|pkgs|packages|gw|weight|cbm|volume|品名|税号|件数|毛重|体积|装箱单|packing|唛头|嘜头|单价|金额|currency|invoice|原产地|产地证|origin|imo|un no|packing group|危险品|包装等级)/i;
     rows.forEach((line) => {
       const colon = line.split(/[:：]/);
       if (colon.length >= 2) {
