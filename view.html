@@ -53,6 +53,7 @@ table.cargo th{background:#f7faff;font-size:12px;}
 </div>
 <script src="js/pipeline.js"></script>
 <script src="js/docs.js"></script>
+<script src="js/pdfprint.js"></script>
 <script src="js/job.js"></script>
 <script src="js/filing.js"></script>
 <script src="js/share.js"></script>
@@ -124,20 +125,58 @@ function docPreviewCardHtml(pack) {
   const tabs = ids.map((id, i) => `<button type="button" class="${i === 0 ? 'on' : ''}" data-doc="${id}" onclick="showDocPreview('${id}')">${escapeHtml(labels[id] || id)}</button>`).join('');
   return `<div class="card">
       <h2>单证预览（同源草稿）</h2>
-      <p style="font-size:13px;color:#7a8699;">按当前档案即时排版十套单证，无需先下载 HTML。套版 ${escapeHtml(pack.blCarrier || (pack.shipment && pack.shipment.blCarrier) || 'generic')}。</p>
+      <p style="font-size:13px;color:#7a8699;">按当前档案即时排版十套单证，无需先下载 HTML。套版 ${escapeHtml(pack.blCarrier || (pack.shipment && pack.shipment.blCarrier) || 'generic')}。打印 / PDF 在本机完成，不经过服务器。</p>
       <div class="doc-tabs">${tabs}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px;">
+        <button class="btn btn-blue" type="button" onclick="printPreviewDoc()">🖨️ 打印当前预览 A4</button>
+        <button class="btn btn-blue" type="button" onclick="downloadPreviewPdf()">⬇️ 下载当前预览 PDF</button>
+      </div>
       <iframe id="docPreviewFrame" class="doc-frame" title="单证预览" sandbox="allow-same-origin allow-scripts allow-modals"></iframe>
     </div>`;
+}
+
+function previewOpts(pack) {
+  const s = (pack && pack.shipment) || {};
+  return { carrier: (pack && pack.blCarrier) || s.blCarrier || 'generic', shareCode: (pack && pack.shareCode) || '' };
 }
 
 function showDocPreview(id) {
   const pack = window._viewPack;
   if (!pack || typeof SmartDocs === 'undefined') return;
+  window._viewDocId = id;
   const s = pack.shipment || {};
-  const opts = { carrier: pack.blCarrier || s.blCarrier || 'generic', shareCode: pack.shareCode || '' };
   const frame = document.getElementById('docPreviewFrame');
-  if (frame) frame.srcdoc = SmartDocs.wrap(id, s, opts);
+  if (frame) frame.srcdoc = SmartDocs.wrap(id, s, previewOpts(pack));
   document.querySelectorAll('.doc-tabs button').forEach(b => b.classList.toggle('on', b.getAttribute('data-doc') === id));
+}
+
+function currentPreviewId() {
+  const on = document.querySelector('.doc-tabs button.on');
+  return (on && on.getAttribute('data-doc')) || window._viewDocId || 'bl';
+}
+
+function printPreviewDoc() {
+  const pack = window._viewPack;
+  if (!pack || typeof SmartDocs === 'undefined' || !SmartDocs.print) return;
+  const id = currentPreviewId();
+  const ok = SmartDocs.print(id, pack.shipment || {}, previewOpts(pack));
+  if (!ok) alert('请允许弹出窗口后再打印');
+}
+
+async function downloadPreviewPdf() {
+  const pack = window._viewPack;
+  if (!pack) return;
+  if (typeof SmartPdf === 'undefined' || !SmartPdf.exportPdf) {
+    alert('PDF 模块未加载');
+    return;
+  }
+  const id = currentPreviewId();
+  try {
+    const name = await SmartPdf.exportPdf(id, pack.shipment || {}, previewOpts(pack));
+    alert('已下载 ' + name);
+  } catch (err) {
+    alert('PDF 生成失败：' + (err.message || err) + '。可改用打印 A4。');
+  }
 }
 
 function downloadBlob(name, obj) {

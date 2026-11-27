@@ -41,7 +41,7 @@ D:\Python\python.exe server.py
 4. 一键按档案修正快照，导出/打印校验报告；单证可下载 HTML / Word / A4 PDF（船司套版），或打包 ZIP
 5. 发单与收件：JSON 包带校验报告与时间线；导入先核对再载入，可点「已核对并回传」
 6. 货物档案里打开「作业夹」回看来源文件、已出单证、校验摘要、发单时间线、模拟申报回执、截关状态与批注
-7. 提单可切换 COSCO / MSC / MAERSK / OOCL / CMA CGM / Hapag-Lloyd / ONE / Evergreen / Wan Hai / Yang Ming 套版；规则库可开关并随包发出；校验页可模拟申报 AMS / ISF，并下载 CUSCAR / ISF XML 草稿（拒绝原因对应报文节点）
+7. 提单可切换 COSCO / MSC / MAERSK / OOCL / CMA CGM / Hapag-Lloyd / ONE / Evergreen / Wan Hai / Yang Ming / ZIM / HMM / Hamburg Süd 套版；规则库可开关并随包发出；校验页可模拟申报 AMS / ISF，并下载 CUSCAR / ISF XML 草稿（拒绝原因对应报文节点）
 8. 档案填 ETD 后自动计算 AMS 24h / ISF 截关；过点未 Accepted 在顶栏和作业夹标红
 9. 顶栏可切换已挂起的票，或「复制上一票」改柜号/船期；发单页分享码 / `#sd=` 链接跨浏览器载入
 10. 截关看板按 AMS/ISF 截止排序全库票；作业夹记录字段修订并可回滚；只读协作链接走 `view.html`（可看档案/批注，不能写入）
@@ -76,5 +76,9 @@ D:\Python\python.exe server.py
 39. 档案填了 IMO Class / UN No. 才写入提单（及 AMS）危险品条款，空则不编造
 40. 到货通知可下载 RFC 822 `.eml`，本机邮件客户端打开，不经过服务器
 41. 档案可按已核对 / 待回执筛选，一键打包已核对票 JSON ZIP
+42. 箱主码 ZIMU → ZIM，HMMU/HDMU → HMM，SUDU → Hamburg Süd，一点采用套版
+43. 只读协作页可对当前预览一键打印 A4 或下载 PDF，不必回工作台
+44. 发票税率 / 折扣写入合计（小计 − 折扣 + 税率%），装箱单金额栏仍用货值小计
+45. 产地证证书号 / 签证机关同源；作业夹可下载到货通知 `.eml`
 
 示例文件在 `samples/`。
