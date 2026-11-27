@@ -41,6 +41,20 @@
     });
   }
 
+  function pushRev(list, key, from, to, by, label) {
+    if (String(from ?? "") === String(to ?? "")) return Array.isArray(list) ? list : [];
+    const next = Array.isArray(list) ? list.slice() : [];
+    next.unshift({
+      at: new Date().toISOString().slice(0, 16).replace("T", " "),
+      by: by || "",
+      key,
+      label: label || key,
+      from: String(from ?? ""),
+      to: String(to ?? ""),
+    });
+    return next.slice(0, 80);
+  }
+
   function archiveSlice(state) {
     return {
       extractFiles: state.extractFiles || (state.extractMeta && state.extractMeta.files) || [],
@@ -54,8 +68,9 @@
       filings: state.filings || [],
       shareCode: state.shareCode || "",
       notes: state.notes || [],
+      revisions: state.revisions || [],
     };
   }
 
-  w.SmartJob = { DOC_LABELS, pushEvent, checkSummaryFromRows, diffRows, archiveSlice };
+  w.SmartJob = { DOC_LABELS, pushEvent, checkSummaryFromRows, diffRows, archiveSlice, pushRev };
 })(window);

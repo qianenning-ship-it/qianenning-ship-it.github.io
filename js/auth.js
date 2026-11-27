@@ -61,6 +61,15 @@
     require() {
       if (!this.current()) {
         if (location.hash && location.hash.indexOf("#sd=") === 0) {
+          if (w.SmartShare) {
+            try {
+              const pack = w.SmartShare.decode(location.hash);
+              if (pack && pack.readOnly) {
+                location.replace("view.html" + location.hash);
+                return;
+              }
+            } catch (e) { /* fall through to login */ }
+          }
           try { sessionStorage.setItem("smartdoc_pending_share", location.hash); } catch (e) { /* ignore */ }
         }
         location.replace("login.html");

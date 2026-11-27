@@ -11,6 +11,7 @@
 - 官网首页：https://qianenning-ship-it.github.io/
 - 登录：https://qianenning-ship-it.github.io/login.html
 - 工作台：https://qianenning-ship-it.github.io/app.html
+- 只读协作页：https://qianenning-ship-it.github.io/view.html（发单页「只读协作链接」，对方无需登录）
 
 演示账号：`demo@smartdoc.com`　密码：`demo123`
 
@@ -43,5 +44,7 @@ D:\Python\python.exe server.py
 7. 提单可切换 COSCO / MSC / MAERSK 套版；规则库可开关并随包发出；校验页可模拟申报 AMS / ISF，并下载 CUSCAR / ISF XML 草稿（拒绝原因对应报文节点）
 8. 档案填 ETD 后自动计算 AMS 24h / ISF 截关；过点未 Accepted 在顶栏和作业夹标红
 9. 顶栏可切换已挂起的票，或「复制上一票」改柜号/船期；发单页分享码 / `#sd=` 链接跨浏览器载入
+10. 截关看板按 AMS/ISF 截止排序全库票；作业夹记录字段修订并可回滚；只读协作链接走 `view.html`（可看档案/批注，不能写入）
+11. 识别建档、同源出单、模拟申报各扣 1 票额度，套餐页可导出审计 CSV
 
 示例文件在 `samples/`。

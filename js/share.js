@@ -29,6 +29,8 @@
       files: pack.extractFiles || [],
       ack: pack.ack || null,
       n: (pack.notes || []).slice(0, 20),
+      rv: (pack.revisions || []).slice(0, 20),
+      ro: pack.readOnly ? 1 : 0,
     };
   }
 
@@ -52,7 +54,9 @@
       extractFiles: c.files || c.extractFiles || [],
       ack: c.ack || null,
       notes: c.n || c.notes || [],
-      remark: "分享码载入",
+      revisions: c.rv || c.revisions || [],
+      readOnly: !!(c.ro || c.readOnly),
+      remark: c.ro ? "只读协作载入" : "分享码载入",
     };
   }
 
@@ -78,21 +82,24 @@
     localStorage.setItem(BOOK, JSON.stringify(book));
   }
 
-  function encode(pack) {
-    const token = "SD1." + b64uEncode(JSON.stringify(compact(pack)));
+  function encode(pack, opts) {
+    opts = opts || {};
+    const p = Object.assign({}, pack, { readOnly: !!(opts.readOnly || pack.readOnly) });
+    const token = "SD1." + b64uEncode(JSON.stringify(compact(p)));
     const code = shortCode(pack.ticketNo);
     const book = readBook();
     book[code] = token;
     writeBook(book);
     const origin = location.origin || "";
     let path = location.pathname || "/";
-    if (!/app\.html$/i.test(path)) {
-      path = path.replace(/index\.html$/i, "");
+    const file = opts.readOnly ? "view.html" : "app.html";
+    if (!new RegExp(file + "$", "i").test(path)) {
+      path = path.replace(/index\.html$/i, "").replace(/app\.html$/i, "").replace(/view\.html$/i, "");
       if (!path.endsWith("/")) path += "/";
-      path += "app.html";
+      path += file;
     }
     const url = token.length < 7000 ? origin + path + "#sd=" + token : "";
-    return { code, token, url, bytes: token.length };
+    return { code, token, url, bytes: token.length, readOnly: !!opts.readOnly };
   }
 
   function decode(input) {

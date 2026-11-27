@@ -278,7 +278,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 .cutoff-chip.filed{background:#f0fdf4;border-color:#86efac;color:#047857;}
 .cutoff-chip.open{background:#e8f3ff;border-color:#bfdbfe;color:#1d4ed8;}
 .ticket-switch{background:var(--g100);border:1px solid var(--g200);border-radius:8px;padding:8px 10px;font-size:.82rem;max-width:200px;}
-.note-item{font-size:.82rem;padding:8px 0;border-bottom:1px solid var(--g100);}
+.note-item,.rev-item{font-size:.82rem;padding:8px 0;border-bottom:1px solid var(--g100);}
+.rev-item .fromto{color:var(--g500);font-size:.76rem;margin-top:2px;}
+.board-table tr.overdue td{background:#fef2f2;}
+.board-table tr.open td{background:#f7faff;}
+.quota-over{background:#fef2f2;border:1px solid #fca5a5;color:#991b1b;border-radius:10px;padding:10px 14px;font-size:.84rem;margin-bottom:16px;}
+.audit-table{width:100%;border-collapse:collapse;font-size:.8rem;}
+.audit-table th,.audit-table td{padding:8px 10px;border-bottom:1px solid var(--g100);text-align:left;}
+.audit-table th{background:var(--g50);font-size:.72rem;color:var(--g500);}
 .rule-item label{display:flex;align-items:center;gap:8px;cursor:pointer;}
 @media(max-width:900px){.job-grid{grid-template-columns:1fr;}}
 
@@ -333,6 +340,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
     <div class="menu-label">档案与规则</div>
     <button class="menu-item" data-tab="archive" onclick="switchTab('archive',this)">
       <span class="icon">📁</span>货物档案管理
+    </button>
+    <button class="menu-item" data-tab="board" onclick="switchTab('board',this)">
+      <span class="icon">⏱️</span>截关看板
     </button>
     <button class="menu-item" data-tab="exchange" onclick="switchTab('exchange',this)">
       <span class="icon">📨</span>发单与收件
@@ -422,6 +432,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <div><div>4. 发单 / 收件</div><div style="font-size:.76rem;color:var(--g500);font-weight:400;">把同源单证交给协作方，或导入对方发来的包</div></div>
         </button>
       </div>
+      <div id="dashCutoffHint"></div>
 
       <div class="section-header"><div class="section-title">最近作业动态</div></div>
       <div class="activity-list" id="activityList"></div>
@@ -609,6 +620,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
       <div id="jobFolder" class="job-panel" style="display:none"></div>
     </div>
 
+    <!-- ========== CUTOFF BOARD ========== -->
+    <div class="page" id="page-board">
+      <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:4px;">⏱️ AMS / ISF 截关看板</h2>
+      <p style="color:var(--g500);font-size:.9rem;margin-bottom:20px;">按当前档案库全部票的 AMS 24h / ISF 截止时间排序。过点未 Accepted 排最前；未填 ETD 的票单独一档。截关只作作业提醒，不会自动拒单。</p>
+      <div class="archive-toolbar">
+        <div class="filter-pills" id="boardPills">
+          <button class="filter-pill active" onclick="filterBoard('all',this)">全部</button>
+          <button class="filter-pill" onclick="filterBoard('overdue',this)">已过截关</button>
+          <button class="filter-pill" onclick="filterBoard('open',this)">待申报</button>
+          <button class="filter-pill" onclick="filterBoard('no-etd',this)">未填 ETD</button>
+          <button class="filter-pill" onclick="filterBoard('filed',this)">已 Accepted</button>
+        </div>
+        <button class="btn btn-s" onclick="renderBoard()">刷新倒计时</button>
+      </div>
+      <div class="archive-table">
+        <div class="table-wrap">
+          <table class="board-table">
+            <thead><tr><th>票号</th><th>发货人</th><th>ETD</th><th>AMS 截关</th><th>ISF 截关</th><th>最紧急</th><th>操作</th></tr></thead>
+            <tbody id="boardTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- ========== EXCHANGE ========== -->
     <div class="page" id="page-exchange">
       <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:4px;">📨 发单与收件</h2>
@@ -637,6 +672,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <p style="font-size:.82rem;color:var(--g500);margin-bottom:12px;">生成短码（本机可再输入）和完整令牌。把链接或令牌发给另一台电脑，在工作台粘贴即可载入同一票，不需要开 8090。</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
             <button class="btn btn-p" onclick="makeShareCode()">🔗 生成分享码 / 链接</button>
+            <button class="btn btn-s" onclick="makeReadOnlyShare()">👁️ 只读协作链接</button>
             <button class="btn btn-s" onclick="copyShareToken()">📋 复制令牌</button>
           </div>
           <div id="shareOut" style="font-size:.84rem;color:var(--g700);"></div>
@@ -662,7 +698,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <div style="display:flex;gap:10px;flex-wrap:wrap;">
             <button class="btn btn-p" onclick="buyPack(20)">+ 加购 20 票旺季按次包</button>
             <button class="btn btn-s" onclick="buyPack(50)">+ 加购 50 票旺季按次包</button>
+            <button class="btn btn-s" onclick="exportAuditCsv()">📥 导出审计 CSV</button>
           </div>
+          <p style="font-size:.78rem;color:var(--g500);margin:12px 0 8px;">识别建档、同源出单、模拟申报各扣 1 票。月度 500 用尽后扣按次包；再超限仍可演示，但审计记为 over。</p>
+          <div class="table-wrap"><table class="audit-table"><thead><tr><th>时间</th><th>动作</th><th>票号</th><th>额度</th><th>说明</th></tr></thead><tbody id="auditTbody"></tbody></table></div>
         </div>
         <div class="settings-card">
           <h3>🛡️ 海关与船司合规规则库 <span id="rulesVersion" class="engine-pill">—</span></h3>
@@ -751,6 +790,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 <script src="js/filing.js"></script>
 <script src="js/share.js"></script>
 <script src="js/edi.js"></script>
+<script src="js/audit.js"></script>
 <script>
 SmartAuth.require();
 const AUTH_USER = SmartAuth.current() || { name: 'Demo 单证专员', company: 'Demo 国际货代有限公司', plan: '专业会员版', email: 'demo@smartdoc.com' };
@@ -809,7 +849,10 @@ let state = {
   blCarrier: (JSON.parse(localStorage.getItem('smartdoc_job') || 'null') || {}).blCarrier || 'generic',
   filings: (JSON.parse(localStorage.getItem('smartdoc_job') || 'null') || {}).filings || [],
   shareCode: (JSON.parse(localStorage.getItem('smartdoc_job') || 'null') || {}).shareCode || '',
-  notes: (JSON.parse(localStorage.getItem('smartdoc_job') || 'null') || {}).notes || []
+  notes: (JSON.parse(localStorage.getItem('smartdoc_job') || 'null') || {}).notes || [],
+  revisions: (JSON.parse(localStorage.getItem('smartdoc_job') || 'null') || {}).revisions || [],
+  boardFilter: 'all',
+  _userName: ''
 };
 
 function saveState() {
@@ -830,7 +873,8 @@ function saveState() {
     blCarrier: state.blCarrier || 'generic',
     filings: state.filings || [],
     shareCode: state.shareCode || '',
-    notes: state.notes || []
+    notes: state.notes || [],
+    revisions: state.revisions || []
   }));
 }
 
@@ -860,6 +904,7 @@ document.getElementById('userRole').textContent = (AUTH_USER.plan || '专业会�
 document.getElementById('userAvatar').textContent = (AUTH_USER.name || 'D').slice(0,1).toUpperCase();
 document.getElementById('settingsCompany').textContent = AUTH_USER.company;
 document.getElementById('settingsPlan').textContent = AUTH_USER.plan || '专业会员版';
+state._userName = AUTH_USER.name || '';
 
 function switchTab(tab, menuEl) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -869,16 +914,17 @@ function switchTab(tab, menuEl) {
   pageEl.classList.add('active');
   const targetBtn = menuEl || document.querySelector(`.menu-item[data-tab="${tab}"]`);
   if(targetBtn) targetBtn.classList.add('active');
-  const names = { dashboard:'工作台', upload:'单据上传与提取', generate:'同源单证生成', check:'一致性智能校验', archive:'货物档案管理', exchange:'发单与收件', settings:'套餐与规则库' };
+  const names = { dashboard:'工作台', upload:'单据上传与提取', generate:'同源单证生成', check:'一致性智能校验', archive:'货物档案管理', board:'截关看板', exchange:'发单与收件', settings:'套餐与规则库' };
   document.getElementById('pageName').textContent = names[tab] || tab;
   document.getElementById('sidebar').classList.remove('open');
   if(tab === 'generate') { renderGenSummary(); renderCarrierPicks(); renderGenCardsFromState(); renderGenDiff(); }
   if(tab === 'archive') renderArchive();
+  if(tab === 'board') renderBoard();
   if(tab === 'upload') preloadOcrEngine();
   if(tab === 'dashboard') renderDashboard();
   if(tab === 'exchange') renderExchange();
   if(tab === 'check') renderFilings();
-  if(tab === 'settings') renderRules();
+  if(tab === 'settings') { renderRules(); renderAuditTable(); }
   renderFlowSteps(tab);
   renderCutoffBar();
 }
@@ -911,14 +957,28 @@ function renderDashboard() {
   document.getElementById('activeTicketPill').textContent = '当前档案: ' + state.shipment.ticketNo;
   renderTicketSwitch();
   renderCutoffBar();
+  const cap = (typeof SmartAudit !== 'undefined' && SmartAudit.MONTH_CAP) || 500;
   document.getElementById('statProcessed').textContent = state.processedCount;
   const pendingCount = state.archive.filter(a => a.status !== '已校验').length;
   document.getElementById('statPending').textContent = pendingCount;
-  document.getElementById('quotaText').textContent = state.processedCount + ' / 500 票';
-  document.getElementById('quotaFill').style.width = Math.min(100, (state.processedCount / 500) * 100).toFixed(1) + '%';
+  document.getElementById('quotaText').textContent = state.processedCount + ' / ' + cap + ' 票';
+  document.getElementById('quotaFill').style.width = Math.min(100, (state.processedCount / cap) * 100).toFixed(1) + '%';
   document.getElementById('payPerCount').textContent = state.payPerCount;
-  document.getElementById('settingsQuota').textContent = state.processedCount + ' / 500 票';
+  document.getElementById('settingsQuota').textContent = state.processedCount + ' / ' + cap + ' 票';
   document.getElementById('settingsPayPer').textContent = state.payPerCount + ' 票（永不过期）';
+  const hint = document.getElementById('dashCutoffHint');
+  if (hint && typeof SmartFiling !== 'undefined') {
+    const rows = SmartFiling.boardRows(state.archive);
+    const overdue = rows.filter(r => r.worst.status === 'overdue').length;
+    const openN = rows.filter(r => r.worst.status === 'open').length;
+    const exhausted = state.processedCount >= cap && state.payPerCount <= 0;
+    hint.innerHTML = (exhausted ? `<div class="quota-over">本月套餐与按次包已用尽。识别 / 出单 / 申报仍可演示，审计记为超限 over。</div>` : '') +
+      `<div class="cutoff-bar" style="margin-bottom:24px;">
+        <div class="cutoff-chip ${overdue ? 'overdue' : 'filed'}">全库过截关未报 <strong>${overdue}</strong> 票</div>
+        <div class="cutoff-chip ${openN ? 'open' : ''}">待申报截关 <strong>${openN}</strong> 票</div>
+        <button class="btn btn-s" onclick="switchTab('board')">打开截关看板</button>
+      </div>`;
+  }
 
   const list = document.getElementById('activityList');
   list.innerHTML = state.activities.slice(0, 6).map(a =>
@@ -1158,6 +1218,8 @@ function applyExtractResult(fileName, sizeStr, result) {
   state.generated = {};
   state.extractFiles = result.files && result.files.length ? result.files : [fileName];
   state.ack = null;
+  state.revisions = [];
+  fieldRevPrev = {};
   if (!state.timeline || !state.timeline.length) state.timeline = [];
   saveState();
   renderDashboard();
@@ -1197,9 +1259,26 @@ function applyExtractResult(fileName, sizeStr, result) {
   renderFlowSteps('upload');
 }
 
+let fieldRevTimers = {};
+let fieldRevPrev = {};
 function updateShipmentField(key, val) {
+  if (!(key in fieldRevPrev)) fieldRevPrev[key] = state.shipment[key] || '';
   state.shipment[key] = val;
-  saveState();
+  clearTimeout(fieldRevTimers[key]);
+  fieldRevTimers[key] = setTimeout(() => {
+    const from = fieldRevPrev[key];
+    const to = state.shipment[key];
+    const label = ((FIELD_META.find(f => f.key === key) || {}).label) || key;
+    if (typeof SmartJob !== 'undefined') {
+      state.revisions = SmartJob.pushRev(state.revisions, key, from, to, AUTH_USER.name, label);
+    }
+    fieldRevPrev[key] = to;
+    delete fieldRevTimers[key];
+    const rec = state.archive.find(a => a.ticketNo === state.shipment.ticketNo);
+    if (rec) upsertArchive(rec.status || '待校验');
+    else saveState();
+    renderCutoffBar();
+  }, 650);
 }
 
 function upsertArchive(status) {
@@ -1216,12 +1295,21 @@ function upsertArchive(status) {
     ...(typeof SmartJob !== 'undefined' ? SmartJob.archiveSlice(state) : {})
   };
   if(idx >= 0) state.archive[idx] = { ...prev, ...record };
-  else {
-    state.archive.unshift(record);
-    state.processedCount += 1;
-  }
+  else state.archive.unshift(record);
   saveState();
   renderDashboard();
+}
+
+function chargeQuota(action, detail) {
+  if (typeof SmartAudit === 'undefined') return { source: 'plan' };
+  state._userName = AUTH_USER.name || '';
+  const r = SmartAudit.consume(state, action, state.shipment.ticketNo, detail || '');
+  saveState();
+  renderDashboard();
+  renderAuditTable();
+  if (r.source === 'payper') showToast('已扣 1 票按次额度');
+  if (r.source === 'over') showToast('套餐与按次包已用尽，本操作记入超限审计');
+  return r;
 }
 
 function saveOnlyArchive() {
@@ -1232,6 +1320,7 @@ function saveOnlyArchive() {
 
 function confirmExtracted() {
   pushTimeline('确认建档 ' + state.shipment.ticketNo);
+  chargeQuota('extract', '确认建档');
   upsertArchive('待校验');
   addActivity('green', `完成单据识别并建档：${state.shipment.ticketNo}，准备批量生成单证`);
   showToast('✅ 档案已确认，正在前往同源单证生成');
@@ -1288,6 +1377,7 @@ function generateDocs() {
 
   renderGenCards(selected, true);
   pushTimeline('同源生成 ' + selected.join('/'));
+  chargeQuota('generate', '同源生成 ' + selected.join('/'));
   upsertArchive('待校验');
   addActivity('blue', `票号 ${s.ticketNo} — 同源生成 ${selected.length} 套单证并写入档案快照`);
   showToast(`🚀 已基于同源档案生成 ${selected.length} 套单证快照`);
@@ -1772,6 +1862,8 @@ function loadArchiveIntoWorkspace(ticketNo, action) {
   state.filings = found.filings || [];
   state.shareCode = found.shareCode || '';
   state.notes = found.notes || [];
+  state.revisions = found.revisions || [];
+  fieldRevPrev = {};
   saveState();
   renderDashboard();
   if(action === 'preview') {
@@ -1806,7 +1898,8 @@ function currentPack() {
     filings: state.filings || [],
     rules: typeof SmartRules !== 'undefined' ? SmartRules.snapshot() : null,
     shareCode: state.shareCode || '',
-    notes: state.notes || []
+    notes: state.notes || [],
+    revisions: state.revisions || []
   });
 }
 
@@ -1895,10 +1988,11 @@ function reviewPack(pack, sourceLabel, mode) {
     <div><span class="k">提单套版</span>${escapeHtml((typeof SmartDocs !== 'undefined' && SmartDocs.carrierName(pack.blCarrier)) || pack.blCarrier || '通用')}</div>
     ${(pack.filings && pack.filings.length) ? `<div><span class="k">申报</span>${escapeHtml(pack.filings.map(f => (f.channel || '') + ':' + (f.status || '')).join('、'))}</div>` : ''}
     ${pack.rules ? `<div><span class="k">规则库</span>${escapeHtml('v' + (pack.rules.version || ''))}</div>` : ''}
+    ${pack.readOnly ? `<div><span class="k">权限</span>只读协作（不能写入档案）</div>` : ''}
     ${pack.remark ? `<div><span class="k">备注</span>${escapeHtml(pack.remark)}</div>` : ''}
     ${bad.length ? `<div style="margin-top:10px;"><strong>风险字段</strong><ul class="job-list">${bad.map(r => `<li>${escapeHtml(r.label || r.key || '')}</li>`).join('')}</ul></div>` : ''}
   `;
-  const isPreview = pendingPackMode === 'preview';
+  const isPreview = pendingPackMode === 'preview' || !!(pack && pack.readOnly);
   document.getElementById('packImportBtn').style.display = isPreview ? 'none' : '';
   document.getElementById('packAckBtn').style.display = isPreview ? 'none' : '';
   document.getElementById('packReviewModal').classList.add('show');
@@ -1906,6 +2000,10 @@ function reviewPack(pack, sourceLabel, mode) {
 
 function confirmImportPack() {
   if (!pendingPack) return;
+  if (pendingPack.readOnly) {
+    showToast('这是只读协作包，不能写入档案。请用只读页打开。');
+    return;
+  }
   const pack = pendingPack;
   const label = pendingPackLabel;
   closePackReview();
@@ -1937,6 +2035,10 @@ function ackAndReplyPack() {
 }
 
 function applyImportedPack(pack, sourceLabel) {
+  if (pack && pack.readOnly) {
+    showToast('只读协作包不能写入档案');
+    return;
+  }
   const fields = { ...SmartDoc.emptyShipment(), ...(pack.shipment || {}) };
   if (!fields.ticketNo) fields.ticketNo = SmartDoc.newTicket();
   state.shipment = fields;
@@ -1954,6 +2056,8 @@ function applyImportedPack(pack, sourceLabel) {
   state.filings = pack.filings || [];
   state.shareCode = pack.shareCode || '';
   state.notes = pack.notes || [];
+  state.revisions = pack.revisions || [];
+  fieldRevPrev = {};
   if (pack.rules && typeof SmartRules !== 'undefined') SmartRules.applyImported(pack.rules);
   pushTimeline('收件导入 ' + (sourceLabel || ''));
   SmartExchange.localPush(pack, 'in');
@@ -1999,6 +2103,8 @@ function openJobFolder(ticketNo) {
         <ul class="job-list">${tl.length ? tl.map(ev => `<li>${escapeHtml(ev.at || '')} · ${escapeHtml(ev.text || '')}</li>`).join('') : '<li>打开本票作业后会产生记录</li>'}</ul>
       </div>
     </div>
+    <h4 style="margin-top:8px;">字段修订历史</h4>
+    <div id="jobRevs">${renderRevisionsHtml(ticketNo, found.revisions || [])}</div>
     <h4 style="margin-top:8px;">批注线程</h4>
     <div id="jobNotes">${renderNotesHtml(found.notes || [])}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
@@ -2072,6 +2178,7 @@ function fileChannel(channel) {
   const rec = SmartFiling.create(channel, state.shipment.ticketNo);
   state.filings = [rec].concat(state.filings || []).slice(0, 20);
   pushTimeline('提交 ' + rec.name + ' 申报（排队）');
+  chargeQuota('filing', rec.name);
   saveState();
   renderFilings();
   showToast(rec.name + ' 已进入申报队列…');
@@ -2151,18 +2258,34 @@ function addCustomRule() {
 }
 
 let lastShare = null;
+function paintShareOut(share, kind) {
+  lastShare = share;
+  state.shareCode = share.code;
+  const box = document.getElementById('shareOut');
+  const tag = share.readOnly ? '只读协作' : (kind || '可编辑载入');
+  box.innerHTML = `<div>${tag} · 短码 <strong>${escapeHtml(share.code)}</strong>（本机可再输入） · 令牌 ${share.bytes} 字节</div>
+    ${share.url ? `<div style="margin-top:6px;word-break:break-all;">链接：<a href="${escapeHtml(share.url)}">${escapeHtml(share.url.slice(0, 120))}…</a></div>` : '<div style="margin-top:6px;">令牌较长，请复制完整令牌发给对方粘贴。</div>'}`;
+  document.getElementById('shareRedeem').value = share.url || share.token;
+}
+
 function makeShareCode() {
   if (typeof SmartShare === 'undefined') { showToast('分享模块未加载'); return; }
   const pack = currentPack();
-  lastShare = SmartShare.encode(pack);
-  state.shareCode = lastShare.code;
-  pushTimeline('生成分享码 ' + lastShare.code);
+  const share = SmartShare.encode(pack);
+  pushTimeline('生成分享码 ' + share.code);
   upsertArchive(state.archive.find(a => a.ticketNo === pack.ticketNo)?.status || '待校验');
-  const box = document.getElementById('shareOut');
-  box.innerHTML = `<div>短码 <strong>${escapeHtml(lastShare.code)}</strong>（本机可再输入） · 令牌 ${lastShare.bytes} 字节</div>
-    ${lastShare.url ? `<div style="margin-top:6px;word-break:break-all;">链接：<a href="${escapeHtml(lastShare.url)}">${escapeHtml(lastShare.url.slice(0, 96))}…</a></div>` : '<div style="margin-top:6px;">令牌较长，请复制完整令牌发给对方粘贴。</div>'}`;
-  document.getElementById('shareRedeem').value = lastShare.token;
-  showToast('已生成分享码 ' + lastShare.code);
+  paintShareOut(share, '可编辑载入');
+  showToast('已生成分享码 ' + share.code);
+}
+
+function makeReadOnlyShare() {
+  if (typeof SmartShare === 'undefined') { showToast('分享模块未加载'); return; }
+  const pack = currentPack();
+  const share = SmartShare.encode(pack, { readOnly: true });
+  pushTimeline('生成只读协作链接 ' + share.code);
+  upsertArchive(state.archive.find(a => a.ticketNo === pack.ticketNo)?.status || '待校验');
+  paintShareOut(share, '只读协作');
+  showToast('已生成只读链接（对方无需登录，不能改档案）');
 }
 
 async function copyShareToken() {
@@ -2181,6 +2304,12 @@ function redeemShare() {
   const input = (document.getElementById('shareRedeem').value || '').trim();
   try {
     const pack = SmartShare.decode(input);
+    if (pack.readOnly) {
+      const share = SmartShare.encode(pack, { readOnly: true });
+      if (share.url) { location.href = share.url; return; }
+      showToast('只读包请用 view.html 打开');
+      return;
+    }
     reviewPack(pack, '分享码 ' + (pack.ticketNo || ''));
   } catch (err) {
     showToast(err.message || String(err));
@@ -2223,6 +2352,8 @@ function cloneCurrentTicket() {
   state.generated = {};
   state.filings = [];
   state.notes = [];
+  state.revisions = [];
+  fieldRevPrev = {};
   state.checkRows = [];
   state.checkSummary = '';
   state.ack = null;
@@ -2261,6 +2392,101 @@ function noteFieldOptions() {
 function renderNotesHtml(notes) {
   if (!notes || !notes.length) return '<p style="font-size:.82rem;color:var(--g500);">暂无批注</p>';
   return notes.map(n => `<div class="note-item"><strong>${escapeHtml(n.by || '')}</strong> · ${escapeHtml(n.at || '')} · ${escapeHtml(n.fieldLabel || n.field || '整票')}<div>${escapeHtml(n.text || '')}</div></div>`).join('');
+}
+
+function renderRevisionsHtml(ticketNo, revs) {
+  if (!revs || !revs.length) return '<p style="font-size:.82rem;color:var(--g500);">修改字段后会在此留下历史，可回滚到上一值。</p>';
+  return revs.map((r, i) => `
+    <div class="rev-item">
+      <strong>${escapeHtml(r.label || r.key)}</strong> · ${escapeHtml(r.by || '')} · ${escapeHtml(r.at || '')}
+      <div class="fromto">${escapeHtml(r.from || '（空）')} → ${escapeHtml(r.to || '（空）')}</div>
+      <button class="action-btn" style="margin-top:4px;" onclick="rollbackRevision('${escapeHtml(ticketNo)}', ${i})">回滚到修改前</button>
+    </div>`).join('');
+}
+
+function rollbackRevision(ticketNo, idx) {
+  if (typeof SmartJob === 'undefined') return;
+  const found = state.archive.find(a => a.ticketNo === ticketNo);
+  if (!found) return;
+  const onCurrent = ticketNo === state.shipment.ticketNo;
+  const list = (onCurrent ? state.revisions : found.revisions) || [];
+  const rev = list[idx];
+  if (!rev) return;
+  const curVal = onCurrent ? (state.shipment[rev.key] || '') : (found[rev.key] || '');
+  if (onCurrent) {
+    state.shipment[rev.key] = rev.from;
+    fieldRevPrev[rev.key] = rev.from;
+    state.revisions = SmartJob.pushRev(state.revisions, rev.key, curVal, rev.from, AUTH_USER.name, (rev.label || rev.key) + ' 回滚');
+    pushTimeline('回滚字段 ' + (rev.label || rev.key));
+    const rec = state.archive.find(a => a.ticketNo === ticketNo);
+    upsertArchive(rec && rec.status ? rec.status : '待校验');
+  } else {
+    found[rev.key] = rev.from;
+    found.revisions = SmartJob.pushRev(found.revisions, rev.key, curVal, rev.from, AUTH_USER.name, (rev.label || rev.key) + ' 回滚');
+    saveState();
+  }
+  openJobFolder(ticketNo);
+  showToast('已回滚 ' + (rev.label || rev.key));
+}
+
+function filterBoard(kind, el) {
+  state.boardFilter = kind || 'all';
+  document.querySelectorAll('#boardPills .filter-pill').forEach(p => p.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderBoard();
+}
+
+function renderBoard() {
+  const box = document.getElementById('boardTbody');
+  if (!box || typeof SmartFiling === 'undefined') return;
+  const kind = state.boardFilter || 'all';
+  const rows = SmartFiling.boardRows(state.archive).filter(r => kind === 'all' || r.worst.status === kind);
+  if (!rows.length) {
+    box.innerHTML = '<tr><td colspan="7" style="color:var(--g500);padding:18px;">没有符合条件的票。请先在档案里填写 ETD，或放宽筛选。</td></tr>';
+    return;
+  }
+  box.innerHTML = rows.map(r => {
+    const a = r.ticket;
+    const ams = r.cut.ams;
+    const isf = r.cut.isf;
+    const cls = r.worst.status === 'overdue' ? 'overdue' : (r.worst.status === 'open' ? 'open' : '');
+    return `<tr class="${cls}">
+      <td><strong>${escapeHtml(a.ticketNo)}</strong></td>
+      <td>${escapeHtml((a.shipper || '').slice(0, 28))}</td>
+      <td>${escapeHtml(r.cut.etd ? SmartFiling.fmt(r.cut.etd) : '未填')}</td>
+      <td>${escapeHtml((ams.deadline ? SmartFiling.fmt(ams.deadline) + ' · ' : '') + ams.label)}</td>
+      <td>${escapeHtml((isf.deadline ? SmartFiling.fmt(isf.deadline) + ' · ' : '') + isf.label)}</td>
+      <td><span class="status-badge ${r.worst.status === 'filed' ? 'pass' : (r.worst.status === 'overdue' ? 'fail' : 'pending')}">${escapeHtml(r.worst.label)}</span></td>
+      <td><div class="action-btns">
+        <button class="action-btn" onclick="switchTab('archive');openJobFolder('${escapeHtml(a.ticketNo)}')">作业夹</button>
+        <button class="action-btn" onclick="loadArchiveIntoWorkspace('${escapeHtml(a.ticketNo)}','check')">载入</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderAuditTable() {
+  const box = document.getElementById('auditTbody');
+  if (!box || typeof SmartAudit === 'undefined') return;
+  const rows = SmartAudit.load().slice(0, 20);
+  if (!rows.length) {
+    box.innerHTML = '<tr><td colspan="5" style="color:var(--g500);">尚无扣额记录。识别建档、同源出单、模拟申报会写入本表。</td></tr>';
+    return;
+  }
+  box.innerHTML = rows.map(r => `<tr>
+    <td>${escapeHtml(r.at || '')}</td>
+    <td>${escapeHtml(r.actionLabel || r.action || '')}</td>
+    <td>${escapeHtml(r.ticket || '')}</td>
+    <td>${escapeHtml(r.source || '')}</td>
+    <td>${escapeHtml(r.detail || '')}</td>
+  </tr>`).join('');
+}
+
+function exportAuditCsv() {
+  if (typeof SmartAudit === 'undefined') { showToast('审计模块未加载'); return; }
+  const csv = '\ufeff' + SmartAudit.toCsv();
+  triggerDownload('SmartDoc_audit.csv', csv, 'text/csv;charset=utf-8');
+  showToast('已导出额度审计 CSV');
 }
 
 function addJobNote(ticketNo) {
@@ -2314,6 +2540,10 @@ function consumeShareHash() {
   try { sessionStorage.removeItem('smartdoc_pending_share'); } catch (e) { /* ignore */ }
   try {
     const pack = SmartShare.decode(h);
+    if (pack.readOnly) {
+      location.replace('view.html' + (location.hash || h));
+      return;
+    }
     if (location.hash) history.replaceState(null, '', location.pathname + location.search);
     reviewPack(pack, '分享链接');
   } catch (e) {

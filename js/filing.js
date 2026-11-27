@@ -82,6 +82,19 @@
     return { etd: c.etd, ams: oneCutoff("ams", c.ams, filings), isf: oneCutoff("isf", c.isf, filings) };
   }
 
+  function boardRows(archive) {
+    return (archive || []).map((a) => {
+      const cut = cutoffState(a, a.filings || []);
+      const worst = [cut.ams, cut.isf].sort((x, y) => {
+        const order = { overdue: 0, open: 1, "no-etd": 2, filed: 3 };
+        return (order[x.status] || 9) - (order[y.status] || 9);
+      })[0];
+      const t = (cut.ams.deadline && cut.ams.deadline.getTime()) || (cut.isf.deadline && cut.isf.deadline.getTime()) || Number.MAX_SAFE_INTEGER;
+      const rank = { overdue: 0, open: 1, "no-etd": 2, filed: 3 }[worst.status] ?? 9;
+      return { ticket: a, cut, worst, t, rank };
+    }).sort((x, y) => x.rank - y.rank || x.t - y.t);
+  }
+
   function create(channel, ticketNo) {
     const meta = CHANNELS[channel];
     if (!meta) throw new Error("未知申报通道");
@@ -119,5 +132,5 @@
     return rec;
   }
 
-  w.SmartFiling = { CHANNELS, evaluate, create, settle, requiredKeys, cutoffs, cutoffState, fmt, parseEtd };
+  w.SmartFiling = { CHANNELS, evaluate, create, settle, requiredKeys, cutoffs, cutoffState, fmt, parseEtd, boardRows };
 })(window);

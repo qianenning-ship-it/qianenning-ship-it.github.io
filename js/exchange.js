@@ -28,6 +28,8 @@
       rules: opts.rules || null,
       shareCode: opts.shareCode || "",
       notes: opts.notes || [],
+      revisions: opts.revisions || [],
+      readOnly: !!opts.readOnly,
     };
   }
 
@@ -58,6 +60,8 @@
         rules: obj.rules || null,
         shareCode: obj.shareCode || "",
         notes: obj.notes || [],
+        revisions: obj.revisions || [],
+        readOnly: !!obj.readOnly,
       };
     }
     throw new Error("不是智单通发单包（缺少 kind=smartdoc-pack 或货物字段）");
