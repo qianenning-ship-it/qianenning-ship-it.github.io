@@ -61,7 +61,10 @@
 
   function archiveSlice(state) {
     return {
-      extractFiles: state.extractFiles || (state.extractMeta && state.extractMeta.files) || [],
+      extractFiles: (state.extractFiles || (state.extractMeta && state.extractMeta.files) || []).map((f) => {
+        if (typeof f === "string") return f;
+        return { fileName: f.fileName || f.name || "", method: f.method || "", size: f.size || 0, at: f.at || "", ocrText: String(f.ocrText || "").slice(0, 200) };
+      }),
       timeline: state.timeline || [],
       checkRows: state.checkRows || [],
       checkSummary: state.checkSummary || "",

@@ -99,6 +99,25 @@
     return id;
   }
 
+  function localGet(id) {
+    return localList().find((x) => x.id === id) || null;
+  }
+
+  async function receiveBrowser(raw, password) {
+    const text = String(raw || "").trim();
+    if (!text) throw new Error("请粘贴 JSON 或分享令牌");
+    let pack;
+    if (text.charAt(0) === "{") {
+      pack = parsePack(JSON.parse(text));
+    } else if (w.SmartShare) {
+      pack = await w.SmartShare.decode(text, password || undefined);
+    } else {
+      throw new Error("无法解析");
+    }
+    const id = localPush(pack, "in");
+    return { id, pack };
+  }
+
   async function pushInbox(pack) {
     const r = await fetch("/api/inbox", {
       method: "POST",
@@ -132,6 +151,8 @@
     parsePack,
     localList,
     localPush,
+    localGet,
+    receiveBrowser,
     pushInbox,
     listInbox,
     getInbox,

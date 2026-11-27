@@ -55,7 +55,10 @@
       b: pack.blCarrier || "generic",
       f: pack.filings || [],
       tl: (pack.timeline || []).slice(0, 12),
-      files: pack.extractFiles || [],
+      files: (pack.extractFiles || []).map((f) => {
+        if (typeof f === "string") return f;
+        return { n: f.fileName || f.name || "", o: String(f.ocrText || "").slice(0, 180) };
+      }),
       ack: pack.ack || null,
       n: (pack.notes || []).slice(0, 20),
       rv: (pack.revisions || []).slice(0, 20),
@@ -80,7 +83,7 @@
       blCarrier: c.b || c.blCarrier || "generic",
       filings: c.f || c.filings || [],
       timeline: c.tl || c.timeline || [],
-      extractFiles: c.files || c.extractFiles || [],
+      extractFiles: (c.files || c.extractFiles || []).map((f) => (typeof f === "string" ? f : { fileName: f.n || f.fileName || "", ocrText: f.o || f.ocrText || "" })),
       ack: c.ack || null,
       notes: c.n || c.notes || [],
       revisions: c.rv || c.revisions || [],
