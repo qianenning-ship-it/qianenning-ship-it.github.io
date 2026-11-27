@@ -1,4 +1,6 @@
 (function (w) {
+  const THIS_SCRIPT = document.currentScript && document.currentScript.src;
+
   function loadScript(src) {
     return new Promise((resolve, reject) => {
       if ([...document.scripts].some((s) => s.src.includes(src))) return resolve();
@@ -101,22 +103,53 @@
     }
     if (text.replace(/\s/g, "").length >= 40) {
       const parsed = SmartDoc.parseLabeledText(text);
-      return { fields: parsed.fields, conf: parsed.conf, rawText: text.slice(0, 4000), method: "PDF 文本提取" };
+      return { fields: parsed.fields, conf: parsed.conf, rawText: text.slice(0, 4000), method: "PDF 文本提取", engine: "browser" };
     }
     let ocrText = text + "\n";
-    await ensureTesseract();
+    let method = "PDF OCR（浏览器）";
     for (let i = 1; i <= Math.min(pdf.numPages, 3); i++) {
       const page = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: 2 });
+      const viewport = page.getViewport({ scale: 1.8 });
       const canvas = document.createElement("canvas");
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
-      const { data: res } = await w.Tesseract.recognize(canvas, "eng", { logger: () => {} });
-      ocrText += (res && res.text) || "";
+      const blob = await canvasToBlob(canvas);
+      const got = await ocrBlob(blob);
+      ocrText += (got.text || "") + "\n";
+      if (got.method) method = got.method.replace("图片", "PDF");
     }
     const parsed = SmartDoc.parseLabeledText(ocrText);
-    return { fields: parsed.fields, conf: parsed.conf, rawText: ocrText.slice(0, 4000), method: "PDF OCR（浏览器）" };
+    return { fields: parsed.fields, conf: parsed.conf, rawText: ocrText.slice(0, 4000), method, engine: "browser-onnx" };
+  }
+
+  function canvasToBlob(canvas) {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("canvas toBlob 失败"))), "image/png");
+    });
+  }
+
+  async function loadSmartOcr() {
+    if (w.SmartOcr && typeof w.SmartOcr.recognize === "function") return w.SmartOcr;
+    const base = THIS_SCRIPT || location.href;
+    await import(new URL("ocr-onnx.js", base).href);
+    return w.SmartOcr;
+  }
+
+  async function ocrBlob(blob) {
+    try {
+      await loadSmartOcr();
+      const r = await w.SmartOcr.recognize(blob);
+      const text = (r && r.text) || "";
+      if (text.replace(/\s/g, "").length >= 4) {
+        return { text, method: "图片 OCR（浏览器 PP-OCRv5 / ONNX）", engine: (r && r.engine) || "onnx" };
+      }
+    } catch (e) {
+      console.warn("[SmartExtract] ONNX OCR 失败，改用 Tesseract", e);
+    }
+    await ensureTesseract();
+    const { data } = await w.Tesseract.recognize(blob, "chi_sim+eng", { logger: () => {} });
+    return { text: (data && data.text) || "", method: "图片 OCR（浏览器 Tesseract 中英）", engine: "tesseract" };
   }
 
   async function ensureTesseract() {
@@ -138,11 +171,15 @@
   }
 
   async function extractImageClient(file) {
-    await ensureTesseract();
-    const { data } = await w.Tesseract.recognize(file, "eng", { logger: () => {} });
-    const text = (data && data.text) || "";
-    const parsed = SmartDoc.parseLabeledText(text);
-    return { fields: parsed.fields, conf: parsed.conf, rawText: text.slice(0, 4000), method: "图片 OCR（浏览器）" };
+    const got = await ocrBlob(file);
+    const parsed = SmartDoc.parseLabeledText(got.text || "");
+    return {
+      fields: parsed.fields,
+      conf: parsed.conf,
+      rawText: (got.text || "").slice(0, 4000),
+      method: got.method,
+      engine: got.engine,
+    };
   }
 
   async function extractFromFile(file) {

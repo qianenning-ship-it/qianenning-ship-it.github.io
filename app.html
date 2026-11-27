@@ -380,7 +380,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
     <!-- ========== UPLOAD ========== -->
     <div class="page" id="page-upload">
       <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:4px;">📤 多格式单据自动识别与提取</h2>
-      <p style="color:var(--g500);font-size:.9rem;margin-bottom:20px;">上传商业发票、装箱单、托书，真实解析 Excel / CSV / PDF 文本；扫描件走 OCR。<span id="engineBadge" class="engine-pill">检测识别引擎...</span></p>
+      <p style="color:var(--g500);font-size:.9rem;margin-bottom:20px;">上传商业发票、装箱单、托书。Excel / 电子 PDF 抽文本；扫描件在浏览器里跑 PP-OCRv5（中英，首次约下载 20MB 模型）。<span id="engineBadge" class="engine-pill">检测识别引擎...</span></p>
 
       <div class="upload-area">
         <input type="file" id="fileInput" accept=".csv,.txt,.json,.xlsx,.xls,.pdf,.png,.jpg,.jpeg,.webp" hidden>
@@ -1513,7 +1513,7 @@ if(initTab) switchTab(initTab);
 SmartExtract.health().then(h => {
   const el = document.getElementById('engineBadge');
   if (!el) return;
-  el.textContent = (h && h.ok) ? '本地 RapidOCR 已连接' : '浏览器解析（Excel/PDF 文本；扫描件走 Tesseract）';
+  el.textContent = (h && h.ok) ? '本地 RapidOCR 已连接' : '浏览器 PP-OCRv5（中英扫描件，模型缓存在本机）';
 });
 </script>
 </body>

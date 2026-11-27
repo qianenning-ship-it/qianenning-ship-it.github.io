@@ -14,17 +14,19 @@
 
 演示账号：`demo@smartdoc.com`　密码：`demo123`
 
-GitHub Pages 走浏览器解析（SheetJS / PDF.js；扫描件走 Tesseract.js CDN）。数据存在本机 `localStorage`。
+GitHub Pages 走浏览器解析：Excel / 电子 PDF 抽文本；扫描件用 PP-OCRv5（ONNX / WASM，中英）。首次打开扫描识别会下载约 20MB 模型并缓存在浏览器。Mac / Windows 用 Chrome 即可。数据存在本机 `localStorage`。
 
 ## 本地（含 RapidOCR）
 
-在本目录运行：
+双击本目录的 `启动智单通.bat`，或运行：
 
 ```
 D:\Python\python.exe server.py
 ```
 
 然后访问 http://127.0.0.1:8090/
+
+发给别人用在线地址即可，不必开本机服务。
 
 依赖：`flask`、`openpyxl`、`pymupdf`、`pillow`、`rapidocr_onnxruntime`（见 `requirements.txt`）。
 
