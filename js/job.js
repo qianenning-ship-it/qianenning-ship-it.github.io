@@ -10,8 +10,9 @@
     bk: "订舱确认",
     ci: "商业发票",
     co: "产地证",
+    ip: "保险单",
   };
-  const DOC_IDS = ["bl", "ams", "export", "isf", "pl", "vgm", "an", "bk", "ci", "co"];
+  const DOC_IDS = ["bl", "ams", "export", "isf", "pl", "vgm", "an", "bk", "ci", "co", "ip"];
 
   function pushEvent(list, text) {
     const next = Array.isArray(list) ? list.slice() : [];

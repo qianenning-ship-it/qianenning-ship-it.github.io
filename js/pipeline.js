@@ -29,6 +29,9 @@
     { key: "discount", label: "折扣 / Discount", required: false },
     { key: "coCertNo", label: "产地证号 / COO Certificate No.", required: false },
     { key: "coIssuer", label: "签证机关 / Issuing Authority", required: false },
+    { key: "insuredValue", label: "保险金额 / Amount Insured", required: false },
+    { key: "coverClause", label: "险别 / Cover", required: false },
+    { key: "insurer", label: "保险公司 / Insurer", required: false },
   ];
 
   const ALIASES = {
@@ -62,6 +65,9 @@
     discount: ["discount", "rebate", "折扣", "减让"],
     coCertNo: ["certificate no", "certificate number", "coo no", "form a no", "产地证号", "证书号", "原产地证书号"],
     coIssuer: ["issuing authority", "competent authority", "chamber", "签证机关", "签证机构", "贸促会"],
+    insuredValue: ["insured value", "amount insured", "sum insured", "insurance amount", "保险金额", "保额"],
+    coverClause: ["cover", "clause", "icc", "conditions", "险别", "保险条款", "承保险别"],
+    insurer: ["insurer", "underwriter", "insurance company", "保险公司", "保险人"],
     unitPrice: ["unit price", "unitprice", "price", "单价", "unprice"],
     amount: ["amount", "amt", "value", "total amount", "金额", "总价", "货值"],
   };
@@ -472,6 +478,18 @@
       const m = t.match(/(?:issuing authority|competent authority|签证机关|签证机构|贸促会)\s*[:：]\s*([^\n]{2,60})/i);
       if (m) fields.coIssuer = m[1].trim();
     }
+    if (!fields.insuredValue) {
+      const m = t.match(/(?:amount insured|insured value|sum insured|保险金额|保额)\s*[:：]\s*([^\n]{2,32})/i);
+      if (m && /[\d]/.test(m[1])) fields.insuredValue = m[1].trim();
+    }
+    if (!fields.coverClause) {
+      const m = t.match(/(?:cover|icc|险别|保险条款|承保险别)\s*[:：]\s*(ICC\s*\(?[ABC]\)?|[^\n]{2,40})/i);
+      if (m) fields.coverClause = m[1].trim();
+    }
+    if (!fields.insurer) {
+      const m = t.match(/(?:insurer|underwriter|保险公司|保险人)\s*[:：]\s*([^\n]{2,60})/i);
+      if (m) fields.insurer = m[1].trim();
+    }
     harvestAllContainers(t, fields);
   }
 
@@ -663,7 +681,7 @@
       .filter(Boolean);
     const out = [];
     const seen = {};
-    const headerish = /^(no\.?|marks|#|item|description|goods|hs|hts|qty|pkgs|packages|gw|weight|cbm|volume|品名|税号|件数|毛重|体积|装箱单|packing|唛头|嘜头|单价|金额|currency|invoice|原产地|产地证|origin|imo|un no|packing group|危险品|包装等级|税率|折扣|证书号|签证机关|tax|vat|discount)/i;
+    const headerish = /^(no\.?|marks|#|item|description|goods|hs|hts|qty|pkgs|packages|gw|weight|cbm|volume|品名|税号|件数|毛重|体积|装箱单|packing|唛头|嘜头|单价|金额|currency|invoice|原产地|产地证|origin|imo|un no|packing group|危险品|包装等级|税率|折扣|证书号|签证机关|tax|vat|discount|保险|险别|保额|icc|insurer)/i;
     rows.forEach((line) => {
       const colon = line.split(/[:：]/);
       if (colon.length >= 2) {

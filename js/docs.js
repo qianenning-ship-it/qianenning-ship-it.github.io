@@ -39,6 +39,9 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     zim: { size: "A4", margin: "12mm 13mm 15mm 16mm" },
     hmm: { size: "A4", margin: "14mm 12mm 16mm 14mm" },
     sud: { size: "A4", margin: "13mm 15mm 14mm 13mm" },
+    pil: { size: "A4", margin: "12mm 14mm 16mm 14mm" },
+    kmtc: { size: "A4", margin: "13mm 12mm 15mm 15mm" },
+    sitc: { size: "A4", margin: "11mm 14mm 14mm 16mm" },
   };
 
   function cssFor(carrierId) {
@@ -128,6 +131,22 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
       discountLabel: discount ? moneyLabel(discount, currency) : "",
       taxLabel: tax ? moneyLabel(tax, currency) : "",
       totalLabel: (total || subtotal) ? moneyLabel(total, currency) : "",
+    };
+  }
+
+  function insuranceOf(s) {
+    const cover = String((s && s.coverClause) || "").trim() || "ICC (A)";
+    const insurer = String((s && s.insurer) || "").trim();
+    const inv = invoiceOf(s);
+    const written = String((s && s.insuredValue) || "").trim();
+    const amount = written || inv.totalLabel || "";
+    return {
+      cover,
+      insurer,
+      amount,
+      fromInvoice: !written && !!inv.totalLabel,
+      policyNo: "IP" + String((s && s.ticketNo) || "").replace(/^SH/, ""),
+      currency: inv.currency,
     };
   }
 
@@ -295,6 +314,9 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     zim: { id: "zim", name: "ZIM", scac: "ZIMU", mark: "Z", color: "#003087", title: "ZIM INTEGRATED SHIPPING B/L", legal: "ZIM Integrated Shipping Services Ltd. Bill of Lading (draft). Particulars furnished by the merchant. This copy is generated from a SmartDoc archive for checking only." },
     hmm: { id: "hmm", name: "HMM", scac: "HDMU", mark: "韩", color: "#00a0e9", title: "HMM BILL OF LADING", legal: "HMM Company Limited Bill of Lading (draft). Contract of carriage subject to HMM bill of lading terms. For document check and pre-alert only." },
     sud: { id: "sud", name: "HAMBURG SÜD", scac: "SUDU", mark: "S", color: "#e30613", title: "HAMBURG SÜD BILL OF LADING", legal: "Hamburg Südamerikanische Dampfschifffahrts-Gesellschaft Bill of Lading (draft). Particulars furnished by the shipper. Not valid for negotiation until signed by the carrier." },
+    pil: { id: "pil", name: "PIL", scac: "PILU", mark: "P", color: "#c8102e", title: "PACIFIC INTERNATIONAL LINES B/L", legal: "Pacific International Lines (Pte) Ltd Bill of Lading (draft). Particulars furnished by the merchant. This copy is generated from a SmartDoc archive for checking only." },
+    kmtc: { id: "kmtc", name: "KMTC", scac: "KMTU", mark: "K", color: "#003da5", title: "KMTC BILL OF LADING", legal: "Korea Marine Transport Co., Ltd. Bill of Lading (draft). Contract of carriage subject to KMTC bill of lading terms. For document check and pre-alert only." },
+    sitc: { id: "sitc", name: "SITC", scac: "SITU", mark: "海", color: "#00857c", title: "SITC BILL OF LADING", legal: "SITC International Holdings Co., Ltd. Bill of Lading (draft). Particulars furnished by the shipper. Not valid for negotiation until signed by the carrier." },
   };
 
   const OWNER_CARRIER = {
@@ -311,6 +333,9 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     ZIMU: "zim", ZCSU: "zim",
     HMMU: "hmm", HDMU: "hmm",
     SUDU: "sud", SANU: "sud",
+    PCLU: "pil", PILU: "pil",
+    KKTU: "kmtc", KMTU: "kmtc",
+    SITU: "sitc", SITC: "sitc",
   };
 
   function ownerCode(containerNo) {
@@ -489,6 +514,24 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     return { filename: "AN_" + (s.ticketNo || "notice") + ".eml", raw: raw, subject: subject };
   }
 
+  function buildIp(s) {
+    const ins = insuranceOf(s);
+    const blNo = String(s.ticketNo || "").replace("SH", "SHSE");
+    return `<div class="sheet">
+      ${head("MARINE CARGO INSURANCE POLICY / 货物运输保险单", "Homologous I/P · 保额默认发票合计 · 险别默认可改", s.ticketNo)}
+      <div class="grid2">
+        ${cell("Policy No.", ins.policyNo)}${cell("Invoice / B/L Ref.", ( "INV" + String(s.ticketNo || "").replace(/^SH/, "") ) + " / " + blNo)}
+        ${cell("Assured", s.shipper)}${cell("Insurer", ins.insurer || "—")}
+        ${cell("Vessel / Voyage", (s.vessel || "") + " / " + (s.voyage || ""))}${cell("Voyage", (s.pol || "") + " → " + (s.pod || ""))}
+        ${cell("Amount insured", ins.amount || "—")}${cell("Conditions / Cover", ins.cover)}
+        ${cell("Marks & Nos.", marksOf(s))}${cell("Container / Seal", cnText(s))}
+      </div>
+      ${cargoTableHtml(s, "bl")}
+      <p class="clause">This draft policy is generated from the SmartDoc cargo archive. Amount insured defaults to the commercial invoice total when blank (${ins.fromInvoice ? "using invoice total" : "as written"}). Cover defaults to ICC (A) if empty. Not a signed underwriting document. 本保险单草稿非正式保险公司签章件，保额未填则取发票合计，险别未填则 ICC (A)。</p>
+      <div class="sign"><div><div class="line">Assured</div></div><div><div class="line">${e(ins.insurer || "Insurer / Underwriter")}</div></div><div><div class="line">Date / Place</div></div></div>
+    </div>`;
+  }
+
   function buildCo(s) {
     const origin = originCountryOf(s);
     const oc = originCriterionOf(s);
@@ -521,6 +564,7 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     if (type === "bk") return buildBk(s, carrier);
     if (type === "ci") return buildCi(s);
     if (type === "co") return buildCo(s);
+    if (type === "ip") return buildIp(s);
     if (type === "ams") {
       const dg = dgOf(s);
       return `<div class="sheet">
@@ -567,7 +611,7 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     return `<div class="sheet"><p class="clause">未知单证类型 ${e(type)}</p></div>`;
   }
 
-  const TITLES = { bl: "B/L", ams: "AMS", export: "EXPORT", isf: "ISF", pl: "PACKING", vgm: "VGM", an: "ARRIVAL", bk: "BOOKING", ci: "INVOICE", co: "COO" };
+  const TITLES = { bl: "B/L", ams: "AMS", export: "EXPORT", isf: "ISF", pl: "PACKING", vgm: "VGM", an: "ARRIVAL", bk: "BOOKING", ci: "INVOICE", co: "COO", ip: "POLICY" };
 
   function stampHtml(opts, s) {
     opts = opts || {};
@@ -604,7 +648,7 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
   }
 
   function checkReport(shipment, rows, selected, summary) {
-    const labels = { bl: "B/L", ams: "AMS", export: "报关单", isf: "ISF", pl: "装箱单", vgm: "VGM", an: "到货通知", bk: "订舱确认", ci: "商业发票", co: "产地证" };
+    const labels = { bl: "B/L", ams: "AMS", export: "报关单", isf: "ISF", pl: "装箱单", vgm: "VGM", an: "到货通知", bk: "订舱确认", ci: "商业发票", co: "产地证", ip: "保险单" };
     const body = (rows || [])
       .map((row) => {
         const cells = selected.map((d) => `<td>${e(row[d] || "")}</td>`).join("");
@@ -620,5 +664,5 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
       </div></body></html>`;
   }
 
-  w.SmartDocs = { build, wrap, print, checkReport, CSS, cssFor, CARRIERS, PRINT_PAGE, carrierName, vgmOf, vgmList, etaOf, TITLES, stampHtml, ownerCode, carrierFromOwner, OWNER_CARRIER, marksOf, containersOf, cnText, invoiceOf, originCountryOf, originCriterionOf, dgOf, anEml, coCertOf, coIssuerOf };
+  w.SmartDocs = { build, wrap, print, checkReport, CSS, cssFor, CARRIERS, PRINT_PAGE, carrierName, vgmOf, vgmList, etaOf, TITLES, stampHtml, ownerCode, carrierFromOwner, OWNER_CARRIER, marksOf, containersOf, cnText, invoiceOf, originCountryOf, originCriterionOf, dgOf, anEml, coCertOf, coIssuerOf, insuranceOf };
 })(window);
