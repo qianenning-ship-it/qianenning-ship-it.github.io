@@ -33,8 +33,18 @@
         items.push(item(channel, "containerNo", "ISO 6346 柜号未通过（申报拒绝）"));
       }
     }
-    if (on("hs") && s.hsCode && w.SmartDoc && !w.SmartDoc.hsLooksValid(s.hsCode)) {
+    if (on("hs") && s.hsCode && w.SmartDoc && !w.SmartDoc.hsLooksValid(s.hsCode) && !(s.lines && s.lines.length > 1)) {
       items.push(item(channel, "hsCode", "HS / HTS 格式未通过规则库"));
+    }
+    const lines = (w.SmartDoc && w.SmartDoc.normalizeLines(s)) || [];
+    if (lines.length) {
+      lines.forEach((l, i) => {
+        if (!String(l.description || "").trim()) items.push(item(channel, "lines", "明细第 " + (i + 1) + " 行缺少品名"));
+        if (!String(l.hsCode || "").trim()) items.push(item(channel, "hsCode", "明细第 " + (i + 1) + " 行缺少 HS"));
+        if (on("hs") && l.hsCode && w.SmartDoc && !w.SmartDoc.hsLooksValid(l.hsCode)) {
+          items.push(item(channel, "hsCode", "明细第 " + (i + 1) + " 行 HS 格式未通过"));
+        }
+      });
     }
     if (channel === "ams" && on("ams24h") && !String(s.notifyParty || "").trim()) {
       items.push(item(channel, "notifyParty", "AMS 24h：Notify Party 为空，存在 DNL 风险"));
@@ -132,5 +142,35 @@
     return rec;
   }
 
-  w.SmartFiling = { CHANNELS, evaluate, create, settle, requiredKeys, cutoffs, cutoffState, fmt, parseEtd, boardRows };
+  function icsStamp(d) {
+    const p = (n) => String(n).padStart(2, "0");
+    return d.getUTCFullYear() + p(d.getUTCMonth() + 1) + p(d.getUTCDate()) + "T" + p(d.getUTCHours()) + p(d.getUTCMinutes()) + "00Z";
+  }
+
+  function icsText(s) {
+    return String(s || "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
+  }
+
+  function exportIcs(archive) {
+    const rows = boardRows(archive);
+    const events = [];
+    rows.forEach((r) => {
+      ["ams", "isf"].forEach((ch) => {
+        const c = r.cut[ch];
+        if (!c || !c.deadline) return;
+        const ticket = (r.ticket && r.ticket.ticketNo) || "";
+        const uid = ch + "-" + ticket + "@smartdoc";
+        events.push(
+          "BEGIN:VEVENT\r\nUID:" + uid + "\r\nDTSTAMP:" + icsStamp(new Date()) +
+          "\r\nDTSTART:" + icsStamp(c.deadline) +
+          "\r\nSUMMARY:" + icsText((ch === "isf" ? "ISF 10+2 截关 " : "AMS 24h 截关 ") + ticket) +
+          "\r\nDESCRIPTION:" + icsText((r.ticket && r.ticket.shipper) || "") +
+          "\r\nEND:VEVENT"
+        );
+      });
+    });
+    return "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//SmartDoc//Cutoff//CN\r\nCALSCALE:GREGORIAN\r\n" + events.join("\r\n") + "\r\nEND:VCALENDAR\r\n";
+  }
+
+  w.SmartFiling = { CHANNELS, evaluate, create, settle, requiredKeys, cutoffs, cutoffState, fmt, parseEtd, boardRows, exportIcs };
 })(window);

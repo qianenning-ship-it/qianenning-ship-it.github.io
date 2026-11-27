@@ -13,7 +13,7 @@
 - 工作台：https://qianenning-ship-it.github.io/app.html
 - 只读协作页：https://qianenning-ship-it.github.io/view.html（发单页「只读协作链接」，对方无需登录）
 
-演示账号：`demo@smartdoc.com`　密码：`demo123`
+演示账号：制单员 `demo@smartdoc.com`　复核员 `checker@smartdoc.com`　密码均为 `demo123`
 
 GitHub Pages 走浏览器解析：Excel / 电子 PDF 抽文本；扫描件用 PP-OCRv5（ONNX / WASM，中英）。首次打开扫描识别会下载约 20MB 模型并缓存在浏览器。Mac / Windows 用 Chrome 即可。数据存在本机 `localStorage`。
 
@@ -46,5 +46,9 @@ D:\Python\python.exe server.py
 9. 顶栏可切换已挂起的票，或「复制上一票」改柜号/船期；发单页分享码 / `#sd=` 链接跨浏览器载入
 10. 截关看板按 AMS/ISF 截止排序全库票；作业夹记录字段修订并可回滚；只读协作链接走 `view.html`（可看档案/批注，不能写入）
 11. 识别建档、同源出单、模拟申报各扣 1 票额度，套餐页可导出审计 CSV
+12. 货描支持多行品名 / HS / 件数 / 毛重，同源写入四套单证与 AMS CUSCAR / ISF XML
+13. 收件遇本机同票时并排对账，可整票覆盖或按字段合并
+14. 制单员校验通过后须复核员（checker@smartdoc.com）确认，才能模拟申报
+15. 截关看板可导出 ICS；工作台票数 / 待办 / 通过率 / 工时按档案库实算
 
 示例文件在 `samples/`。

@@ -69,8 +69,42 @@
       shareCode: state.shareCode || "",
       notes: state.notes || [],
       revisions: state.revisions || [],
+      checkRun: state.checkRun || null,
+      checkApproval: state.checkApproval || null,
     };
   }
 
-  w.SmartJob = { DOC_LABELS, pushEvent, checkSummaryFromRows, diffRows, archiveSlice, pushRev };
+  function fieldPairs(local, incoming) {
+    const meta = [{ key: "ticketNo", label: "票号" }].concat((w.SmartDoc && w.SmartDoc.FIELD_META) || []);
+    meta.push({ key: "lines", label: "货描明细" });
+    const fmt = (obj, key) => {
+      if (key === "lines") return (w.SmartDoc && w.SmartDoc.linesLabel(obj)) || "";
+      return String((obj && obj[key]) || "");
+    };
+    return meta.map((f) => {
+      const a = fmt(local, f.key);
+      const b = fmt(incoming, f.key);
+      return { key: f.key, label: f.label, local: a, incoming: b, differ: a !== b };
+    }).filter((r) => r.differ);
+  }
+
+  function applyMerge(local, incoming, choices) {
+    const snapIn = w.SmartDoc ? w.SmartDoc.snapshot(incoming || {}) : Object.assign({}, incoming);
+    const snapLoc = w.SmartDoc ? w.SmartDoc.snapshot(local || {}) : Object.assign({}, local);
+    const out = Object.assign({}, snapLoc, snapIn);
+    Object.keys(choices || {}).forEach((key) => {
+      if (choices[key] === "local") {
+        if (key === "lines") out.lines = snapLoc.lines || [];
+        else out[key] = snapLoc[key] || "";
+      } else if (choices[key] === "incoming") {
+        if (key === "lines") out.lines = snapIn.lines || [];
+        else out[key] = snapIn[key] || "";
+      }
+    });
+    if (w.SmartDoc && w.SmartDoc.rollupHeader) w.SmartDoc.rollupHeader(out);
+    out.ticketNo = (choices && choices.ticketNo === "local" ? snapLoc.ticketNo : snapIn.ticketNo) || snapIn.ticketNo || snapLoc.ticketNo;
+    return out;
+  }
+
+  w.SmartJob = { DOC_LABELS, pushEvent, checkSummaryFromRows, diffRows, archiveSlice, pushRev, fieldPairs, applyMerge };
 })(window);

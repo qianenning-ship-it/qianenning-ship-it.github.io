@@ -29,6 +29,8 @@
       shareCode: opts.shareCode || "",
       notes: opts.notes || [],
       revisions: opts.revisions || [],
+      checkRun: opts.checkRun || null,
+      checkApproval: opts.checkApproval || null,
       readOnly: !!opts.readOnly,
     };
   }

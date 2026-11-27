@@ -4,23 +4,56 @@
 
   function seed() {
     const users = JSON.parse(localStorage.getItem(USERS_KEY) || "[]");
-    if (!users.find((u) => u.email === "demo@smartdoc.com")) {
-      users.push({
-        email: "demo@smartdoc.com",
-        password: "demo123",
-        name: "Demo 单证专员",
-        company: "Demo 国际货代有限公司",
-        plan: "专业会员版",
-      });
-      localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    function ensure(u) {
+      const i = users.findIndex((x) => x.email === u.email);
+      if (i < 0) users.push(u);
+      else {
+        if (!users[i].role) users[i].role = u.role;
+        if (!users[i].name) users[i].name = u.name;
+      }
     }
+    ensure({
+      email: "demo@smartdoc.com",
+      password: "demo123",
+      name: "Demo 单证专员",
+      company: "Demo 国际货代有限公司",
+      plan: "专业会员版",
+      role: "operator",
+    });
+    ensure({
+      email: "checker@smartdoc.com",
+      password: "demo123",
+      name: "Demo 复核专员",
+      company: "Demo 国际货代有限公司",
+      plan: "专业会员版",
+      role: "checker",
+    });
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
   }
   seed();
+
+  function roleOf(user) {
+    if (!user) return "operator";
+    if (user.role) return user.role;
+    return user.email === "checker@smartdoc.com" ? "checker" : "operator";
+  }
+
+  function sessionOf(found) {
+    return {
+      email: found.email,
+      name: found.name,
+      company: found.company,
+      plan: found.plan,
+      role: roleOf(found),
+    };
+  }
 
   w.SmartAuth = {
     current() {
       try {
-        return JSON.parse(localStorage.getItem(USER_KEY) || "null");
+        const u = JSON.parse(localStorage.getItem(USER_KEY) || "null");
+        if (u && !u.role) u.role = roleOf(u);
+        return u;
       } catch (e) {
         return null;
       }
@@ -32,9 +65,21 @@
         (u) => u.email.toLowerCase() === String(email).trim().toLowerCase() && u.password === password
       );
       if (!found) return { ok: false, msg: "邮箱或密码不正确" };
-      const session = { email: found.email, name: found.name, company: found.company, plan: found.plan };
+      const session = sessionOf(found);
       localStorage.setItem(USER_KEY, JSON.stringify(session));
       return { ok: true, user: session };
+    },
+    switchTo(email) {
+      seed();
+      const users = JSON.parse(localStorage.getItem(USERS_KEY) || "[]");
+      const found = users.find((u) => u.email.toLowerCase() === String(email).trim().toLowerCase());
+      if (!found) return { ok: false, msg: "账号不存在" };
+      const session = sessionOf(found);
+      localStorage.setItem(USER_KEY, JSON.stringify(session));
+      return { ok: true, user: session };
+    },
+    roleLabel(role) {
+      return role === "checker" ? "复核员" : "制单员";
     },
     register(payload) {
       seed();
@@ -48,10 +93,11 @@
         name: payload.name,
         company: payload.company || payload.name + " 货代",
         plan: "免费体验版",
+        role: "operator",
       };
       users.push(user);
       localStorage.setItem(USERS_KEY, JSON.stringify(users));
-      localStorage.setItem(USER_KEY, JSON.stringify({ email: user.email, name: user.name, company: user.company, plan: user.plan }));
+      localStorage.setItem(USER_KEY, JSON.stringify(sessionOf(user)));
       return { ok: true };
     },
     logout() {

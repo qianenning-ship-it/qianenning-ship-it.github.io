@@ -21,6 +21,8 @@ body{background:#f2f3f5;}
 .note{font-size:13px;padding:8px 0;border-bottom:1px solid #f2f3f5;}
 .paste{width:100%;min-height:80px;border:1px solid #e5e6eb;border-radius:8px;padding:10px 12px;font-size:13px;font-family:Consolas,monospace;margin:8px 0 12px;}
 .err{color:#c24f4a;font-size:14px;}
+table.cargo th,table.cargo td{border:1px solid #e5e6eb;padding:6px 8px;text-align:left;}
+table.cargo th{background:#f7faff;font-size:12px;}
 </style>
 </head>
 <body>
@@ -78,6 +80,10 @@ function renderPack(pack) {
     <div class="card">
       <h2>货物档案（只读）</h2>
       <div class="kv">${fields.map(f => `<div class="k">${escapeHtml(f.label)}</div><div>${escapeHtml(s[f.key] || '')}</div>`).join('')}</div>
+    </div>
+    <div class="card">
+      <h2>货描明细</h2>
+      ${((window.SmartDoc && SmartDoc.normalizeLines(s)) || []).length ? `<table class="cargo" style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr><th>品名</th><th>HS</th><th>件数</th><th>毛重</th><th>体积</th></tr></thead><tbody>${SmartDoc.normalizeLines(s).map(l => `<tr><td>${escapeHtml(l.description)}</td><td>${escapeHtml(l.hsCode)}</td><td>${escapeHtml(l.packages)}</td><td>${escapeHtml(l.grossWeight)}</td><td>${escapeHtml(l.volume)}</td></tr>`).join('')}</tbody></table>` : '<p style="font-size:13px;color:#7a8699;">无明细行</p>'}
     </div>
     <div class="card">
       <h2>批注</h2>

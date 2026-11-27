@@ -43,6 +43,31 @@
     return (NODES[channel] && NODES[channel][key]) || (channel.toUpperCase() + "/" + key);
   }
 
+  function cargoLines(s) {
+    const ls = (w.SmartDoc && w.SmartDoc.normalizeLines(s)) || [];
+    if (ls.length) return ls;
+    return [{ hsCode: s.hsCode, description: s.description, packages: s.packages, grossWeight: s.grossWeight, volume: s.volume }];
+  }
+
+  function gidBlocks(s) {
+    return cargoLines(s).map((l, i) => `  <GID line="${i + 1}">
+    <Packages>${esc(l.packages)}</Packages>
+    <FTX>${esc(l.description)}</FTX>
+    <HTS>${esc(l.hsCode)}</HTS>
+    <MEA qualifier="WT">${esc(l.grossWeight)}</MEA>
+    <MEA qualifier="VOL">${esc(l.volume)}</MEA>
+  </GID>`).join("\n");
+  }
+
+  function commodityBlocks(s) {
+    return cargoLines(s).map((l, i) => `  <Commodity line="${i + 1}">
+    <HTSUS>${esc(l.hsCode)}</HTSUS>
+    <Description>${esc(l.description)}</Description>
+    <Packages>${esc(l.packages)}</Packages>
+    <GrossWeight>${esc(l.grossWeight)}</GrossWeight>
+  </Commodity>`).join("\n");
+  }
+
   function amsXml(s, rec) {
     s = s || {};
     rec = rec || {};
@@ -71,13 +96,7 @@
     <ContainerNumber>${esc(s.containerNo)}</ContainerNumber>
     <SEL>${esc(s.sealNo)}</SEL>
   </EQD>
-  <GID>
-    <Packages>${esc(s.packages)}</Packages>
-    <FTX>${esc(s.description)}</FTX>
-    <HTS>${esc(s.hsCode)}</HTS>
-    <MEA qualifier="WT">${esc(s.grossWeight)}</MEA>
-    <MEA qualifier="VOL">${esc(s.volume)}</MEA>
-  </GID>
+${gidBlocks(s)}
   <Remark>SmartDoc homologous draft. Not a live ACE filing.</Remark>
 </CUSCAR>
 `;
@@ -101,10 +120,7 @@
   <ShipToParty>${esc(s.notifyParty || s.consignee)}</ShipToParty>
   <StuffingLocation>${esc(s.pol)}</StuffingLocation>
   <Consolidator>${esc(s.shipper)}</Consolidator>
-  <Commodity>
-    <HTSUS>${esc(s.hsCode)}</HTSUS>
-    <Description>${esc(s.description)}</Description>
-  </Commodity>
+${commodityBlocks(s)}
   <Equipment>
     <ContainerNumber>${esc(s.containerNo)}</ContainerNumber>
   </Equipment>

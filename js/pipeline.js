@@ -36,10 +36,96 @@
     etd: ["etd", "etd date", "sailing", "departure", "开船", "开船日", "预计开船"],
   };
 
+  const LINE_KEYS = ["hsCode", "description", "packages", "grossWeight", "volume"];
+
   function emptyShipment() {
-    const o = { ticketNo: "" };
+    const o = { ticketNo: "", lines: [] };
     FIELD_META.forEach((f) => (o[f.key] = ""));
     return o;
+  }
+
+  function emptyLine() {
+    const o = {};
+    LINE_KEYS.forEach((k) => (o[k] = ""));
+    return o;
+  }
+
+  function cleanLine(raw) {
+    const o = emptyLine();
+    LINE_KEYS.forEach((k) => {
+      const v = raw && raw[k];
+      o[k] = k === "hsCode" ? normalizeHs(v || "") : String(v || "").trim();
+    });
+    return o;
+  }
+
+  function lineFilled(l) {
+    return !!(l && (String(l.description || "").trim() || String(l.hsCode || "").trim() || String(l.packages || "").trim()));
+  }
+
+  function normalizeLines(s) {
+    const raw = s && Array.isArray(s.lines) ? s.lines : [];
+    const lines = raw.map(cleanLine).filter(lineFilled).slice(0, 30);
+    if (lines.length) return lines;
+    if (s && (s.description || s.hsCode)) {
+      return [cleanLine({
+        hsCode: s.hsCode,
+        description: s.description,
+        packages: s.packages,
+        grossWeight: s.grossWeight,
+        volume: s.volume,
+      })];
+    }
+    return [];
+  }
+
+  function sumQty(list, key) {
+    let unit = "";
+    let n = 0;
+    let all = true;
+    (list || []).forEach((l) => {
+      const m = String(l[key] || "").match(/([\d,.]+)\s*([A-Za-z]*)/);
+      if (!m) {
+        all = false;
+        return;
+      }
+      n += parseFloat(m[1].replace(/,/g, "")) || 0;
+      if (m[2]) unit = m[2].toUpperCase();
+    });
+    if (!all || !(list || []).length) {
+      return (list || []).map((l) => l[key]).filter(Boolean).join(" + ");
+    }
+    const rounded = Math.round(n * 1000) / 1000;
+    return (String(rounded) + (unit ? " " + unit : "")).trim();
+  }
+
+  function rollupHeader(s) {
+    const lines = normalizeLines(s);
+    if (!s) return s;
+    s.lines = lines;
+    if (!lines.length) return s;
+    if (lines.length === 1) {
+      LINE_KEYS.forEach((k) => {
+        if (lines[0][k]) s[k] = lines[0][k];
+      });
+    } else {
+      s.description = (lines[0].description || "GOODS") + " +" + (lines.length - 1) + " SKU";
+      s.hsCode = lines.map((l) => l.hsCode).filter(Boolean).join("; ");
+      s.packages = sumQty(lines, "packages");
+      s.grossWeight = sumQty(lines, "grossWeight");
+      s.volume = sumQty(lines, "volume");
+    }
+    return s;
+  }
+
+  function linesLabel(s) {
+    const ls = normalizeLines(s);
+    if (!ls.length) return "";
+    return ls.length + " 行 · " + ls.map((l) => l.description || l.hsCode || "—").join(" / ");
+  }
+
+  function linesSig(s) {
+    return JSON.stringify(normalizeLines(s).map((l) => LINE_KEYS.map((k) => l[k] || "")));
   }
 
   function normKey(s) {
@@ -242,13 +328,40 @@
       }
     }
     if (headerIdx >= 0) {
-      const dataRow = clean[headerIdx + 1] || [];
-      mapping.forEach((key, idx) => {
-        if (key && dataRow[idx] && !fields[key]) {
-          fields[key] = key === "hsCode" ? normalizeHs(dataRow[idx]) : dataRow[idx];
-          conf[key] = 99;
+      const cargoHits = mapping.filter((k) => LINE_KEYS.indexOf(k) >= 0).length;
+      if (cargoHits >= 2) {
+        const lines = [];
+        for (let r = headerIdx + 1; r < clean.length; r++) {
+          const dataRow = clean[r] || [];
+          const line = emptyLine();
+          let any = false;
+          mapping.forEach((key, idx) => {
+            if (!key || !dataRow[idx]) return;
+            if (LINE_KEYS.indexOf(key) >= 0) {
+              line[key] = key === "hsCode" ? normalizeHs(dataRow[idx]) : dataRow[idx];
+              any = true;
+            } else if (!fields[key]) {
+              fields[key] = key === "hsCode" ? normalizeHs(dataRow[idx]) : dataRow[idx];
+              conf[key] = 99;
+            }
+          });
+          if (any && lineFilled(line)) lines.push(cleanLine(line));
         }
-      });
+        if (lines.length) {
+          fields.lines = lines;
+          rollupHeader(fields);
+          conf.description = 99;
+          conf.hsCode = 99;
+        }
+      } else {
+        const dataRow = clean[headerIdx + 1] || [];
+        mapping.forEach((key, idx) => {
+          if (key && dataRow[idx] && !fields[key]) {
+            fields[key] = key === "hsCode" ? normalizeHs(dataRow[idx]) : dataRow[idx];
+            conf[key] = 99;
+          }
+        });
+      }
     }
 
     clean.forEach((r) => {
@@ -276,12 +389,13 @@
   }
 
   function sourceHash(s) {
-    return FIELD_META.map((f) => String((s && s[f.key]) || "").trim()).join("|") + "|" + String((s && s.ticketNo) || "");
+    return FIELD_META.map((f) => String((s && s[f.key]) || "").trim()).join("|") + "|" + String((s && s.ticketNo) || "") + "|" + linesSig(s);
   }
 
   function snapshot(s) {
     const o = { ticketNo: s.ticketNo };
     FIELD_META.forEach((f) => (o[f.key] = s[f.key] || ""));
+    o.lines = normalizeLines(s);
     return o;
   }
 
@@ -324,6 +438,30 @@
       row.sourceMismatch = present.some((v) => v.toUpperCase() !== row.source.toUpperCase() && row.source);
       rows.push(row);
     });
+    const srcLines = linesLabel(source);
+    if (srcLines) {
+      const row = { key: "lines", label: "货描明细行", required: false, source: srcLines };
+      selectedDocs.forEach((d) => {
+        const g = generated[d];
+        row[d] = g && g.fields ? linesLabel(g.fields) : "";
+        row[d + "_stale"] = !!(g && g.sourceHash && g.sourceHash !== currentHash);
+      });
+      const vals = selectedDocs.map((d) => row[d]);
+      const unique = new Set(vals.filter(Boolean).map((v) => v.toUpperCase()));
+      row.ruleWarn = "";
+      row.stale = selectedDocs.some((d) => row[d + "_stale"]);
+      row.hasEmpty = false;
+      row.mismatch = unique.size > 1;
+      row.sourceMismatch = vals.some((v) => v && v.toUpperCase() !== srcLines.toUpperCase());
+      rows.push(row);
+    }
+    normalizeLines(source).forEach((l, i) => {
+      if (ruleOn("hs") && l.hsCode && !hsLooksValid(l.hsCode)) {
+        const row = { key: "line-hs-" + i, label: "明细 HS #" + (i + 1), required: false, source: l.hsCode, ruleWarn: "明细行 HS 格式未通过", stale: false, hasEmpty: false, mismatch: false, sourceMismatch: false };
+        selectedDocs.forEach((d) => { row[d] = l.hsCode; });
+        rows.push(row);
+      }
+    });
     const custom = (w.SmartRules && w.SmartRules.get().custom) || [];
     custom.filter((r) => r.enabled).forEach((r) => {
       const val = String(source[r.field] || "").trim();
@@ -352,7 +490,7 @@
     (results || []).forEach((r) => {
       if (!r || !r.fields) return;
       if (r.rawText) rawParts.push("----- " + (r.fileName || r.method || "file") + " -----\n" + r.rawText);
-      const keys = Object.keys(emptyShipment());
+      const keys = Object.keys(emptyShipment()).filter((k) => k !== "lines");
       keys.forEach((k) => {
         const v = r.fields[k];
         const c = (r.conf && r.conf[k]) || (v ? 80 : 0);
@@ -363,6 +501,16 @@
         }
       });
     });
+    const allLines = [];
+    (results || []).forEach((r) => {
+      (normalizeLines(r.fields || {})).forEach((l) => {
+        if (!allLines.some((x) => linesSig({ lines: [x] }) === linesSig({ lines: [l] }))) allLines.push(l);
+      });
+    });
+    if (allLines.length) {
+      fields.lines = allLines;
+      rollupHeader(fields);
+    }
     if (!fields.ticketNo) fields.ticketNo = newTicket();
     return {
       fields,
@@ -391,5 +539,11 @@
     splitCsvLine,
     aliasKey,
     mergeExtracts,
+    LINE_KEYS,
+    emptyLine,
+    normalizeLines,
+    rollupHeader,
+    linesLabel,
+    linesSig,
   };
 })(window);

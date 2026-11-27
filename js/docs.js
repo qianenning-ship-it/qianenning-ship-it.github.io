@@ -33,6 +33,32 @@ table.cargo th{background:#f1f5f9;font-size:11px}
     return `<div class="cell"><div class="lbl">${label}</div><div class="val">${e(value) || "—"}</div></div>`;
   }
 
+  function cargoLines(s) {
+    const ls = (w.SmartDoc && w.SmartDoc.normalizeLines(s)) || [];
+    if (ls.length) return ls;
+    return [{
+      hsCode: s.hsCode,
+      description: s.description,
+      packages: s.packages,
+      grossWeight: s.grossWeight,
+      volume: s.volume,
+    }];
+  }
+
+  function cargoTableHtml(s, kind) {
+    const ls = cargoLines(s);
+    if (kind === "export") {
+      const body = ls.map((l) => `<tr><td>${e(l.hsCode)}</td><td>${e(l.description)}</td><td>${e(l.packages)}</td><td>${e(l.grossWeight)}</td><td>${e(l.volume)}</td></tr>`).join("");
+      return `<table class="cargo"><thead><tr><th>商品编号 (HS)</th><th>商品名称及规格型号</th><th>件数</th><th>毛重</th><th>体积</th></tr></thead><tbody>${body}</tbody></table>`;
+    }
+    if (kind === "ams") {
+      const body = ls.map((l) => `<tr><td>${e(l.hsCode)}</td><td>${e(l.description)}</td><td>${e(l.packages)}</td><td>${e(l.grossWeight)}</td></tr>`).join("");
+      return `<table class="cargo"><thead><tr><th>HTS</th><th>Cargo Description</th><th>Quantity</th><th>Gross Weight</th></tr></thead><tbody>${body}</tbody></table>`;
+    }
+    const body = ls.map((l, i) => `<tr><td>${i + 1}</td><td>${e(l.packages)}</td><td>${e(l.description)}<br>HS ${e(l.hsCode)}</td><td>${e(l.grossWeight)}</td><td>${e(l.volume)}</td></tr>`).join("");
+    return `<table class="cargo"><thead><tr><th>Marks</th><th>No. of Pkgs</th><th>Description of Goods / HS</th><th>Gross Weight</th><th>Measurement</th></tr></thead><tbody>${body}</tbody></table>`;
+  }
+
   const CARRIERS = {
     generic: { id: "generic", name: "通用套版", scac: "SDTU", mark: "智", color: "#006aff", title: "OCEAN BILL OF LADING (DRAFT)", legal: "Shipped on board in apparent good order. Freight as arranged. SmartDoc homologous draft — not a signed original B/L." },
     cosco: { id: "cosco", name: "COSCO SHIPPING", scac: "COSU", mark: "中", color: "#c41e3a", title: "COSCO SHIPPING BILL OF LADING", legal: "COSCO SHIPPING Lines Co., Ltd. Combined Transport B/L (draft). Terms of carriage as per COSCO bill of lading. This copy is generated from a SmartDoc archive for checking only." },
@@ -63,14 +89,7 @@ table.cargo th{background:#f1f5f9;font-size:11px}
         ${cell("Port of Discharge / POD", s.pod)}${cell("Container / Seal", (s.containerNo || "") + " / " + (s.sealNo || ""))}
         ${cell("Vessel / Voyage", (s.vessel || "") + " / " + (s.voyage || ""))}${cell("ETD", s.etd)}
       </div>
-      <table class="cargo">
-        <thead><tr><th>Marks</th><th>No. of Pkgs</th><th>Description of Goods / HS</th><th>Gross Weight</th><th>Measurement</th></tr></thead>
-        <tbody><tr>
-          <td>N/M</td><td>${e(s.packages)}</td>
-          <td>${e(s.description)}<br>HS ${e(s.hsCode)}</td>
-          <td>${e(s.grossWeight)}</td><td>${e(s.volume)}</td>
-        </tr></tbody>
-      </table>
+      ${cargoTableHtml(s, "bl")}
       <p class="clause">${e(c.legal)}</p>
       <div class="sign"><div><div class="line">Shipper</div></div><div><div class="line">${e(c.name)} / Agent</div></div><div><div class="line">Date / Place</div></div></div>
     </div>`;
@@ -90,10 +109,7 @@ table.cargo th{background:#f1f5f9;font-size:11px}
           ${cell("Notify Party (mandatory)", s.notifyParty)}${cell("Last Foreign Port / POL", s.pol)}
           ${cell("Port of Unlading / POD", s.pod)}${cell("Container / Seal", (s.containerNo || "") + " / " + (s.sealNo || ""))}
         </div>
-        <table class="cargo">
-          <thead><tr><th>HTS</th><th>Cargo Description</th><th>Quantity</th><th>Gross Weight</th></tr></thead>
-          <tbody><tr><td>${e(s.hsCode)}</td><td>${e(s.description)}</td><td>${e(s.packages)}</td><td>${e(s.grossWeight)}</td></tr></tbody>
-        </table>
+        ${cargoTableHtml(s, "ams")}
         <p class="clause">AMS must be filed at least 24 hours before cargo is laden aboard the vessel at the foreign port. Empty notify party may trigger a do-not-load (DNL) hold.</p>
       </div>`;
     }
@@ -105,10 +121,7 @@ table.cargo th{background:#f1f5f9;font-size:11px}
           ${cell("境外收货人", s.consignee)}${cell("提运单号", blNo)}
           ${cell("集装箱号 / 封号", (s.containerNo || "") + " / " + (s.sealNo || ""))}${cell("运输路线", (s.pol || "") + " → " + (s.pod || ""))}
         </div>
-        <table class="cargo">
-          <thead><tr><th>商品编号 (HS)</th><th>商品名称及规格型号</th><th>件数</th><th>毛重</th><th>体积</th></tr></thead>
-          <tbody><tr><td>${e(s.hsCode)}</td><td>${e(s.description)}</td><td>${e(s.packages)}</td><td>${e(s.grossWeight)}</td><td>${e(s.volume)}</td></tr></tbody>
-        </table>
+        ${cargoTableHtml(s, "export")}
         <p class="clause">本单为智单通按货物档案同源生成的报关草稿，申报前须由报关员核对品名、税号与成交数量。</p>
         <div class="sign"><div><div class="line">申报单位</div></div><div><div class="line">报关员</div></div><div><div class="line">申报日期</div></div></div>
       </div>`;
@@ -120,9 +133,10 @@ table.cargo th{background:#f1f5f9;font-size:11px}
         ${cell("1. Importer of Record", s.consignee)}${cell("2. Consignee", s.consignee)}
         ${cell("3. Seller / Owner", s.shipper)}${cell("4. Manufacturer / Supplier", s.shipper)}
         ${cell("5. Ship to Party", s.consignee)}${cell("6. Country of Origin", "CHINA")}
-        ${cell("7. HTSUS", s.hsCode)}${cell("8. Container Stuffing Location", s.pol)}
+        ${cell("7. HTSUS", cargoLines(s).map((l) => l.hsCode).filter(Boolean).join(" / ") || s.hsCode)}${cell("8. Container Stuffing Location", s.pol)}
         ${cell("9. Consolidator", s.shipper)}${cell("10. Container No.", s.containerNo)}
       </div>
+      ${cargoTableHtml(s, "ams")}
       <p class="clause">+2 data elements (stow plan / container status) are filed by the carrier. Commodity: ${e(s.description)}. Packages: ${e(s.packages)}.</p>
     </div>`;
   }

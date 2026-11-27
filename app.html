@@ -286,6 +286,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 .audit-table{width:100%;border-collapse:collapse;font-size:.8rem;}
 .audit-table th,.audit-table td{padding:8px 10px;border-bottom:1px solid var(--g100);text-align:left;}
 .audit-table th{background:var(--g50);font-size:.72rem;color:var(--g500);}
+.lines-box{margin-top:16px;background:var(--g50);border:1px solid var(--g200);border-radius:10px;padding:14px;}
+.lines-table{width:100%;border-collapse:collapse;font-size:.8rem;}
+.lines-table th,.lines-table td{padding:6px;border-bottom:1px solid var(--g200);text-align:left;}
+.lines-table input{width:100%;border:1px solid var(--g200);border-radius:6px;padding:6px 8px;font-size:.8rem;}
+.dual-bar{background:#e8f3ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 12px;font-size:.82rem;margin-bottom:12px;color:#1d4ed8;}
+.dual-bar.warn{background:#fef2f2;border-color:#fca5a5;color:#991b1b;}
+.dual-bar.ok{background:#f0fdf4;border-color:#86efac;color:#047857;}
+.conflict-table{width:100%;border-collapse:collapse;font-size:.78rem;margin-top:8px;}
+.conflict-table th,.conflict-table td{padding:6px 8px;border-bottom:1px solid var(--g100);vertical-align:top;}
+.conflict-table .diff{background:#fffbeb;}
 .rule-item label{display:flex;align-items:center;gap:8px;cursor:pointer;}
 @media(max-width:900px){.job-grid{grid-template-columns:1fr;}}
 
@@ -403,13 +413,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
         </div>
         <div class="stat-card">
           <div class="stat-card-top"><div class="stat-icon" style="background:#d1fae5;">✅</div><span class="stat-trend up">↑ 2.3%</span></div>
-          <div class="stat-value">98.5%</div>
-          <div class="stat-label">三单一致性通过率</div>
+          <div class="stat-value" id="statPassRate">—</div>
+          <div class="stat-label">档案校验通过率</div>
         </div>
         <div class="stat-card">
-          <div class="stat-card-top"><div class="stat-icon" style="background:#ede9fe;">⏱️</div><span class="stat-trend up">↑ 80%</span></div>
-          <div class="stat-value">46h</div>
-          <div class="stat-label">本月节省人工工时</div>
+          <div class="stat-card-top"><div class="stat-icon" style="background:#ede9fe;">⏱️</div><span class="stat-trend up" id="statHoursTrend">估算</span></div>
+          <div class="stat-value" id="statHours">—</div>
+          <div class="stat-label">按档案估算节省工时</div>
         </div>
       </div>
 
@@ -463,6 +473,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <button class="btn btn-s" onclick="loadSampleDoc('csv')">📑 示例3：同票发票 (CSV)</button>
           <button class="btn btn-s" onclick="loadSampleDoc('scan')">🖼️ 示例4：装箱单扫描件（走真 OCR）</button>
           <button class="btn btn-s" onclick="loadSampleSet()">📦 示例5：发票 CSV + 扫描装箱单（合并一票）</button>
+          <button class="btn btn-s" onclick="loadSampleDoc('lines')">📑 示例6：多行货描明细 (CSV)</button>
         </div>
         <div class="ocr-panel" id="ocrPanel">
           <strong>中文识别引擎（浏览器本地）</strong>
@@ -486,6 +497,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <span style="font-size:.78rem;color:var(--primary);">支持实时修改后同步到后续制单与校验</span>
         </div>
         <div class="fields-grid" id="fieldsGrid"></div>
+        <div class="lines-box" id="linesBox"></div>
         <div class="extract-meta" id="extractMeta"></div>
         <div id="extractFailBanner" class="fail-banner" style="display:none"></div>
         <div class="field-actions">
@@ -559,6 +571,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
         <h3>模拟申报队列（AMS / ISF）</h3>
         <p style="font-size:.82rem;color:var(--g500);margin-bottom:12px;">不连接真实海关。按当前档案与规则库模拟发送，回执 Accepted / Rejected 写入本票作业夹；拒绝原因会出现在下方校验问题里。</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+          <div id="dualRoleBar" class="dual-bar"></div>
           <button class="btn btn-p" onclick="fileChannel('ams')">📡 申报 AMS 24h</button>
           <button class="btn btn-p" onclick="fileChannel('isf')">📡 申报 ISF 10+2</button>
           <button class="btn btn-s" onclick="downloadEdiDraft('ams')">⬇️ AMS CUSCAR XML</button>
@@ -604,6 +617,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <button class="filter-pill active" onclick="filterArchive('all',this)">全部</button>
           <button class="filter-pill" onclick="filterArchive('已校验',this)">已校验</button>
           <button class="filter-pill" onclick="filterArchive('待校验',this)">待校验</button>
+          <button class="filter-pill" onclick="filterArchive('待复核',this)">待复核</button>
           <button class="filter-pill" onclick="filterArchive('有异常',this)">有异常</button>
           <button class="filter-pill" onclick="filterArchive('已申报',this)">已申报</button>
         </div>
@@ -633,6 +647,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <button class="filter-pill" onclick="filterBoard('filed',this)">已 Accepted</button>
         </div>
         <button class="btn btn-s" onclick="renderBoard()">刷新倒计时</button>
+        <button class="btn btn-p" onclick="exportCutoffIcs()">📅 导出截关日历 ICS</button>
       </div>
       <div class="archive-table">
         <div class="table-wrap">
@@ -699,6 +714,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
             <button class="btn btn-p" onclick="buyPack(20)">+ 加购 20 票旺季按次包</button>
             <button class="btn btn-s" onclick="buyPack(50)">+ 加购 50 票旺季按次包</button>
             <button class="btn btn-s" onclick="exportAuditCsv()">📥 导出审计 CSV</button>
+            <button class="btn btn-s" onclick="switchDemoRole(AUTH_USER.role === 'checker' ? 'operator' : 'checker')">切换制单员 / 复核员</button>
           </div>
           <p style="font-size:.78rem;color:var(--g500);margin:12px 0 8px;">识别建档、同源出单、模拟申报各扣 1 票。月度 500 用尽后扣按次包；再超限仍可演示，但审计记为 over。</p>
           <div class="table-wrap"><table class="audit-table"><thead><tr><th>时间</th><th>动作</th><th>票号</th><th>额度</th><th>说明</th></tr></thead><tbody id="auditTbody"></tbody></table></div>
@@ -759,7 +775,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
     <div class="modal-body">
       <div id="packReviewBody" class="pack-preview"></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;" id="packReviewActions">
-        <button class="btn btn-p" id="packImportBtn" onclick="confirmImportPack()">载入工作台</button>
+        <div id="packConflictBox" style="display:none;margin-top:14px;"></div>
+        <button class="btn btn-p" id="packImportBtn" onclick="confirmImportPack()">用对方覆盖载入</button>
+        <button class="btn btn-s" id="packMergeBtn" onclick="confirmImportMerged()" style="display:none">按勾选合并载入</button>
         <button class="btn btn-ok" id="packAckBtn" onclick="ackAndReplyPack()">已核对并回传</button>
         <button class="btn btn-s" onclick="closePackReview()">取消</button>
       </div>
@@ -810,7 +828,11 @@ const DEFAULT_SHIPMENT = {
   pod: 'LOS ANGELES, USA',
   vessel: 'EVER GIVEN',
   voyage: '001W',
-  etd: '2026-12-05T18:00'
+  etd: '2026-12-05T18:00',
+  lines: [
+    { hsCode: '8471.30.0100', description: 'LAPTOP COMPUTERS', packages: '200 CTNS', grossWeight: '3400 KGS', volume: '18.0 CBM' },
+    { hsCode: '8471.60.2000', description: 'WIRELESS MOUSE', packages: '300 CTNS', grossWeight: '5100 KGS', volume: '27.6 CBM' }
+  ]
 };
 
 const FIELD_META = SmartDoc.FIELD_META;
@@ -851,6 +873,8 @@ let state = {
   shareCode: (JSON.parse(localStorage.getItem('smartdoc_job') || 'null') || {}).shareCode || '',
   notes: (JSON.parse(localStorage.getItem('smartdoc_job') || 'null') || {}).notes || [],
   revisions: (JSON.parse(localStorage.getItem('smartdoc_job') || 'null') || {}).revisions || [],
+  checkRun: (JSON.parse(localStorage.getItem('smartdoc_job') || 'null') || {}).checkRun || null,
+  checkApproval: (JSON.parse(localStorage.getItem('smartdoc_job') || 'null') || {}).checkApproval || null,
   boardFilter: 'all',
   _userName: ''
 };
@@ -874,13 +898,97 @@ function saveState() {
     filings: state.filings || [],
     shareCode: state.shareCode || '',
     notes: state.notes || [],
-    revisions: state.revisions || []
+    revisions: state.revisions || [],
+    checkRun: state.checkRun || null,
+    checkApproval: state.checkApproval || null
   }));
 }
 
 function pushTimeline(text) {
   if (typeof SmartJob === 'undefined') return;
   state.timeline = SmartJob.pushEvent(state.timeline, text);
+}
+
+function archiveKpis() {
+  const arch = state.archive || [];
+  const month = new Date().toISOString().slice(0, 7);
+  const thisMonth = arch.filter(a => String(a.createdAt || a.updatedAt || '').replace(' ', 'T').slice(0, 7) === month);
+  const pool = thisMonth.length ? thisMonth : arch;
+  const pending = arch.filter(a => a.status === '待校验' || a.status === '有异常' || a.status === '待复核').length;
+  const judged = arch.filter(a => ['已校验', '已申报', '有异常', '待复核'].indexOf(a.status) >= 0);
+  const passed = arch.filter(a => a.status === '已校验' || a.status === '已申报').length;
+  const rate = judged.length ? Math.round(passed / judged.length * 1000) / 10 : 0;
+  return {
+    processed: pool.length,
+    pending,
+    rate,
+    rateText: judged.length ? (rate + '%') : '—',
+    hours: (Math.round(arch.length * 0.4 * 10) / 10)
+  };
+}
+
+function invalidateApproval(reason) {
+  if (!state.checkApproval && !state.checkRun) return;
+  state.checkApproval = null;
+  state.checkRun = null;
+  if (reason) pushTimeline('复核失效：' + reason);
+}
+
+function renderLinesBox() {
+  const box = document.getElementById('linesBox');
+  if (!box || typeof SmartDoc === 'undefined') return;
+  if (!state.shipment.lines || !state.shipment.lines.length) {
+    state.shipment.lines = SmartDoc.normalizeLines(state.shipment);
+  }
+  const lines = state.shipment.lines.length ? state.shipment.lines : [SmartDoc.emptyLine()];
+  box.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;flex-wrap:wrap;">
+      <strong style="font-size:.9rem;">货描明细行（同源写入提单 / AMS / 报关 / ISF）</strong>
+      <button class="btn btn-s" type="button" onclick="addCargoLine()">+ 增行</button>
+    </div>
+    <table class="lines-table">
+      <thead><tr><th>#</th><th>品名</th><th>HS</th><th>件数</th><th>毛重</th><th>体积</th><th></th></tr></thead>
+      <tbody>${lines.map((l, i) => `<tr>
+        <td>${i + 1}</td>
+        <td><input value="${escapeHtml(l.description || '')}" oninput="updateCargoLine(${i},'description',this.value)"></td>
+        <td><input value="${escapeHtml(l.hsCode || '')}" oninput="updateCargoLine(${i},'hsCode',this.value)"></td>
+        <td><input value="${escapeHtml(l.packages || '')}" oninput="updateCargoLine(${i},'packages',this.value)"></td>
+        <td><input value="${escapeHtml(l.grossWeight || '')}" oninput="updateCargoLine(${i},'grossWeight',this.value)"></td>
+        <td><input value="${escapeHtml(l.volume || '')}" oninput="updateCargoLine(${i},'volume',this.value)"></td>
+        <td><button class="action-btn" type="button" onclick="removeCargoLine(${i})">删</button></td>
+      </tr>`).join('')}</tbody>
+    </table>
+    <p style="font-size:.75rem;color:var(--g500);margin-top:8px;">多行时表头品名 / HS / 件数 / 毛重按明细汇总，制单与 XML 按行写出。</p>`;
+}
+
+function addCargoLine() {
+  if (!state.shipment.lines) state.shipment.lines = SmartDoc.normalizeLines(state.shipment);
+  state.shipment.lines.push(SmartDoc.emptyLine());
+  renderLinesBox();
+}
+
+function removeCargoLine(i) {
+  state.shipment.lines = (state.shipment.lines || []).filter((_, idx) => idx !== i);
+  SmartDoc.rollupHeader(state.shipment);
+  invalidateApproval('改明细');
+  saveState();
+  renderLinesBox();
+}
+
+let lineDebounce;
+function updateCargoLine(i, key, val) {
+  if (!state.shipment.lines) state.shipment.lines = SmartDoc.normalizeLines(state.shipment);
+  if (!state.shipment.lines[i]) state.shipment.lines[i] = SmartDoc.emptyLine();
+  state.shipment.lines[i][key] = val;
+  clearTimeout(lineDebounce);
+  lineDebounce = setTimeout(() => {
+    SmartDoc.rollupHeader(state.shipment);
+    invalidateApproval('改明细');
+    const rec = state.archive.find(a => a.ticketNo === state.shipment.ticketNo);
+    if (rec) upsertArchive(rec.status === '已校验' ? '待复核' : (rec.status || '待校验'));
+    else saveState();
+    renderCutoffBar();
+  }, 500);
 }
 
 function showToast(msg) {
@@ -900,7 +1008,7 @@ function addActivity(dot, text) {
 document.getElementById('currentDate').textContent = new Date().toLocaleDateString('zh-CN', { year:'numeric', month:'long', day:'numeric', weekday:'long' }) + ' · ' + AUTH_USER.company;
 document.getElementById('welcomeTitle').textContent = '欢迎回来，' + AUTH_USER.name;
 document.getElementById('userName').textContent = AUTH_USER.name;
-document.getElementById('userRole').textContent = (AUTH_USER.plan || '专业会员版') + ' · 在线';
+document.getElementById('userRole').textContent = (AUTH_USER.plan || '专业会员版') + ' · ' + (SmartAuth.roleLabel(AUTH_USER.role) || '制单员');
 document.getElementById('userAvatar').textContent = (AUTH_USER.name || 'D').slice(0,1).toUpperCase();
 document.getElementById('settingsCompany').textContent = AUTH_USER.company;
 document.getElementById('settingsPlan').textContent = AUTH_USER.plan || '专业会员版';
@@ -923,7 +1031,7 @@ function switchTab(tab, menuEl) {
   if(tab === 'upload') preloadOcrEngine();
   if(tab === 'dashboard') renderDashboard();
   if(tab === 'exchange') renderExchange();
-  if(tab === 'check') renderFilings();
+  if(tab === 'check') { renderFilings(); renderDualRoleBar(); }
   if(tab === 'settings') { renderRules(); renderAuditTable(); }
   renderFlowSteps(tab);
   renderCutoffBar();
@@ -936,7 +1044,7 @@ function renderFlowSteps(tab) {
   const filled = FIELD_META.filter(f => String(state.shipment[f.key] || '').trim()).length;
   const genN = Object.keys(state.generated || {}).length;
   const rec = state.archive.find(a => a.ticketNo === state.shipment.ticketNo);
-  const checked = rec && rec.status === '已校验';
+  const checked = rec && (rec.status === '已校验' || rec.status === '已申报');
   const sent = (typeof SmartExchange !== 'undefined' && SmartExchange.localList)
     ? SmartExchange.localList().some(x => x.ticketNo === state.shipment.ticketNo)
     : false;
@@ -958,9 +1066,13 @@ function renderDashboard() {
   renderTicketSwitch();
   renderCutoffBar();
   const cap = (typeof SmartAudit !== 'undefined' && SmartAudit.MONTH_CAP) || 500;
-  document.getElementById('statProcessed').textContent = state.processedCount;
-  const pendingCount = state.archive.filter(a => a.status !== '已校验').length;
-  document.getElementById('statPending').textContent = pendingCount;
+  const kpi = archiveKpis();
+  document.getElementById('statProcessed').textContent = kpi.processed;
+  document.getElementById('statPending').textContent = kpi.pending;
+  const rateEl = document.getElementById('statPassRate');
+  if (rateEl) rateEl.textContent = kpi.rateText;
+  const hoursEl = document.getElementById('statHours');
+  if (hoursEl) hoursEl.textContent = kpi.hours + 'h';
   document.getElementById('quotaText').textContent = state.processedCount + ' / ' + cap + ' 票';
   document.getElementById('quotaFill').style.width = Math.min(100, (state.processedCount / cap) * 100).toFixed(1) + '%';
   document.getElementById('payPerCount').textContent = state.payPerCount;
@@ -1166,7 +1278,8 @@ async function loadSampleDoc(type) {
   const map = {
     laptop: ['samples/invoice_laptop.pdf', 'samples/invoice_laptop.csv', 'samples/invoice_laptop.json'],
     furniture: ['samples/booking_furniture.xlsx', 'samples/booking_furniture.csv', 'samples/booking_furniture.json'],
-    csv: ['samples/invoice_laptop.csv', 'samples/invoice_laptop.json']
+    csv: ['samples/invoice_laptop.csv', 'samples/invoice_laptop.json'],
+    lines: ['samples/invoice_lines.csv']
   };
   const paths = map[type] || [];
   for (const path of paths) {
@@ -1220,6 +1333,11 @@ function applyExtractResult(fileName, sizeStr, result) {
   state.ack = null;
   state.revisions = [];
   fieldRevPrev = {};
+  invalidateApproval('重新识别');
+  if (!state.shipment.lines || !state.shipment.lines.length) {
+    state.shipment.lines = SmartDoc.normalizeLines(state.shipment);
+    SmartDoc.rollupHeader(state.shipment);
+  }
   if (!state.timeline || !state.timeline.length) state.timeline = [];
   saveState();
   renderDashboard();
@@ -1252,6 +1370,7 @@ function applyExtractResult(fileName, sizeStr, result) {
     </div>`;
   }).join('');
 
+  renderLinesBox();
   const raw = state.extractMeta.rawText || '';
   document.getElementById('extractMeta').innerHTML = `
     <div>识别引擎：<strong>${escapeHtml(result.engine || 'browser')}</strong>　方法：<strong>${escapeHtml(result.method || '')}</strong>${result.elapsedMs ? '　耗时 ' + result.elapsedMs + ' ms' : ''}</div>
@@ -1274,9 +1393,12 @@ function updateShipmentField(key, val) {
     }
     fieldRevPrev[key] = to;
     delete fieldRevTimers[key];
+    invalidateApproval('改字段 ' + label);
     const rec = state.archive.find(a => a.ticketNo === state.shipment.ticketNo);
-    if (rec) upsertArchive(rec.status || '待校验');
-    else saveState();
+    if (rec) {
+      const st = (rec.status === '已校验' || rec.status === '已申报') ? '待复核' : rec.status;
+      upsertArchive(st || '待校验');
+    } else saveState();
     renderCutoffBar();
   }, 650);
 }
@@ -1319,6 +1441,7 @@ function saveOnlyArchive() {
 }
 
 function confirmExtracted() {
+  if (typeof SmartDoc.rollupHeader === 'function') SmartDoc.rollupHeader(state.shipment);
   pushTimeline('确认建档 ' + state.shipment.ticketNo);
   chargeQuota('extract', '确认建档');
   upsertArchive('待校验');
@@ -1350,7 +1473,8 @@ function renderGenSummary() {
     ['体积 Volume', s.volume],
     ['通知方 Notify Party', s.notifyParty],
     ['船名 / 航次', `${s.vessel || ''} / ${s.voyage || ''}`],
-    ['开船 ETD', s.etd]
+    ['开船 ETD', s.etd],
+    ['货描明细', (typeof SmartDoc !== 'undefined' ? SmartDoc.linesLabel(s) : '') || '1 行表头']
   ].map(([l, v]) => `<div class="sf"><div class="sl">${l}</div><div class="sv">${escapeHtml(v)}</div></div>`).join('');
   renderGenDiff();
 }
@@ -1366,6 +1490,7 @@ function generateDocs() {
     return;
   }
 
+  if (typeof SmartDoc.rollupHeader === 'function') SmartDoc.rollupHeader(state.shipment);
   const s = state.shipment;
   const hash = SmartDoc.sourceHash(s);
   const snap = SmartDoc.snapshot(s);
@@ -1377,6 +1502,7 @@ function generateDocs() {
 
   renderGenCards(selected, true);
   pushTimeline('同源生成 ' + selected.join('/'));
+  invalidateApproval('重新出单');
   chargeQuota('generate', '同源生成 ' + selected.join('/'));
   upsertArchive('待校验');
   addActivity('blue', `票号 ${s.ticketNo} — 同源生成 ${selected.length} 套单证并写入档案快照`);
@@ -1698,13 +1824,25 @@ function renderCheckTable(selectedDocs) {
   const totalIssues = warnCount + errCount;
   state.checkSummary = typeof SmartJob !== 'undefined' ? SmartJob.checkSummaryFromRows(state.checkRows).text : (`通过 ${okCount} / 风险 ${warnCount} / 缺失 ${errCount}`);
   pushTimeline('校验 ' + state.checkSummary);
+  state.checkRun = {
+    at: new Date().toISOString().slice(0, 16).replace('T', ' '),
+    byEmail: AUTH_USER.email,
+    byName: AUTH_USER.name,
+    ok: totalIssues === 0
+  };
   if(totalIssues === 0) {
     badge.className = 'result-badge ok';
-    badge.textContent = '✅ 全部校验通过 — 0 项异常（可安全向海关申报）';
-    upsertArchive('已校验');
+    if (state.checkApproval && state.checkApproval.byEmail) {
+      badge.textContent = '✅ 校验通过且已复核 — 可模拟申报';
+      upsertArchive('已校验');
+    } else {
+      badge.textContent = '✅ 字段校验通过 — 待复核员确认后才能申报';
+      upsertArchive('待复核');
+    }
   } else {
     badge.className = 'result-badge warn';
     badge.textContent = `⚠️ 校验完成 — 发现 ${totalIssues} 项风险（请装船前修正）`;
+    state.checkApproval = null;
     upsertArchive('有异常');
   }
 
@@ -1738,6 +1876,64 @@ function renderCheckTable(selectedDocs) {
   `).join('');
 
   state._lastSelectedDocs = selectedDocs;
+  renderDualRoleBar();
+}
+
+function renderDualRoleBar() {
+  const box = document.getElementById('dualRoleBar');
+  if (!box) return;
+  const role = AUTH_USER.role || 'operator';
+  const run = state.checkRun;
+  const ap = state.checkApproval;
+  if (ap && ap.byEmail) {
+    box.className = 'dual-bar ok';
+    box.innerHTML = `复核已通过 · ${escapeHtml(ap.byName || ap.byEmail)} · ${escapeHtml(ap.at || '')}。制单员可模拟申报。`;
+    return;
+  }
+  if (run && run.ok) {
+    box.className = 'dual-bar';
+    box.innerHTML = `当前身份：<strong>${escapeHtml(SmartAuth.roleLabel(role))}</strong>。校验已通过，等待复核员确认。
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-p" type="button" onclick="approveCheck()">复核通过</button>
+        <button class="btn btn-s" type="button" onclick="switchDemoRole('checker')">切换复核员账号</button>
+      </div>`;
+    return;
+  }
+  box.className = 'dual-bar warn';
+  box.innerHTML = `当前身份：<strong>${escapeHtml(SmartAuth.roleLabel(role))}</strong>。请先完成无缺失的智能校验；复核员确认后才可模拟申报。
+    <div style="margin-top:8px;"><button class="btn btn-s" type="button" onclick="switchDemoRole('${role === 'checker' ? 'operator' : 'checker'}')">切换为${role === 'checker' ? '制单员' : '复核员'}</button></div>`;
+}
+
+function approveCheck() {
+  if ((AUTH_USER.role || 'operator') !== 'checker') {
+    showToast('请用复核员账号确认（checker@smartdoc.com）');
+    return;
+  }
+  if (!state.checkRun || !state.checkRun.ok) {
+    showToast('请先跑完无风险的智能校验');
+    return;
+  }
+  if (state.checkRun.byEmail && state.checkRun.byEmail === AUTH_USER.email) {
+    showToast('制单人不能复核自己的校验，请换复核员账号');
+    return;
+  }
+  state.checkApproval = {
+    at: new Date().toISOString().slice(0, 16).replace('T', ' '),
+    byEmail: AUTH_USER.email,
+    byName: AUTH_USER.name,
+    role: 'checker'
+  };
+  pushTimeline('复核通过 ' + AUTH_USER.name);
+  upsertArchive('已校验');
+  renderDualRoleBar();
+  showToast('复核已通过，制单员可模拟申报');
+}
+
+function switchDemoRole(role) {
+  const email = role === 'checker' ? 'checker@smartdoc.com' : 'demo@smartdoc.com';
+  const r = SmartAuth.switchTo(email);
+  if (!r.ok) { showToast(r.msg || '切换失败'); return; }
+  location.reload();
 }
 
 function fixIssue(rowIdx, docsCsv) {
@@ -1863,6 +2059,8 @@ function loadArchiveIntoWorkspace(ticketNo, action) {
   state.shareCode = found.shareCode || '';
   state.notes = found.notes || [];
   state.revisions = found.revisions || [];
+  state.checkRun = found.checkRun || null;
+  state.checkApproval = found.checkApproval || null;
   fieldRevPrev = {};
   saveState();
   renderDashboard();
@@ -1899,7 +2097,9 @@ function currentPack() {
     rules: typeof SmartRules !== 'undefined' ? SmartRules.snapshot() : null,
     shareCode: state.shareCode || '',
     notes: state.notes || [],
-    revisions: state.revisions || []
+    revisions: state.revisions || [],
+    checkRun: state.checkRun || null,
+    checkApproval: state.checkApproval || null
   });
 }
 
@@ -1991,11 +2191,57 @@ function reviewPack(pack, sourceLabel, mode) {
     ${pack.readOnly ? `<div><span class="k">权限</span>只读协作（不能写入档案）</div>` : ''}
     ${pack.remark ? `<div><span class="k">备注</span>${escapeHtml(pack.remark)}</div>` : ''}
     ${bad.length ? `<div style="margin-top:10px;"><strong>风险字段</strong><ul class="job-list">${bad.map(r => `<li>${escapeHtml(r.label || r.key || '')}</li>`).join('')}</ul></div>` : ''}
+    <div><span class="k">明细</span>${escapeHtml((typeof SmartDoc !== 'undefined' ? SmartDoc.linesLabel(s) : '') || '—')}</div>
   `;
   const isPreview = pendingPackMode === 'preview' || !!(pack && pack.readOnly);
   document.getElementById('packImportBtn').style.display = isPreview ? 'none' : '';
   document.getElementById('packAckBtn').style.display = isPreview ? 'none' : '';
+  const ticket = pack.ticketNo || s.ticketNo;
+  const local = ticket ? state.archive.find(a => a.ticketNo === ticket) : null;
+  const diffs = (!isPreview && local && typeof SmartJob !== 'undefined') ? SmartJob.fieldPairs(local, s) : [];
+  const cbox = document.getElementById('packConflictBox');
+  const mergeBtn = document.getElementById('packMergeBtn');
+  if (cbox) {
+    if (diffs.length) {
+      cbox.style.display = 'block';
+      cbox.innerHTML = `<strong>本机已有同票 ${escapeHtml(ticket)}，${diffs.length} 个字段不一致</strong>
+        <table class="conflict-table"><thead><tr><th>字段</th><th>本机</th><th>对方</th><th>采用</th></tr></thead><tbody>
+        ${diffs.map(r => `<tr class="diff">
+          <td>${escapeHtml(r.label)}</td>
+          <td>${escapeHtml(r.local)}</td>
+          <td>${escapeHtml(r.incoming)}</td>
+          <td><label><input type="radio" name="mg-${escapeHtml(r.key)}" value="local"> 本机</label>
+              <label style="margin-left:8px;"><input type="radio" name="mg-${escapeHtml(r.key)}" value="incoming" checked> 对方</label></td>
+        </tr>`).join('')}
+        </tbody></table>
+        <p style="font-size:.75rem;color:var(--g500);margin-top:6px;">「用对方覆盖」整票用发单包；「按勾选合并」只改上表字段。</p>`;
+      if (mergeBtn) mergeBtn.style.display = isPreview ? 'none' : '';
+    } else {
+      cbox.style.display = 'none';
+      cbox.innerHTML = '';
+      if (mergeBtn) mergeBtn.style.display = 'none';
+    }
+  }
   document.getElementById('packReviewModal').classList.add('show');
+}
+
+function readMergeChoices() {
+  const choices = {};
+  document.querySelectorAll('#packConflictBox input[type=radio]:checked').forEach(el => {
+    const key = (el.name || '').replace(/^mg-/, '');
+    if (key) choices[key] = el.value;
+  });
+  return choices;
+}
+
+function confirmImportMerged() {
+  if (!pendingPack) return;
+  if (pendingPack.readOnly) { showToast('只读包不能写入档案'); return; }
+  const pack = pendingPack;
+  const label = pendingPackLabel;
+  const choices = readMergeChoices();
+  closePackReview();
+  applyImportedPack(pack, label, choices);
 }
 
 function confirmImportPack() {
@@ -2034,13 +2280,21 @@ function ackAndReplyPack() {
   showToast('已载入并下载「已核对」回传包，发给对方即可');
 }
 
-function applyImportedPack(pack, sourceLabel) {
+function applyImportedPack(pack, sourceLabel, mergeChoices) {
   if (pack && pack.readOnly) {
     showToast('只读协作包不能写入档案');
     return;
   }
-  const fields = { ...SmartDoc.emptyShipment(), ...(pack.shipment || {}) };
+  const incoming = pack.shipment || {};
+  const ticket = incoming.ticketNo || pack.ticketNo;
+  const local = ticket ? state.archive.find(a => a.ticketNo === ticket) : null;
+  let fields = { ...SmartDoc.emptyShipment(), ...incoming };
+  if (local && mergeChoices && Object.keys(mergeChoices).length && typeof SmartJob !== 'undefined') {
+    fields = { ...SmartDoc.emptyShipment(), ...SmartJob.applyMerge(local, incoming, mergeChoices) };
+    pushTimeline('收件按字段合并 ' + ticket);
+  }
   if (!fields.ticketNo) fields.ticketNo = SmartDoc.newTicket();
+  if (typeof SmartDoc.rollupHeader === 'function') SmartDoc.rollupHeader(fields);
   state.shipment = fields;
   state.generated = pack.generated || {};
   state.extractMeta = pack.extractMeta && Object.keys(pack.extractMeta).length
@@ -2057,6 +2311,8 @@ function applyImportedPack(pack, sourceLabel) {
   state.shareCode = pack.shareCode || '';
   state.notes = pack.notes || [];
   state.revisions = pack.revisions || [];
+  state.checkRun = pack.checkRun || null;
+  state.checkApproval = pack.checkApproval || null;
   fieldRevPrev = {};
   if (pack.rules && typeof SmartRules !== 'undefined') SmartRules.applyImported(pack.rules);
   pushTimeline('收件导入 ' + (sourceLabel || ''));
@@ -2090,6 +2346,10 @@ function openJobFolder(ticketNo) {
         <ul class="job-list">${files.length ? files.map(f => `<li>${escapeHtml(typeof f === 'string' ? f : (f.fileName || ''))}</li>`).join('') : '<li>未记录来源（早期演示档案）</li>'}</ul>
         <h4>已出单证</h4>
         <ul class="job-list">${docs.length ? docs.map(d => `<li>${escapeHtml(labels[d] || d)} · ${escapeHtml((found.generated[d] && found.generated[d].generatedAt) || '')}</li>`).join('') : '<li>尚未出单</li>'}</ul>
+        <h4>货描明细</h4>
+        <p class="job-list" style="margin-left:0;">${escapeHtml((typeof SmartDoc !== 'undefined' ? SmartDoc.linesLabel(found) : '') || '表头一行')}</p>
+        <h4>双岗</h4>
+        <p class="job-list" style="margin-left:0;">${found.checkApproval ? ('已复核 · ' + escapeHtml(found.checkApproval.byName || '')) : (found.checkRun && found.checkRun.ok ? '待复核' : '尚未校验通过')}</p>
       </div>
       <div class="job-col">
         <h4>校验</h4>
@@ -2174,6 +2434,12 @@ function fileChannel(channel) {
   }
   if (channel === 'isf' && !(state.generated && state.generated.isf)) {
     showToast('请先同源生成 ISF 快照'); return;
+  }
+  if (!state.checkRun || !state.checkRun.ok) {
+    showToast('请先完成无缺失的智能校验'); return;
+  }
+  if (!state.checkApproval || !state.checkApproval.byEmail) {
+    showToast('需复核员确认后才能模拟申报'); return;
   }
   const rec = SmartFiling.create(channel, state.shipment.ticketNo);
   state.filings = [rec].concat(state.filings || []).slice(0, 20);
@@ -2353,6 +2619,8 @@ function cloneCurrentTicket() {
   state.filings = [];
   state.notes = [];
   state.revisions = [];
+  state.checkRun = null;
+  state.checkApproval = null;
   fieldRevPrev = {};
   state.checkRows = [];
   state.checkSummary = '';
@@ -2480,6 +2748,13 @@ function renderAuditTable() {
     <td>${escapeHtml(r.source || '')}</td>
     <td>${escapeHtml(r.detail || '')}</td>
   </tr>`).join('');
+}
+
+function exportCutoffIcs() {
+  if (typeof SmartFiling === 'undefined' || !SmartFiling.exportIcs) { showToast('看板模块未加载'); return; }
+  const ics = SmartFiling.exportIcs(state.archive);
+  triggerDownload('SmartDoc_cutoff.ics', ics, 'text/calendar;charset=utf-8');
+  showToast('已导出 AMS/ISF 截关日历');
 }
 
 function exportAuditCsv() {
