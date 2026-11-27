@@ -119,12 +119,12 @@ function renderPack(pack) {
 }
 
 function docPreviewCardHtml(pack) {
-  const ids = (window.SmartJob && SmartJob.DOC_IDS) || ['bl', 'ams', 'export', 'isf', 'pl', 'vgm', 'an', 'bk', 'ci'];
+  const ids = (window.SmartJob && SmartJob.DOC_IDS) || ['bl', 'ams', 'export', 'isf', 'pl', 'vgm', 'an', 'bk', 'ci', 'co'];
   const labels = (window.SmartJob && SmartJob.DOC_LABELS) || {};
   const tabs = ids.map((id, i) => `<button type="button" class="${i === 0 ? 'on' : ''}" data-doc="${id}" onclick="showDocPreview('${id}')">${escapeHtml(labels[id] || id)}</button>`).join('');
   return `<div class="card">
       <h2>单证预览（同源草稿）</h2>
-      <p style="font-size:13px;color:#7a8699;">按当前档案即时排版九套单证，无需先下载 HTML。套版 ${escapeHtml(pack.blCarrier || (pack.shipment && pack.shipment.blCarrier) || 'generic')}。</p>
+      <p style="font-size:13px;color:#7a8699;">按当前档案即时排版十套单证，无需先下载 HTML。套版 ${escapeHtml(pack.blCarrier || (pack.shipment && pack.shipment.blCarrier) || 'generic')}。</p>
       <div class="doc-tabs">${tabs}</div>
       <iframe id="docPreviewFrame" class="doc-frame" title="单证预览" sandbox="allow-same-origin allow-scripts allow-modals"></iframe>
     </div>`;
