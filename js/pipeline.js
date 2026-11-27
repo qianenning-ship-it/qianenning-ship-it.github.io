@@ -25,6 +25,10 @@
     { key: "imoClass", label: "危险品类别 / IMO Class", required: false },
     { key: "unNumber", label: "联合国编号 / UN No.", required: false },
     { key: "packingGroup", label: "包装等级 / Packing Group", required: false },
+    { key: "taxRate", label: "税率 / Tax Rate %", required: false },
+    { key: "discount", label: "折扣 / Discount", required: false },
+    { key: "coCertNo", label: "产地证号 / COO Certificate No.", required: false },
+    { key: "coIssuer", label: "签证机关 / Issuing Authority", required: false },
   ];
 
   const ALIASES = {
@@ -54,6 +58,10 @@
     imoClass: ["imo class", "imo", "hazard class", "class no", "危险品类别", "危类", "危品类别"],
     unNumber: ["un number", "un no", "unno", "un code", "联合国编号", "危品编号"],
     packingGroup: ["packing group", "pg", "pack group", "包装等级", "包装类别"],
+    taxRate: ["tax rate", "taxrate", "vat", "gst", "税率", "增值税率"],
+    discount: ["discount", "rebate", "折扣", "减让"],
+    coCertNo: ["certificate no", "certificate number", "coo no", "form a no", "产地证号", "证书号", "原产地证书号"],
+    coIssuer: ["issuing authority", "competent authority", "chamber", "签证机关", "签证机构", "贸促会"],
     unitPrice: ["unit price", "unitprice", "price", "单价", "unprice"],
     amount: ["amount", "amt", "value", "total amount", "金额", "总价", "货值"],
   };
@@ -448,6 +456,22 @@
         fields.packingGroup = g === "1" ? "I" : g === "2" ? "II" : g === "3" ? "III" : g;
       }
     }
+    if (!fields.taxRate) {
+      const m = t.match(/(?:tax\s*rate|vat|gst|税率)\s*[:：]?\s*([\d.]+)\s*%?/i);
+      if (m) fields.taxRate = m[1];
+    }
+    if (!fields.discount) {
+      const m = t.match(/(?:discount|折扣)\s*[:：]\s*([^\n]{1,24})/i);
+      if (m && /[\d]/.test(m[1])) fields.discount = m[1].trim();
+    }
+    if (!fields.coCertNo) {
+      const m = t.match(/(?:certificate\s*(?:no\.?|number)|coo\s*no\.?|产地证号|原产地证书号|证书号)\s*[:：]\s*([A-Za-z0-9\/-]{3,32})/i);
+      if (m) fields.coCertNo = m[1].trim();
+    }
+    if (!fields.coIssuer) {
+      const m = t.match(/(?:issuing authority|competent authority|签证机关|签证机构|贸促会)\s*[:：]\s*([^\n]{2,60})/i);
+      if (m) fields.coIssuer = m[1].trim();
+    }
     harvestAllContainers(t, fields);
   }
 
@@ -639,7 +663,7 @@
       .filter(Boolean);
     const out = [];
     const seen = {};
-    const headerish = /^(no\.?|marks|#|item|description|goods|hs|hts|qty|pkgs|packages|gw|weight|cbm|volume|品名|税号|件数|毛重|体积|装箱单|packing|唛头|嘜头|单价|金额|currency|invoice|原产地|产地证|origin|imo|un no|packing group|危险品|包装等级)/i;
+    const headerish = /^(no\.?|marks|#|item|description|goods|hs|hts|qty|pkgs|packages|gw|weight|cbm|volume|品名|税号|件数|毛重|体积|装箱单|packing|唛头|嘜头|单价|金额|currency|invoice|原产地|产地证|origin|imo|un no|packing group|危险品|包装等级|税率|折扣|证书号|签证机关|tax|vat|discount)/i;
     rows.forEach((line) => {
       const colon = line.split(/[:：]/);
       if (colon.length >= 2) {

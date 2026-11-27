@@ -1,11 +1,23 @@
 (function (w) {
+  function loadScript(src) {
+    if (w.SmartExtract && w.SmartExtract.loadScript) return w.SmartExtract.loadScript(src);
+    return new Promise((resolve, reject) => {
+      const found = [].some.call(document.scripts, (s) => s.src && s.src.indexOf(src) >= 0);
+      if (found) { resolve(); return; }
+      const el = document.createElement("script");
+      el.src = src;
+      el.onload = () => resolve();
+      el.onerror = () => reject(new Error("无法加载 " + src));
+      document.head.appendChild(el);
+    });
+  }
+
   async function loadLibs() {
-    if (!w.SmartExtract || !w.SmartExtract.loadScript) throw new Error("缺少脚本加载器");
     if (!w.html2canvas) {
-      await w.SmartExtract.loadScript("https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js");
+      await loadScript("https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js");
     }
     if (!(w.jspdf && w.jspdf.jsPDF)) {
-      await w.SmartExtract.loadScript("https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js");
+      await loadScript("https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js");
     }
   }
 

@@ -36,6 +36,9 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     evergreen: { size: "A4", margin: "13mm 12mm 16mm 16mm" },
     wanhai: { size: "A4", margin: "12mm 14mm 15mm 14mm" },
     yangming: { size: "A4", margin: "11mm 15mm 14mm 15mm" },
+    zim: { size: "A4", margin: "12mm 13mm 15mm 16mm" },
+    hmm: { size: "A4", margin: "14mm 12mm 16mm 14mm" },
+    sud: { size: "A4", margin: "13mm 15mm 14mm 13mm" },
   };
 
   function cssFor(carrierId) {
@@ -106,9 +109,26 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
       const amount = lineAmount(l, s);
       return Object.assign({}, l, { unitPrice: l.unitPrice || "", amount: amount });
     });
-    let total = 0;
-    ls.forEach((l) => { total += parseMoney(l.amount); });
-    return { currency, incoterms, lines: ls, total, totalLabel: total ? moneyLabel(total, currency) : "" };
+    let subtotal = 0;
+    ls.forEach((l) => { subtotal += parseMoney(l.amount); });
+    const taxRate = parseMoney(s && s.taxRate);
+    const discount = parseMoney(s && s.discount);
+    const tax = Math.round(subtotal * (taxRate / 100) * 100) / 100;
+    const total = Math.round((Math.max(0, subtotal - discount) + tax) * 100) / 100;
+    return {
+      currency,
+      incoterms,
+      lines: ls,
+      subtotal,
+      discount,
+      taxRate,
+      tax,
+      total,
+      subtotalLabel: subtotal ? moneyLabel(subtotal, currency) : "",
+      discountLabel: discount ? moneyLabel(discount, currency) : "",
+      taxLabel: tax ? moneyLabel(tax, currency) : "",
+      totalLabel: (total || subtotal) ? moneyLabel(total, currency) : "",
+    };
   }
 
   function originCountryOf(s) {
@@ -117,6 +137,16 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
 
   function originCriterionOf(s) {
     return String((s && s.originCriterion) || "").trim();
+  }
+
+  function coCertOf(s) {
+    const v = String((s && s.coCertNo) || "").trim();
+    if (v) return v;
+    return "COO" + String((s && s.ticketNo) || "").replace(/^SH/, "");
+  }
+
+  function coIssuerOf(s) {
+    return String((s && s.coIssuer) || "").trim();
   }
 
   function dgOf(s) {
@@ -234,9 +264,16 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
         vol += parseKg(l.volume);
         return `<tr><td>${i === 0 ? mk : ""}</td><td>${e(l.description)}</td><td>${e(l.hsCode)}</td><td>${e(l.packages)}</td><td>${e(l.grossWeight)}</td><td>${e(l.volume)}</td><td>${e(l.unitPrice)}</td><td>${e(l.amount)}</td></tr>`;
       }).join("");
-      const money = inv.totalLabel || "—";
+      const money = kind === "pl" ? (inv.subtotalLabel || inv.totalLabel || "—") : (inv.subtotalLabel || inv.totalLabel || "—");
+      let foot = `<tfoot><tr><td colspan="3">TOTAL</td><td>${pkgs || "—"}</td><td>${gw ? gw + " KGS" : "—"}</td><td>${vol ? vol.toFixed(2) + " CBM" : "—"}</td><td></td><td>${e(money)}</td></tr>`;
+      if (kind === "ci" && (inv.discount || inv.tax)) {
+        if (inv.discount) foot += `<tr><td colspan="7">Discount</td><td>- ${e(inv.discountLabel)}</td></tr>`;
+        if (inv.tax) foot += `<tr><td colspan="7">Tax ${e(String(inv.taxRate))}%</td><td>${e(inv.taxLabel)}</td></tr>`;
+        foot += `<tr><td colspan="7">Grand Total</td><td>${e(inv.totalLabel || "—")}</td></tr>`;
+      }
+      foot += `</tfoot></table>`;
       return `<table class="cargo"><thead><tr><th>Marks</th><th>Description of Goods</th><th>HS</th><th>Pkgs</th><th>G.W.</th><th>Meas.</th><th>Unit Price</th><th>Amount</th></tr></thead><tbody>${body}</tbody>
-        <tfoot><tr><td colspan="3">TOTAL</td><td>${pkgs || "—"}</td><td>${gw ? gw + " KGS" : "—"}</td><td>${vol ? vol.toFixed(2) + " CBM" : "—"}</td><td></td><td>${e(money)}</td></tr></tfoot></table>`;
+        ${foot}`;
     }
     const mk = marksHtml(s);
     const body = ls.map((l, i) => `<tr><td>${i === 0 ? mk : ""}</td><td>${e(l.packages)}</td><td>${e(l.description)}<br>HS ${e(l.hsCode)}</td><td>${e(l.grossWeight)}</td><td>${e(l.volume)}</td></tr>`).join("");
@@ -255,6 +292,9 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     evergreen: { id: "evergreen", name: "EVERGREEN", scac: "EGLV", mark: "E", color: "#006633", title: "EVERGREEN LINE BILL OF LADING", legal: "Evergreen Line Bill of Lading (draft). Particulars furnished by the merchant. This copy is generated from a SmartDoc archive for checking only." },
     wanhai: { id: "wanhai", name: "WAN HAI", scac: "WHLC", mark: "W", color: "#e87722", title: "WAN HAI LINES BILL OF LADING", legal: "Wan Hai Lines Ltd. Bill of Lading (draft). Contract of carriage subject to Wan Hai bill of lading terms. For document check and pre-alert only." },
     yangming: { id: "yangming", name: "YANG MING", scac: "YMLU", mark: "Y", color: "#9e1b32", title: "YANG MING MARINE TRANSPORT B/L", legal: "Yang Ming Marine Transport Corporation Bill of Lading (draft). Particulars furnished by the shipper. Not valid for negotiation until signed by the carrier." },
+    zim: { id: "zim", name: "ZIM", scac: "ZIMU", mark: "Z", color: "#003087", title: "ZIM INTEGRATED SHIPPING B/L", legal: "ZIM Integrated Shipping Services Ltd. Bill of Lading (draft). Particulars furnished by the merchant. This copy is generated from a SmartDoc archive for checking only." },
+    hmm: { id: "hmm", name: "HMM", scac: "HDMU", mark: "韩", color: "#00a0e9", title: "HMM BILL OF LADING", legal: "HMM Company Limited Bill of Lading (draft). Contract of carriage subject to HMM bill of lading terms. For document check and pre-alert only." },
+    sud: { id: "sud", name: "HAMBURG SÜD", scac: "SUDU", mark: "S", color: "#e30613", title: "HAMBURG SÜD BILL OF LADING", legal: "Hamburg Südamerikanische Dampfschifffahrts-Gesellschaft Bill of Lading (draft). Particulars furnished by the shipper. Not valid for negotiation until signed by the carrier." },
   };
 
   const OWNER_CARRIER = {
@@ -268,6 +308,9 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     EGLV: "evergreen", EMCU: "evergreen", EISU: "evergreen", EITU: "evergreen", EGSU: "evergreen",
     WHLU: "wanhai", WHLC: "wanhai",
     YMLU: "yangming", YMMU: "yangming",
+    ZIMU: "zim", ZCSU: "zim",
+    HMMU: "hmm", HDMU: "hmm",
+    SUDU: "sud", SANU: "sud",
   };
 
   function ownerCode(containerNo) {
@@ -358,10 +401,11 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
         ${cell("Seller / Shipper", s.shipper)}${cell("Buyer / Consignee", s.consignee)}
         ${cell("POL → POD", (s.pol || "") + " → " + (s.pod || ""))}${cell("Container / Seal", cnText(s))}
         ${cell("Incoterms", inv.incoterms)}${cell("Currency", inv.currency)}
+        ${cell("Tax rate", inv.taxRate ? (inv.taxRate + "%") : "—")}${cell("Discount", inv.discountLabel || "—")}
         ${cell("Marks & Nos.", marksOf(s))}${cell("Invoice Total", inv.totalLabel || "—")}
       </div>
       ${cargoTableHtml(s, "ci")}
-      <p class="clause">本商业发票由智单通按货物档案同源生成。金额 = 单价 × 件数（未填单价则金额栏为空）。非正式税务发票，成交条款默认 ${e(inv.incoterms)} / ${e(inv.currency)}。</p>
+      <p class="clause">本商业发票由智单通按货物档案同源生成。行金额 = 单价 × 件数；合计 = 小计 − 折扣 + 税率%。未填税率 / 折扣则不加。非正式税务发票，成交条款默认 ${e(inv.incoterms)} / ${e(inv.currency)}。</p>
       <div class="sign"><div><div class="line">Seller</div></div><div><div class="line">Buyer</div></div><div><div class="line">Date</div></div></div>
     </div>`;
   }
@@ -449,6 +493,8 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     const origin = originCountryOf(s);
     const oc = originCriterionOf(s);
     const invNo = "INV" + String(s.ticketNo || "").replace(/^SH/, "");
+    const cert = coCertOf(s);
+    const issuer = coIssuerOf(s);
     return `<div class="sheet">
       ${head("CERTIFICATE OF ORIGIN / 原产地证书", "Homologous COO · Form-style draft · 非正式签证", s.ticketNo)}
       <div class="grid2">
@@ -456,10 +502,11 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
         ${cell("3. Means of transport and route", ((s.vessel || "") + " " + (s.voyage || "")).trim() + " · " + (s.pol || "") + " → " + (s.pod || ""))}${cell("4. Country of origin", origin)}
         ${cell("5. Origin criterion", oc || "—")}${cell("6. Invoice No. / Date", invNo + " / " + fmtWhen(new Date().toISOString()))}
         ${cell("7. Marks & Nos.", marksOf(s))}${cell("8. Container / Seal", cnText(s))}
+        ${cell("9. Certificate No.", cert)}${cell("10. Issuing authority", issuer || "—")}
       </div>
       ${cargoTableHtml(s, "co")}
-      <p class="clause">The undersigned hereby declares that the above details and statements are correct; that all the goods were produced in ${e(origin)}. Origin criterion ${e(oc || "not specified")} (WO = wholly obtained, WP = sufficiently worked, PSR = product-specific rule). 本产地证由智单通按货物档案同源生成，非正式贸促会 / 海关签证件。</p>
-      <div class="sign"><div><div class="line">Exporter</div></div><div><div class="line">Competent authority</div></div><div><div class="line">Date / Place</div></div></div>
+      <p class="clause">The undersigned hereby declares that the above details and statements are correct; that all the goods were produced in ${e(origin)}. Origin criterion ${e(oc || "not specified")} (WO = wholly obtained, WP = sufficiently worked, PSR = product-specific rule). Certificate ${e(cert)}${issuer ? (" issued by " + e(issuer)) : ""}. 本产地证由智单通按货物档案同源生成，非正式贸促会 / 海关签证件；签证机关未填则留空。</p>
+      <div class="sign"><div><div class="line">Exporter</div></div><div><div class="line">${e(issuer || "Competent authority")}</div></div><div><div class="line">Date / Place</div></div></div>
     </div>`;
   }
 
@@ -573,5 +620,5 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
       </div></body></html>`;
   }
 
-  w.SmartDocs = { build, wrap, print, checkReport, CSS, cssFor, CARRIERS, PRINT_PAGE, carrierName, vgmOf, vgmList, etaOf, TITLES, stampHtml, ownerCode, carrierFromOwner, OWNER_CARRIER, marksOf, containersOf, cnText, invoiceOf, originCountryOf, originCriterionOf, dgOf, anEml };
+  w.SmartDocs = { build, wrap, print, checkReport, CSS, cssFor, CARRIERS, PRINT_PAGE, carrierName, vgmOf, vgmList, etaOf, TITLES, stampHtml, ownerCode, carrierFromOwner, OWNER_CARRIER, marksOf, containersOf, cnText, invoiceOf, originCountryOf, originCriterionOf, dgOf, anEml, coCertOf, coIssuerOf };
 })(window);
