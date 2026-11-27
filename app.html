@@ -542,7 +542,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <div class="doc-check"><input type="checkbox" checked id="chk-co"><label for="chk-co">📜 产地证 (Certificate of Origin)</label></div>
         </div>
         <h3 style="margin-top:18px;">🚢 提单船司套版</h3>
-        <p style="font-size:.8rem;color:var(--g500);margin:6px 0 0;">同一套档案可切换 COSCO / MSC / MAERSK / OOCL / CMA CGM / Hapag-Lloyd / ONE / Evergreen / Wan Hai / Yang Ming 版式。柜号前四位箱主码会给出建议，一点采用。</p>
+        <p style="font-size:.8rem;color:var(--g500);margin:6px 0 0;">同一套档案可切换 COSCO / MSC / MAERSK / OOCL / CMA CGM / Hapag-Lloyd / ONE / Evergreen / Wan Hai / Yang Ming / ZIM / HMM / Hamburg Süd 版式。柜号前四位箱主码会给出建议，一点采用。</p>
         <div class="carrier-picks" id="carrierPicks"></div>
         <div id="carrierHint"></div>
         <div style="margin-top:20px;text-align:center;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
@@ -897,6 +897,10 @@ const DEFAULT_SHIPMENT = {
   imoClass: '',
   unNumber: '',
   packingGroup: '',
+  taxRate: '',
+  discount: '',
+  coCertNo: '',
+  coIssuer: '',
   containers: [
     { containerNo: 'MSKU1234565', sealNo: 'SH20240815', tareWeight: '3800 KGS', type: '40HC', packages: '250 CTNS', grossWeight: '4300 KGS' },
     { containerNo: 'MSKU2345671', sealNo: 'SH20240816', tareWeight: '3800 KGS', type: '40HC', packages: '250 CTNS', grossWeight: '4200 KGS' }
@@ -1726,7 +1730,9 @@ function renderGenSummary() {
     ['柜号 / 封号', (typeof SmartDocs !== 'undefined' && SmartDocs.cnText) ? SmartDocs.cnText(s) : `${s.containerNo} / ${s.sealNo}`],
     ['柜清单', (typeof SmartDoc !== 'undefined' && SmartDoc.containersLabel) ? SmartDoc.containersLabel(s) : ''],
     ['币种 / 条款', `${s.currency || 'USD'} / ${s.incoterms || 'FOB'}`],
+    ['税率 / 折扣', `${s.taxRate ? (s.taxRate + '%') : '—'} / ${s.discount || '—'}`],
     ['原产国 / 标准', `${s.originCountry || 'CHINA'} / ${s.originCriterion || '—'}`],
+    ['产地证号 / 签证机关', `${s.coCertNo || ('COO' + String(s.ticketNo || '').replace(/^SH/, ''))} / ${s.coIssuer || '—'}`],
     ['危险品 IMO / UN', (s.imoClass || s.unNumber) ? `${s.imoClass || '—'} / ${s.unNumber || '—'} ${s.packingGroup || ''}`.trim() : '无（未填不写入提单）'],
     ['航线 POL → POD', `${s.pol} → ${s.pod}`],
     ['件数 / 毛重', `${s.packages} / ${s.grossWeight}`],
@@ -1781,8 +1787,8 @@ function genCardDefs(s) {
     vgm: { title: '⚖️ VGM 称重单 (SOLAS)', fields: (function(){ const v = typeof SmartDocs !== 'undefined' ? SmartDocs.vgmOf(s) : { label: s.grossWeight, tareLabel: s.tareWeight || '3800 KGS' }; return [['Container', s.containerNo], ['Cargo GW', v.cargoLabel || s.grossWeight], ['Tare', v.tareLabel], ['VGM', v.label], ['Method', 'Method 2']]; })() },
     an: { title: '📬 到货通知 (Arrival Notice)', fields: [['Consignee', s.consignee], ['Vessel', (s.vessel || '') + ' / ' + (s.voyage || '')], ['ETD', s.etd], ['ETA', (typeof SmartDocs !== 'undefined' ? SmartDocs.etaOf(s) : s.eta) || 'ETD+14d'], ['POD', s.pod]] },
     bk: { title: '📝 订舱确认书 (Booking Confirmation)', fields: [['Booking', 'BK' + String(s.ticketNo || '').replace(/^SH/, '')], ['Carrier', typeof SmartDocs !== 'undefined' ? SmartDocs.carrierName(state.blCarrier) : (state.blCarrier || '')], ['Shipper', s.shipper], ['POL → POD', `${s.pol} → ${s.pod}`], ['ETD', s.etd], ['Container', (typeof SmartDocs !== 'undefined' && SmartDocs.cnText) ? SmartDocs.cnText(s) : s.containerNo]] },
-    ci: { title: '💵 商业发票 (Commercial Invoice)', fields: (function(){ const inv = typeof SmartDocs !== 'undefined' && SmartDocs.invoiceOf ? SmartDocs.invoiceOf(s) : { currency: s.currency || 'USD', incoterms: s.incoterms || 'FOB', totalLabel: '' }; return [['Invoice', 'INV' + String(s.ticketNo || '').replace(/^SH/, '')], ['Incoterms', inv.incoterms], ['Currency', inv.currency], ['Total', inv.totalLabel || '—'], ['Buyer', s.consignee]]; })() },
-    co: { title: '📜 产地证 (Certificate of Origin)', fields: [['Origin', (typeof SmartDocs !== 'undefined' && SmartDocs.originCountryOf) ? SmartDocs.originCountryOf(s) : (s.originCountry || 'CHINA')], ['Criterion', s.originCriterion || '—'], ['Exporter', s.shipper], ['Consignee', s.consignee], ['Marks', (typeof SmartDocs !== 'undefined' && SmartDocs.marksOf) ? SmartDocs.marksOf(s) : (s.marks || s.containerNo)]] }
+    ci: { title: '💵 商业发票 (Commercial Invoice)', fields: (function(){ const inv = typeof SmartDocs !== 'undefined' && SmartDocs.invoiceOf ? SmartDocs.invoiceOf(s) : { currency: s.currency || 'USD', incoterms: s.incoterms || 'FOB', totalLabel: '', taxRate: s.taxRate || 0, discountLabel: s.discount || '' }; return [['Invoice', 'INV' + String(s.ticketNo || '').replace(/^SH/, '')], ['Incoterms', inv.incoterms], ['Currency', inv.currency], ['Tax / Discount', (inv.taxRate ? inv.taxRate + '%' : '—') + ' / ' + (inv.discountLabel || '—')], ['Total', inv.totalLabel || '—'], ['Buyer', s.consignee]]; })() },
+    co: { title: '📜 产地证 (Certificate of Origin)', fields: [['Origin', (typeof SmartDocs !== 'undefined' && SmartDocs.originCountryOf) ? SmartDocs.originCountryOf(s) : (s.originCountry || 'CHINA')], ['Criterion', s.originCriterion || '—'], ['Cert No.', (typeof SmartDocs !== 'undefined' && SmartDocs.coCertOf) ? SmartDocs.coCertOf(s) : (s.coCertNo || '')], ['Issuer', (typeof SmartDocs !== 'undefined' && SmartDocs.coIssuerOf) ? (SmartDocs.coIssuerOf(s) || '—') : (s.coIssuer || '—')], ['Exporter', s.shipper], ['Consignee', s.consignee]] }
   };
 }
 
@@ -2085,8 +2091,18 @@ function triggerDownload(filename, content, mime) {
 }
 
 function downloadAnEml() {
-  const s = (typeof shipmentForDoc === 'function') ? shipmentForDoc('an') : state.shipment;
+  downloadAnEmlFrom('');
+}
+
+function downloadAnEmlFrom(ticketNo) {
   if (typeof SmartDocs === 'undefined' || !SmartDocs.anEml) { showToast('到货通知模块未加载'); return; }
+  let s = state.shipment;
+  if (ticketNo) {
+    const found = (state.archive || []).find(a => a.ticketNo === ticketNo);
+    if (found) s = found;
+  } else if (typeof shipmentForDoc === 'function') {
+    s = shipmentForDoc('an');
+  }
   const eml = SmartDocs.anEml(s);
   triggerDownload(eml.filename, eml.raw, 'message/rfc822');
   showToast('📬 已下载 ' + eml.filename + '，可用本机邮件客户端打开');
@@ -2871,6 +2887,7 @@ function openJobFolder(ticketNo) {
       <button class="btn btn-p" onclick="loadArchiveIntoWorkspace('${escapeHtml(ticketNo)}','generate')">载入并制单</button>
       <button class="btn btn-s" onclick="loadArchiveIntoWorkspace('${escapeHtml(ticketNo)}','check')">载入并校验</button>
       <button class="btn btn-s" onclick="cloneTicketFrom('${escapeHtml(ticketNo)}')">复制为新票</button>
+      <button class="btn btn-s" onclick="downloadAnEmlFrom('${escapeHtml(ticketNo)}')">📬 到货通知 .eml</button>
     </div>`;
   box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   if (typeof SmartBlobs !== 'undefined') {
