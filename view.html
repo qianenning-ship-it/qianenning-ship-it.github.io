@@ -23,6 +23,10 @@ body{background:#f2f3f5;}
 .err{color:#c24f4a;font-size:14px;}
 table.cargo th,table.cargo td{border:1px solid #e5e6eb;padding:6px 8px;text-align:left;}
 table.cargo th{background:#f7faff;font-size:12px;}
+.doc-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px;}
+.doc-tabs button{border:1px solid #e5e6eb;background:#fff;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;}
+.doc-tabs button.on{background:#e8f3ff;border-color:#bfdbfe;color:#1d4ed8;font-weight:700;}
+.doc-frame{width:100%;height:720px;border:1px solid #e5e6eb;border-radius:8px;background:#fff;}
 </style>
 </head>
 <body>
@@ -48,6 +52,7 @@ table.cargo th{background:#f7faff;font-size:12px;}
   <div id="packBox" style="display:none"></div>
 </div>
 <script src="js/pipeline.js"></script>
+<script src="js/docs.js"></script>
 <script src="js/job.js"></script>
 <script src="js/filing.js"></script>
 <script src="js/share.js"></script>
@@ -87,6 +92,7 @@ function renderPack(pack) {
       <h2>货描明细</h2>
       ${((window.SmartDoc && SmartDoc.normalizeLines(s)) || []).length ? `<table class="cargo" style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr><th>品名</th><th>HS</th><th>件数</th><th>毛重</th><th>体积</th></tr></thead><tbody>${SmartDoc.normalizeLines(s).map(l => `<tr><td>${escapeHtml(l.description)}</td><td>${escapeHtml(l.hsCode)}</td><td>${escapeHtml(l.packages)}</td><td>${escapeHtml(l.grossWeight)}</td><td>${escapeHtml(l.volume)}</td></tr>`).join('')}</tbody></table>` : '<p style="font-size:13px;color:#7a8699;">无明细行</p>'}
     </div>
+    ${docPreviewCardHtml(pack)}
     <div class="card">
       <h2>批注</h2>
       ${notes.length ? notes.map(n => `<div class="note"><strong>${escapeHtml(n.by || '')}</strong> · ${escapeHtml(n.at || '')} · ${escapeHtml(n.fieldLabel || n.field || '整票')}<div>${escapeHtml(n.text || '')}</div></div>`).join('') : '<p style="font-size:13px;color:#7a8699;">无批注</p>'}
@@ -109,6 +115,29 @@ function renderPack(pack) {
       </div>
     </div>`;
   window._viewPack = pack;
+  showDocPreview('bl');
+}
+
+function docPreviewCardHtml(pack) {
+  const ids = (window.SmartJob && SmartJob.DOC_IDS) || ['bl', 'ams', 'export', 'isf', 'pl', 'vgm', 'an', 'bk'];
+  const labels = (window.SmartJob && SmartJob.DOC_LABELS) || {};
+  const tabs = ids.map((id, i) => `<button type="button" class="${i === 0 ? 'on' : ''}" data-doc="${id}" onclick="showDocPreview('${id}')">${escapeHtml(labels[id] || id)}</button>`).join('');
+  return `<div class="card">
+      <h2>单证预览（同源草稿）</h2>
+      <p style="font-size:13px;color:#7a8699;">按当前档案即时排版八套单证，无需先下载 HTML。套版 ${escapeHtml(pack.blCarrier || (pack.shipment && pack.shipment.blCarrier) || 'generic')}。</p>
+      <div class="doc-tabs">${tabs}</div>
+      <iframe id="docPreviewFrame" class="doc-frame" title="单证预览" sandbox="allow-same-origin allow-scripts allow-modals"></iframe>
+    </div>`;
+}
+
+function showDocPreview(id) {
+  const pack = window._viewPack;
+  if (!pack || typeof SmartDocs === 'undefined') return;
+  const s = pack.shipment || {};
+  const opts = { carrier: pack.blCarrier || s.blCarrier || 'generic', shareCode: pack.shareCode || '' };
+  const frame = document.getElementById('docPreviewFrame');
+  if (frame) frame.srcdoc = SmartDocs.wrap(id, s, opts);
+  document.querySelectorAll('.doc-tabs button').forEach(b => b.classList.toggle('on', b.getAttribute('data-doc') === id));
 }
 
 function downloadBlob(name, obj) {
