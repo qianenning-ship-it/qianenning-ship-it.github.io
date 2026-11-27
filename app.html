@@ -539,7 +539,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <div class="doc-check"><input type="checkbox" checked id="chk-bk"><label for="chk-bk">📝 订舱确认书 (Booking Confirmation)</label></div>
         </div>
         <h3 style="margin-top:18px;">🚢 提单船司套版</h3>
-        <p style="font-size:.8rem;color:var(--g500);margin:6px 0 0;">同一套档案可切换 COSCO / MSC / MAERSK / OOCL 版式。柜号前四位箱主码会给出建议，一点采用。</p>
+        <p style="font-size:.8rem;color:var(--g500);margin:6px 0 0;">同一套档案可切换 COSCO / MSC / MAERSK / OOCL / CMA CGM / Hapag-Lloyd / ONE 版式。柜号前四位箱主码会给出建议，一点采用。</p>
         <div class="carrier-picks" id="carrierPicks"></div>
         <div id="carrierHint"></div>
         <div style="margin-top:20px;text-align:center;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
@@ -640,7 +640,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
       <div class="archive-table">
         <div class="table-wrap">
           <table>
-            <thead><tr><th>票号</th><th>创建时间</th><th>发货人</th><th>柜号</th><th>目的港</th><th>单证数</th><th>校验状态</th><th>操作</th></tr></thead>
+            <thead><tr><th>票号</th><th>创建时间</th><th>发货人</th><th>柜号</th><th>目的港</th><th>单证数</th><th>校验状态</th><th>回执</th><th>操作</th></tr></thead>
             <tbody id="archiveTbody"></tbody>
           </table>
         </div>
@@ -868,6 +868,7 @@ const DEFAULT_SHIPMENT = {
   etd: '2026-12-05T18:00',
   eta: '',
   tareWeight: '3800 KGS',
+  marks: 'AIL / LA\nC/NO.1-500',
   lines: [
     { hsCode: '8471.30.0100', description: 'LAPTOP COMPUTERS', packages: '200 CTNS', grossWeight: '3400 KGS', volume: '18.0 CBM' },
     { hsCode: '8471.60.2000', description: 'WIRELESS MOUSE', packages: '300 CTNS', grossWeight: '5100 KGS', volume: '27.6 CBM' }
@@ -877,11 +878,11 @@ const DEFAULT_SHIPMENT = {
 const FIELD_META = SmartDoc.FIELD_META;
 
 const INITIAL_ARCHIVE = [
-  { ...DEFAULT_SHIPMENT, createdAt: '2026-11-25 09:30', docCount: 4, status: '已校验' },
-  { ticketNo: 'SH2026112502', createdAt: '2026-11-25 10:15', shipper: 'GUANGZHOU TEXTILE LTD', consignee: 'EAST COAST APPAREL INC', notifyParty: 'SAME AS CONSIGNEE', containerNo: 'COSU8842109', sealNo: 'GZ261102', hsCode: '6204.62.0000', description: 'COTTON TROUSERS', packages: '320 CTNS', grossWeight: '6,200 KGS', volume: '34.2 CBM', pol: 'NANSHA, CHINA', pod: 'NEW YORK, USA', docCount: 3, status: '待校验' },
-  { ticketNo: 'SH2026112503', createdAt: '2026-11-25 11:00', shipper: 'NINGBO MACHINERY CO., LTD', consignee: 'EURO TECH GMBH', notifyParty: 'EURO TECH GMBH', containerNo: 'MAEU9912034', sealNo: 'NB261103', hsCode: '8483.40.9000', description: 'INDUSTRIAL GEARBOXES', packages: '45 PLTS', grossWeight: '14,800 KGS', volume: '28.0 CBM', pol: 'NINGBO, CHINA', pod: 'HAMBURG, GERMANY', vessel: 'MAERSK HAMBURG', voyage: '047E', etd: '2026-11-20T10:00', docCount: 4, status: '有异常' },
-  { ticketNo: 'SH2026112499', createdAt: '2026-11-24 16:20', shipper: 'FOSHAN FURNITURE GROUP', consignee: 'PACIFIC HOME PTY LTD', notifyParty: 'SAME AS CONSIGNEE', containerNo: 'OOCU7731203', sealNo: 'FS261199', hsCode: '9403.60.9990', description: 'WOODEN DINING TABLES', packages: '180 CTNS', grossWeight: '9,400 KGS', volume: '58.5 CBM', pol: 'YANTIAN, CHINA', pod: 'MELBOURNE, AUSTRALIA', docCount: 4, status: '已校验' },
-  { ticketNo: 'SH2026112498', createdAt: '2026-11-24 14:45', shipper: 'XIAMEN CERAMICS CO., LTD', consignee: 'LONDON HOMEWARES LTD', notifyParty: 'SAME AS CONSIGNEE', containerNo: 'MSCU5512897', sealNo: 'XM261198', hsCode: '6912.00.1000', description: 'CERAMIC TABLEWARE', packages: '640 CTNS', grossWeight: '11,200 KGS', volume: '32.0 CBM', pol: 'XIAMEN, CHINA', pod: 'FELIXSTOWE, UK', docCount: 4, status: '已校验' }
+  { ...DEFAULT_SHIPMENT, createdAt: '2026-11-25 09:30', docCount: 4, status: '已校验', ack: { at: '2026-11-25T10:05:00.000Z', by: { name: 'Pacific Desk', company: '只读协作' }, status: '已核对', ticketNo: 'SH2024081501', via: 'view.html' } },
+  { ticketNo: 'SH2026112502', createdAt: '2026-11-25 10:15', shipper: 'GUANGZHOU TEXTILE LTD', consignee: 'EAST COAST APPAREL INC', notifyParty: 'SAME AS CONSIGNEE', containerNo: 'COSU8842109', sealNo: 'GZ261102', hsCode: '6204.62.0000', description: 'COTTON TROUSERS', packages: '320 CTNS', grossWeight: '6,200 KGS', volume: '34.2 CBM', pol: 'NANSHA, CHINA', pod: 'NEW YORK, USA', marks: 'ECAI / NYC\nC/NO.1-320', docCount: 3, status: '待校验' },
+  { ticketNo: 'SH2026112503', createdAt: '2026-11-25 11:00', shipper: 'NINGBO MACHINERY CO., LTD', consignee: 'EURO TECH GMBH', notifyParty: 'EURO TECH GMBH', containerNo: 'MAEU9912034', sealNo: 'NB261103', hsCode: '8483.40.9000', description: 'INDUSTRIAL GEARBOXES', packages: '45 PLTS', grossWeight: '14,800 KGS', volume: '28.0 CBM', pol: 'NINGBO, CHINA', pod: 'HAMBURG, GERMANY', vessel: 'MAERSK HAMBURG', voyage: '047E', etd: '2026-11-20T10:00', marks: 'N/M', docCount: 4, status: '有异常' },
+  { ticketNo: 'SH2026112499', createdAt: '2026-11-24 16:20', shipper: 'FOSHAN FURNITURE GROUP', consignee: 'PACIFIC HOME PTY LTD', notifyParty: 'SAME AS CONSIGNEE', containerNo: 'OOCU7731203', sealNo: 'FS261199', hsCode: '9403.60.9990', description: 'WOODEN DINING TABLES', packages: '180 CTNS', grossWeight: '9,400 KGS', volume: '58.5 CBM', pol: 'YANTIAN, CHINA', pod: 'MELBOURNE, AUSTRALIA', marks: 'PH / MEL\nMADE IN CHINA', docCount: 4, status: '已校验' },
+  { ticketNo: 'SH2026112498', createdAt: '2026-11-24 14:45', shipper: 'XIAMEN CERAMICS CO., LTD', consignee: 'LONDON HOMEWARES LTD', notifyParty: 'SAME AS CONSIGNEE', containerNo: 'MSCU5512897', sealNo: 'XM261198', hsCode: '6912.00.1000', description: 'CERAMIC TABLEWARE', packages: '640 CTNS', grossWeight: '11,200 KGS', volume: '32.0 CBM', pol: 'XIAMEN, CHINA', pod: 'FELIXSTOWE, UK', marks: 'LHW / FXT\nC/NO.1-640', docCount: 4, status: '已校验' }
 ];
 
 function loadArchiveState() {
@@ -1654,11 +1655,11 @@ function generateDocs() {
 
 function genCardDefs(s) {
   return {
-    bl: { title: '🚢 海运提单草稿 (B/L) · ' + (typeof SmartDocs !== 'undefined' ? SmartDocs.carrierName(state.blCarrier) : ''), fields: [['B/L No.', s.ticketNo.replace('SH','SHSE')], ['Shipper', s.shipper], ['POL → POD', `${s.pol} → ${s.pod}`], ['Container', `${s.containerNo} / ${s.packages}`], ['套版', typeof SmartDocs !== 'undefined' ? SmartDocs.carrierName(state.blCarrier) : (state.blCarrier || '')]] },
+    bl: { title: '🚢 海运提单草稿 (B/L) · ' + (typeof SmartDocs !== 'undefined' ? SmartDocs.carrierName(state.blCarrier) : ''), fields: [['B/L No.', s.ticketNo.replace('SH','SHSE')], ['Shipper', s.shipper], ['POL → POD', `${s.pol} → ${s.pod}`], ['Marks', (typeof SmartDocs !== 'undefined' && SmartDocs.marksOf) ? SmartDocs.marksOf(s) : (s.marks || s.containerNo)], ['套版', typeof SmartDocs !== 'undefined' ? SmartDocs.carrierName(state.blCarrier) : (state.blCarrier || '')]] },
     ams: { title: '📋 AMS 舱单 (24h Manifest)', fields: [['AMS Ref', 'AMS' + s.ticketNo.slice(2)], ['Shipper', s.shipper], ['Goods', s.description], ['Weight', s.grossWeight]] },
     export: { title: '📑 出口报关单', fields: [['报关单号', '3102' + s.ticketNo.slice(2)], ['HS编码', s.hsCode], ['数量/毛重', `${s.packages} / ${s.grossWeight}`], ['目的港', s.pod]] },
     isf: { title: '📝 ISF 申报表 (10+2)', fields: [['ISF No.', 'ISF' + s.ticketNo.slice(2)], ['Importer', s.consignee], ['Manufacturer', s.shipper], ['Container', s.containerNo]] },
-    pl: { title: '📦 装箱单 (Packing List)', fields: [['Marks', s.containerNo || s.ticketNo], ['Pkgs', s.packages], ['G.W.', s.grossWeight], ['Meas.', s.volume], ['明细', typeof SmartDoc !== 'undefined' ? SmartDoc.linesLabel(s) : '']] },
+    pl: { title: '📦 装箱单 (Packing List)', fields: [['Marks', (typeof SmartDocs !== 'undefined' && SmartDocs.marksOf) ? SmartDocs.marksOf(s) : (s.marks || s.containerNo || s.ticketNo)], ['Pkgs', s.packages], ['G.W.', s.grossWeight], ['Meas.', s.volume], ['明细', typeof SmartDoc !== 'undefined' ? SmartDoc.linesLabel(s) : '']] },
     vgm: { title: '⚖️ VGM 称重单 (SOLAS)', fields: (function(){ const v = typeof SmartDocs !== 'undefined' ? SmartDocs.vgmOf(s) : { label: s.grossWeight, tareLabel: s.tareWeight || '3800 KGS' }; return [['Container', s.containerNo], ['Cargo GW', v.cargoLabel || s.grossWeight], ['Tare', v.tareLabel], ['VGM', v.label], ['Method', 'Method 2']]; })() },
     an: { title: '📬 到货通知 (Arrival Notice)', fields: [['Consignee', s.consignee], ['Vessel', (s.vessel || '') + ' / ' + (s.voyage || '')], ['ETD', s.etd], ['ETA', (typeof SmartDocs !== 'undefined' ? SmartDocs.etaOf(s) : s.eta) || 'ETD+14d'], ['POD', s.pod]] },
     bk: { title: '📝 订舱确认书 (Booking Confirmation)', fields: [['Booking', 'BK' + String(s.ticketNo || '').replace(/^SH/, '')], ['Carrier', typeof SmartDocs !== 'undefined' ? SmartDocs.carrierName(state.blCarrier) : (state.blCarrier || '')], ['Shipper', s.shipper], ['POL → POD', `${s.pol} → ${s.pod}`], ['ETD', s.etd], ['Container', s.containerNo]] }
@@ -2279,6 +2280,15 @@ function handleGlobalSearch(q) {
   }
 }
 
+function ackStatusOf(a) {
+  if (a && a.ack && (a.ack.status || a.ack.at)) {
+    const by = (a.ack.by && (a.ack.by.name || a.ack.by.email || a.ack.by.company)) || '';
+    const at = a.ack.at ? String(a.ack.at).slice(0, 16).replace('T', ' ') : '';
+    return { ok: true, cls: 'pass', text: '已核对', detail: [by, at].filter(Boolean).join(' · ') };
+  }
+  return { ok: false, cls: 'pending', text: '待回执', detail: '协作方尚未回传' };
+}
+
 function renderArchive() {
   const rows = state.archive.filter(a => {
     const matchStatus = state.archiveFilter === 'all' || a.status === state.archiveFilter;
@@ -2289,11 +2299,12 @@ function renderArchive() {
 
   const tbody = document.getElementById('archiveTbody');
   if(rows.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--g500);padding:28px;">没有匹配的货物档案记录</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--g500);padding:28px;">没有匹配的货物档案记录</td></tr>';
     return;
   }
   tbody.innerHTML = rows.map(a => {
     const cls = (a.status === '已校验' || a.status === '已申报') ? 'pass' : (a.status === '有异常' ? 'fail' : 'pending');
+    const ack = ackStatusOf(a);
     return `<tr>
       <td><strong>${escapeHtml(a.ticketNo)}</strong></td>
       <td>${escapeHtml(a.createdAt)}</td>
@@ -2302,6 +2313,7 @@ function renderArchive() {
       <td>${escapeHtml(a.pod)}</td>
       <td>${a.docCount} 套</td>
       <td><span class="status-badge ${cls}">${escapeHtml(a.status)}</span></td>
+      <td><span class="status-badge ${ack.cls}" title="${escapeHtml(ack.detail)}">${escapeHtml(ack.text)}</span></td>
       <td><div class="action-btns">
         <button class="action-btn" onclick="openJobFolder('${escapeHtml(a.ticketNo)}')">作业夹</button>
         <button class="action-btn" onclick="loadArchiveIntoWorkspace('${escapeHtml(a.ticketNo)}','generate')">制单</button>
@@ -2549,6 +2561,7 @@ function applyAckOnly() {
   }
   renderExchange();
   renderDashboard();
+  renderArchive();
   showToast('已写入回执，档案字段未改');
 }
 
@@ -2630,10 +2643,12 @@ function openJobFolder(ticketNo) {
   const docs = Object.keys(found.generated || {});
   const labels = (typeof SmartJob !== 'undefined' && SmartJob.DOC_LABELS) || {};
   const tl = found.timeline || [];
+  const ack = ackStatusOf(found);
   box.style.display = 'block';
   box.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;flex-wrap:wrap;">
       <h3 style="margin:0;">作业夹 ${escapeHtml(found.ticketNo)} · ${escapeHtml(found.status || '')}</h3>
+      <span class="status-badge ${ack.cls}" title="${escapeHtml(ack.detail)}">${escapeHtml(ack.ok ? ('协作已核对 · ' + ack.detail) : '协作尚未回执')}</span>
       <button class="btn btn-s" onclick="document.getElementById('jobFolder').style.display='none'">关闭</button>
     </div>
     <div class="job-grid">
@@ -2655,7 +2670,8 @@ function openJobFolder(ticketNo) {
       <div class="job-col">
         <h4>校验</h4>
         <p class="job-list" style="margin-left:0;list-style:none;">${escapeHtml(found.checkSummary || found.status || '未校验')}</p>
-        ${found.ack ? `<p style="font-size:.82rem;">协作回执：${escapeHtml(found.ack.status || '')} · ${escapeHtml((found.ack.by && found.ack.by.name) || '')}</p>` : ''}
+        <h4>协作回执</h4>
+        <p class="job-list" style="margin-left:0;">${escapeHtml(ack.ok ? (ack.text + ' · ' + ack.detail) : '待回执 · 对方在 view.html 点「已核对并回传」后拖进本机收件箱')}</p>
         <h4>截关</h4>
         <p class="job-list" style="margin-left:0;">${jobCutoffHtml(found)}</p>
         <h4>模拟申报</h4>
