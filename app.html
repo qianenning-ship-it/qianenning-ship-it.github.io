@@ -683,9 +683,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
         </div>
         <div class="xchg-card">
           <h3>接收发单包</h3>
-          <p style="font-size:.82rem;color:var(--g500);margin-bottom:12px;">导入 .json 智单通包，或从本机收件箱取件。</p>
+          <p style="font-size:.82rem;color:var(--g500);margin-bottom:12px;">GitHub Pages 没有服务器收件箱。把 JSON 或 SD1/SD2 令牌贴进来，写入<strong>本机浏览器收件箱</strong>后再核对载入。</p>
           <input type="file" id="packInput" accept=".json,.txt" hidden>
           <button class="btn btn-p" onclick="document.getElementById('packInput').click()">📂 选择发单包文件</button>
+          <button class="btn btn-s" onclick="receiveToLocalInbox()">📥 粘贴内容收入本机收件箱</button>
+          <div id="inboxDrop" class="drop-zone" style="margin-top:12px;padding:16px;min-height:72px;">把 JSON 发单包拖到这里</div>
           <div id="inboxList" style="margin-top:16px;"></div>
         </div>
         <div class="xchg-card" style="grid-column:1 / -1;">
@@ -701,6 +703,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <textarea id="shareRedeem" class="share-box" placeholder="粘贴分享码、SD1/SD2 令牌或带 #sd= 的链接"></textarea>
           <input type="password" id="shareUnlock" placeholder="若为 SD2 加密令牌，在此填写口令" style="width:100%;max-width:420px;height:40px;border:1px solid var(--g200);border-radius:8px;padding:0 12px;margin:8px 0;">
           <button class="btn btn-p" onclick="redeemShare()">载入分享票</button>
+          <button class="btn btn-s" onclick="receiveToLocalInbox()">先收入本机收件箱</button>
         </div>
       </div>
     </div>
@@ -778,6 +781,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
       <h3 id="modalTitle">单证预览</h3>
       <div style="display:flex;gap:8px;align-items:center;">
         <button class="btn btn-s" style="padding:6px 12px;font-size:.8rem;" onclick="printCurrentModalDoc()">🖨️ 打印 A4</button>
+        <button class="btn btn-s" style="padding:6px 12px;font-size:.8rem;" onclick="downloadCurrentModalPdf()">⬇️ PDF</button>
         <button class="btn btn-s" style="padding:6px 12px;font-size:.8rem;" onclick="downloadCurrentModalDoc(false)">⬇️ HTML</button>
         <button class="btn btn-s" style="padding:6px 12px;font-size:.8rem;" onclick="downloadCurrentModalDoc(true)">⬇️ Word</button>
         <button class="modal-close" onclick="closeDocModal()">✕</button>
@@ -821,8 +825,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 </div>
 <script src="js/auth.js"></script>
 <script src="js/vault.js"></script>
+<script src="js/blobstore.js"></script>
 <script src="js/pipeline.js"></script>
 <script src="js/docs.js"></script>
+<script src="js/pdfprint.js"></script>
 <script src="js/file-extract.js"></script>
 <script src="js/exchange.js"></script>
 <script src="js/job.js"></script>
@@ -931,7 +937,7 @@ function saveState() {
   localStorage.setItem('smartdoc_extractmeta', JSON.stringify(state.extractMeta || {}));
   localStorage.setItem('smartdoc_fieldsource', JSON.stringify(state.fieldSource || {}));
   localStorage.setItem('smartdoc_job', JSON.stringify({
-    extractFiles: state.extractFiles || [],
+    extractFiles: (state.extractFiles || []).map(f => typeof f === 'string' ? f : { fileName: f.fileName, method: f.method || '', size: f.size || 0, at: f.at || '', ocrText: String(f.ocrText || '').slice(0, 200) }),
     timeline: state.timeline || [],
     checkSummary: state.checkSummary || '',
     ack: state.ack || null,
@@ -984,22 +990,36 @@ function renderLinesBox() {
   const lines = state.shipment.lines.length ? state.shipment.lines : [SmartDoc.emptyLine()];
   box.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;flex-wrap:wrap;">
-      <strong style="font-size:.9rem;">货描明细行（同源写入提单 / AMS / 报关 / ISF）</strong>
+      <strong style="font-size:.9rem;">货描明细行（扫描件 OCR 会尽量拆成多行，黄底需确认）</strong>
       <button class="btn btn-s" type="button" onclick="addCargoLine()">+ 增行</button>
     </div>
     <table class="lines-table">
-      <thead><tr><th>#</th><th>品名</th><th>HS</th><th>件数</th><th>毛重</th><th>体积</th><th></th></tr></thead>
-      <tbody>${lines.map((l, i) => `<tr>
+      <thead><tr><th>#</th><th>品名</th><th>HS</th><th>件数</th><th>毛重</th><th>体积</th><th>置信</th><th></th></tr></thead>
+      <tbody>${lines.map((l, i) => `<tr style="${l.flagged || (l.conf && l.conf < 80) ? 'background:#fff7ed;' : ''}">
         <td>${i + 1}</td>
         <td><input value="${escapeHtml(l.description || '')}" oninput="updateCargoLine(${i},'description',this.value)"></td>
         <td><input value="${escapeHtml(l.hsCode || '')}" oninput="updateCargoLine(${i},'hsCode',this.value)"></td>
         <td><input value="${escapeHtml(l.packages || '')}" oninput="updateCargoLine(${i},'packages',this.value)"></td>
         <td><input value="${escapeHtml(l.grossWeight || '')}" oninput="updateCargoLine(${i},'grossWeight',this.value)"></td>
         <td><input value="${escapeHtml(l.volume || '')}" oninput="updateCargoLine(${i},'volume',this.value)"></td>
-        <td><button class="action-btn" type="button" onclick="removeCargoLine(${i})">删</button></td>
+        <td style="white-space:nowrap;font-size:.75rem;color:${l.flagged || (l.conf && l.conf < 80) ? '#c2410c' : 'var(--g500)'};">${l.conf ? (l.conf + '%') : '—'}${l.flagged ? ' 待确认' : ''}</td>
+        <td style="white-space:nowrap;">
+          ${(l.flagged || (l.conf && l.conf < 80)) ? `<button class="action-btn" type="button" onclick="confirmCargoLine(${i})">确认</button>` : ''}
+          <button class="action-btn" type="button" onclick="removeCargoLine(${i})">删</button>
+        </td>
       </tr>`).join('')}</tbody>
     </table>
-    <p style="font-size:.75rem;color:var(--g500);margin-top:8px;">多行时表头品名 / HS / 件数 / 毛重按明细汇总，制单与 XML 按行写出。</p>`;
+    <p style="font-size:.75rem;color:var(--g500);margin-top:8px;">多行时表头品名 / HS / 件数 / 毛重按明细汇总。低置信行改完后点「确认」再出单。</p>`;
+}
+
+function confirmCargoLine(i) {
+  if (!state.shipment.lines || !state.shipment.lines[i]) return;
+  state.shipment.lines[i].flagged = false;
+  state.shipment.lines[i].conf = 100;
+  SmartDoc.rollupHeader(state.shipment);
+  saveState();
+  renderLinesBox();
+  showToast('已确认第 ' + (i + 1) + ' 行明细');
 }
 
 function addCargoLine() {
@@ -1184,6 +1204,7 @@ async function handleIncomingFiles(fileList) {
     });
     fill.style.width = '100%';
     applyExtractResult(files.map(f => f.name).join(' + '), sizeStr, merged);
+    await stashExtractBlobs(files, merged);
     showExtractFailures(failed || [], results || []);
     pushTimeline('多文件识别成功 ' + (results || []).length + ' 份' + ((failed && failed.length) ? '，失败 ' + failed.length : ''));
     saveState();
@@ -1238,6 +1259,7 @@ async function handleRealFile(file) {
     const result = await SmartExtract.extractFromFile(file);
     fill.style.width = '100%';
     applyExtractResult(file.name, sizeStr, result);
+    await stashExtractBlobs([file], result);
     showExtractFailures([], [result]);
     pushTimeline('识别 ' + file.name);
     saveState();
@@ -1268,15 +1290,13 @@ async function buildDemoScanFile() {
     'Notify Party: EURO TECH GMBH',
     'Container No.: MAEU9912038',
     'Seal No.: NB261103',
-    'HS Code: 8483.40.9000',
-    'Description: INDUSTRIAL GEARBOXES',
-    'Packages: 45 PLTS',
-    'Gross Weight: 14800 KGS',
-    'Volume: 28.0 CBM',
     'Port of Loading: NINGBO, CHINA',
-    'Port of Discharge: HAMBURG, GERMANY'
+    'Port of Discharge: HAMBURG, GERMANY',
+    'Description HS Code Packages Gross Weight Volume',
+    'INDUSTRIAL GEARBOX 8483.40.9000 30 PLTS 9800 KGS 18.0 CBM',
+    'SPARE PARTS KIT 8483.90.0000 15 PLTS 5000 KGS 10.0 CBM'
   ];
-  lines.forEach((line, i) => ctx.fillText(line, 56, 150 + i * 44));
+  lines.forEach((line, i) => ctx.fillText(line, 40, 140 + i * 42));
   const blob = await new Promise((resolve, reject) => {
     canvas.toBlob(b => b ? resolve(b) : reject(new Error('无法生成示例扫描图')), 'image/png');
   });
@@ -1361,6 +1381,9 @@ async function loadSampleSet() {
 function applyExtractResult(fileName, sizeStr, result) {
   const fields = { ...SmartDoc.emptyShipment(), ...(result.fields || {}) };
   if (!fields.ticketNo) fields.ticketNo = SmartDoc.newTicket();
+  if (result.rawText && typeof SmartDoc.attachLines === 'function') {
+    SmartDoc.attachLines(fields, result.conf || {}, result.rawText);
+  }
   state.shipment = fields;
   state.fieldConf = result.conf || {};
   state.fieldSource = result.source || {};
@@ -1373,7 +1396,7 @@ function applyExtractResult(fileName, sizeStr, result) {
     files: result.files || []
   };
   state.generated = {};
-  state.extractFiles = result.files && result.files.length ? result.files : [fileName];
+  state.extractFiles = (result.files && result.files.length ? result.files : [fileName]).map(f => typeof f === 'string' ? { fileName: f } : f);
   state.ack = null;
   state.revisions = [];
   fieldRevPrev = {};
@@ -1589,6 +1612,7 @@ function renderGenCards(selected, animate) {
           <button class="btn btn-p" onclick="openDocModal('${id}')">👁️ 预览单证</button>
           <button class="btn btn-s" onclick="downloadSingleDoc('${id}', false)">⬇️ HTML</button>
           <button class="btn btn-s" onclick="downloadSingleDoc('${id}', true)">⬇️ Word</button>
+          <button class="btn btn-s" onclick="downloadPdfDoc('${id}')">⬇️ PDF</button>
         </div>
       </div>
     `;
@@ -1723,6 +1747,38 @@ function downloadSingleDoc(type, asWord) {
   showToast(`⬇️ 已下载 ${type.toUpperCase()}_${state.shipment.ticketNo}.${ext}`);
 }
 function downloadCurrentModalDoc(asWord) { downloadSingleDoc(state.currentModalDocType, !!asWord); }
+async function downloadPdfDoc(type) {
+  if (typeof SmartPdf === 'undefined') { showToast('PDF 模块未加载'); return; }
+  showToast('正在生成 A4 PDF…');
+  try {
+    const name = await SmartPdf.exportPdf(type, shipmentForDoc(type), docOpts(type));
+    showToast('⬇️ 已下载 ' + name);
+  } catch (e) {
+    showToast('PDF 生成失败：' + (e.message || e) + '。可改下 HTML 再打印。');
+  }
+}
+function downloadCurrentModalPdf() { downloadPdfDoc(state.currentModalDocType); }
+
+async function stashExtractBlobs(files, result) {
+  if (typeof SmartBlobs === 'undefined') return;
+  const ticket = (result && result.fields && result.fields.ticketNo) || state.shipment.ticketNo;
+  const metas = [];
+  for (const f of files || []) {
+    const ext = (f.name.split('.').pop() || '').toLowerCase();
+    if (!['png','jpg','jpeg','webp','bmp','pdf'].includes(ext)) {
+      metas.push({ fileName: f.name, size: f.size, mime: f.type });
+      continue;
+    }
+    try {
+      const rec = await SmartBlobs.put(ticket, f, { ocrText: (result && result.rawText) || '', method: (result && result.method) || '' });
+      if (rec) metas.push(rec);
+    } catch (e) {
+      metas.push({ fileName: f.name, size: f.size, mime: f.type });
+    }
+  }
+  if (metas.length) state.extractFiles = metas;
+}
+
 function printCurrentModalDoc() {
   const type = state.currentModalDocType;
   if (typeof SmartDocs !== 'undefined' && SmartDocs.print) {
@@ -2144,7 +2200,7 @@ function currentPack() {
     checkSummary: sum,
     extractMeta: state.extractMeta || {},
     fieldSource: state.fieldSource || {},
-    extractFiles: state.extractFiles || [],
+    extractFiles: (typeof SmartBlobs !== 'undefined' ? SmartBlobs.compactMeta(state.extractFiles) : (state.extractFiles || [])),
     timeline: state.timeline || [],
     ack: state.ack || null,
     blCarrier: state.blCarrier || 'generic',
@@ -2398,7 +2454,12 @@ function openJobFolder(ticketNo) {
     <div class="job-grid">
       <div class="job-col">
         <h4>来源文件</h4>
-        <ul class="job-list">${files.length ? files.map(f => `<li>${escapeHtml(typeof f === 'string' ? f : (f.fileName || ''))}</li>`).join('') : '<li>未记录来源（早期演示档案）</li>'}</ul>
+        <div id="jobBlobs">${files.length ? files.map(f => {
+          const name = typeof f === 'string' ? f : (f.fileName || '');
+          const thumb = typeof f === 'object' ? (f.thumb || '') : '';
+          const ocr = typeof f === 'object' ? String(f.ocrText || '').slice(0, 180) : '';
+          return `<div style="margin-bottom:8px;">${thumb ? `<img src="${thumb}" alt="" style="width:88px;height:auto;border:1px solid var(--g200);border-radius:6px;display:block;margin-bottom:4px;">` : ''}<span>${escapeHtml(name)}</span>${ocr ? `<div style="font-size:.72rem;color:var(--g500);">${escapeHtml(ocr)}</div>` : ''}</div>`;
+        }).join('') : '<p>未记录来源（早期演示档案）</p>'}</div>
         <h4>已出单证</h4>
         <ul class="job-list">${docs.length ? docs.map(d => `<li>${escapeHtml(labels[d] || d)} · ${escapeHtml((found.generated[d] && found.generated[d].generatedAt) || '')}</li>`).join('') : '<li>尚未出单</li>'}</ul>
         <h4>货描明细</h4>
@@ -2433,6 +2494,13 @@ function openJobFolder(ticketNo) {
       <button class="btn btn-s" onclick="cloneTicketFrom('${escapeHtml(ticketNo)}')">复制为新票</button>
     </div>`;
   box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (typeof SmartBlobs !== 'undefined') {
+    SmartBlobs.list(ticketNo).then(rows => {
+      const el = document.getElementById('jobBlobs');
+      if (!el || !rows.length) return;
+      el.innerHTML = rows.map(r => `<div style="margin-bottom:8px;">${r.thumb ? `<img src="${r.thumb}" alt="" style="width:88px;height:auto;border:1px solid var(--g200);border-radius:6px;display:block;margin-bottom:4px;">` : ''}<span>${escapeHtml(r.fileName)}</span>${r.ocrText ? `<div style="font-size:.72rem;color:var(--g500);">${escapeHtml(r.ocrText.slice(0, 180))}</div>` : ''}</div>`).join('');
+    }).catch(() => {});
+  }
 }
 
 function renderCarrierPicks() {
@@ -2634,6 +2702,7 @@ async function redeemShare() {
       return;
     }
     const pack = await SmartShare.decode(input, pw || undefined);
+    try { SmartExchange.localPush(pack, 'in'); } catch (e) { /* ignore */ }
     if (pack.readOnly || (SmartShare.isEncrypted && SmartShare.isEncrypted(input))) {
       const share = await SmartShare.encode(pack, { readOnly: true, password: pw || undefined });
       if (share.url) { location.href = share.url; return; }
@@ -2883,6 +2952,7 @@ async function consumeShareHash() {
       return;
     }
     const pack = await SmartShare.decode(h);
+    try { SmartExchange.localPush(pack, 'in'); } catch (e2) { /* ignore */ }
     if (pack.readOnly) {
       location.replace('view.html' + (location.hash || h));
       return;
@@ -2906,7 +2976,7 @@ async function renderExchange() {
   const server = data.server || [];
   const local = data.local || [];
   const badge = document.getElementById('inboxBadge');
-  if (badge) badge.textContent = server.length ? '本机收件箱已连接' : '文件互换模式（GitHub Pages / 无服务）';
+  if (badge) badge.textContent = server.length ? '本机 Flask 收件箱已连接' : ('浏览器收件箱 ' + local.length + ' 件（无需 8090）');
   const rows = [];
   server.forEach(it => rows.push({ ...it, via: 'server' }));
   local.forEach(it => {
@@ -2944,12 +3014,49 @@ async function openInboxItem(id, via) {
   }
 }
 
+async function receiveToLocalInbox() {
+  const raw = (document.getElementById('shareRedeem') && document.getElementById('shareRedeem').value) || '';
+  const pw = (document.getElementById('shareUnlock') && document.getElementById('shareUnlock').value) || '';
+  try {
+    const r = await SmartExchange.receiveBrowser(raw, pw);
+    showToast('已写入浏览器收件箱 ' + r.id);
+    renderExchange();
+    reviewPack(r.pack, '浏览器收件箱');
+  } catch (e) {
+    showToast(e.code === 'NEED_PASSWORD' ? '加密令牌请填写口令' : (e.message || String(e)));
+  }
+}
+
+(function bindInboxDrop() {
+  const zone = document.getElementById('inboxDrop');
+  if (!zone) return;
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', async e => {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const r = await SmartExchange.receiveBrowser(text);
+      showToast('已收入 ' + r.id);
+      renderExchange();
+      reviewPack(r.pack, file.name);
+    } catch (err) {
+      showToast('不是发单包：' + (err.message || err));
+    }
+  });
+})();
+
 document.getElementById('packInput').addEventListener('change', async e => {
   const file = e.target.files && e.target.files[0];
   if (!file) return;
   try {
     const obj = JSON.parse(await file.text());
-    reviewPack(SmartExchange.parsePack(obj), file.name);
+    const pack = SmartExchange.parsePack(obj);
+    try { SmartExchange.localPush(pack, 'in'); } catch (e2) { /* ignore */ }
+    reviewPack(pack, file.name);
   } catch (err) {
     showToast('无法解析发单包：' + (err.message || err));
   }
