@@ -60,6 +60,8 @@
       const v = raw && raw[k];
       o[k] = k === "hsCode" ? normalizeHs(v || "") : String(v || "").trim();
     });
+    if (raw && raw.conf != null) o.conf = raw.conf;
+    if (raw && raw.flagged) o.flagged = true;
     return o;
   }
 
@@ -310,6 +312,7 @@
     });
     if (!fields.ticketNo) fields.ticketNo = newTicket();
     if (fields.containerNo) fields.containerNo = fields.containerNo.toUpperCase().replace(/[\s-]/g, "");
+    attachLines(fields, conf, text);
     return { fields, conf };
   }
 
@@ -381,15 +384,95 @@
 
     const labeled = parseLabeledText(text);
     Object.keys(labeled.fields).forEach((k) => {
+      if (k === "lines") return;
       if (!fields[k] && labeled.fields[k]) {
         fields[k] = labeled.fields[k];
         conf[k] = labeled.conf[k] || 90;
       }
     });
+    if ((!fields.lines || !fields.lines.length) && labeled.fields.lines && labeled.fields.lines.length) {
+      fields.lines = labeled.fields.lines;
+      rollupHeader(fields);
+    }
     harvestRegex(text, fields);
+    attachLines(fields, conf, text);
     if (!fields.ticketNo) fields.ticketNo = newTicket();
     if (fields.containerNo) fields.containerNo = fields.containerNo.toUpperCase().replace(/[\s-]/g, "");
     return { fields, conf, text };
+  }
+
+  function scoreLine(l) {
+    const o = cleanLine(l);
+    let score = typeof l.conf === "number" ? l.conf : 0;
+    if (!score) {
+      score = (o.hsCode ? 35 : 0) + (o.description.length >= 4 ? 25 : 0) + (o.packages ? 20 : 0) + (o.grossWeight ? 15 : 0) + (o.volume ? 5 : 0);
+    }
+    o.conf = Math.min(98, score);
+    o.flagged = !!(l.flagged || o.conf < 80 || !o.description || !o.hsCode);
+    return o;
+  }
+
+  function harvestCargoLines(text) {
+    const rows = String(text || "")
+      .split(/\r?\n/)
+      .map((l) => l.replace(/\s+/g, " ").trim())
+      .filter(Boolean);
+    const out = [];
+    const seen = {};
+    const headerish = /^(no\.?|marks|#|item|description|goods|hs|hts|qty|pkgs|packages|gw|weight|cbm|volume|品名|税号|件数|毛重|体积|装箱单|packing)/i;
+    rows.forEach((line) => {
+      const colon = line.split(/[:：]/);
+      if (colon.length >= 2) {
+        const headKey = aliasKey(colon[0]);
+        if (headKey) {
+          const rest = colon.slice(1).join(":").trim();
+          if (LINE_KEYS.indexOf(headKey) < 0) return;
+          if (rest.split(/\s+/).length < 8) return;
+        }
+      }
+      if (headerish.test(line) && !/\d{4}\.\d{2}/.test(line) && !/\d{8,10}/.test(line)) return;
+      const hsM = line.match(/\b(\d{4}\.\d{2}\.\d{2,4}|\d{8,10})\b/);
+      const gwM = line.match(/([\d,.]+)\s*(KGS|KG|MT)\b/i);
+      const volM = line.match(/([\d,.]+)\s*(CBM|M3|M³)\b/i);
+      const pkgM = line.match(/(\d[\d,]*)\s*(CTNS|CARTONS|PKGS|PACKAGES|PLTS|PALLETS|PCS|CARTON|件|箱)\b/i);
+      const looksRow = (hsM && pkgM) || (hsM && gwM) || (pkgM && gwM && /[A-Za-z\u4e00-\u9fff]{4,}/.test(line));
+      if (!looksRow) return;
+      let desc = line
+        .replace(/\b(\d{4}\.\d{2}\.\d{2,4}|\d{8,10})\b/, " ")
+        .replace(/([\d,.]+)\s*(KGS|KG|MT)\b/gi, " ")
+        .replace(/([\d,.]+)\s*(CBM|M3|M³)\b/gi, " ")
+        .replace(/(\d[\d,]*)\s*(CTNS|CARTONS|PKGS|PACKAGES|PLTS|PALLETS|PCS|CARTON|件|箱)\b/gi, " ")
+        .replace(/\b(HS|HTS|CODE|NO\.?|#)\b/gi, " ")
+        .replace(/^[\d.\-)]+\s*/, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      const lineObj = scoreLine({
+        hsCode: hsM ? hsM[1] : "",
+        description: desc.slice(0, 90),
+        packages: pkgM ? pkgM[1].replace(/,/g, "") + " " + String(pkgM[2]).toUpperCase().replace("件", "CTNS").replace("箱", "CTNS") : "",
+        grossWeight: gwM ? gwM[1] + " " + gwM[2].toUpperCase().replace(/^KG$/, "KGS") : "",
+        volume: volM ? volM[1] + " CBM" : "",
+      });
+      const sig = LINE_KEYS.map((k) => lineObj[k]).join("|");
+      if (seen[sig] || !lineFilled(lineObj)) return;
+      seen[sig] = 1;
+      out.push(lineObj);
+    });
+    return out.slice(0, 30);
+  }
+
+  function attachLines(fields, conf, text) {
+    fields = fields || emptyShipment();
+    conf = conf || {};
+    let lines = Array.isArray(fields.lines) ? fields.lines.map(scoreLine).filter(lineFilled) : [];
+    if (!lines.length) lines = harvestCargoLines(text);
+    if (lines.length) {
+      fields.lines = lines;
+      rollupHeader(fields);
+      const scores = lines.map((l) => l.conf || 70);
+      conf.lines = Math.min.apply(null, scores);
+    }
+    return { fields, conf };
   }
 
   function sourceHash(s) {
@@ -549,5 +632,8 @@
     rollupHeader,
     linesLabel,
     linesSig,
+    harvestCargoLines,
+    attachLines,
+    scoreLine,
   };
 })(window);

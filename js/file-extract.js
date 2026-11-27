@@ -247,19 +247,23 @@
       Object.keys(table.fields).forEach((k) => {
         if (table.fields[k]) fields[k] = table.fields[k];
       });
-      return { fields, conf: { ...table.conf, ...parsed.conf }, rawText: text.slice(0, 4000), method: "CSV/文本解析", engine: "browser", fileName: file.name };
+      const conf = { ...table.conf, ...parsed.conf };
+      SmartDoc.attachLines(fields, conf, text);
+      return { fields, conf, rawText: text.slice(0, 4000), method: "CSV/文本解析", engine: "browser", fileName: file.name };
     }
     if (ext === "json") {
       const text = await readAsText(file);
       const obj = JSON.parse(text);
       const fields = SmartDoc.emptyShipment();
-      Object.keys(fields).forEach((k) => {
-        if (obj[k]) fields[k] = String(obj[k]);
-      });
-      if (!fields.ticketNo) fields.ticketNo = SmartDoc.newTicket();
       const conf = {};
       Object.keys(fields).forEach((k) => {
-        if (fields[k]) conf[k] = 100;
+        if (obj[k] && k !== "lines") fields[k] = String(obj[k]);
+      });
+      if (Array.isArray(obj.lines)) fields.lines = obj.lines;
+      if (!fields.ticketNo) fields.ticketNo = SmartDoc.newTicket();
+      SmartDoc.attachLines(fields, conf, text);
+      Object.keys(fields).forEach((k) => {
+        if (fields[k] && conf[k] == null) conf[k] = 100;
       });
       return { fields, conf, rawText: text.slice(0, 4000), method: "JSON 字段映射", engine: "browser", fileName: file.name };
     }
