@@ -13,7 +13,9 @@ from flask import Flask, jsonify, request, send_from_directory
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 INBOX_DIR = os.path.join(ROOT, "data", "inbox")
+VAULT_DIR = os.path.join(ROOT, "data", "vault")
 os.makedirs(INBOX_DIR, exist_ok=True)
+os.makedirs(VAULT_DIR, exist_ok=True)
 app = Flask(__name__, static_folder=ROOT, static_url_path="")
 
 FIELD_ALIASES = {
@@ -30,6 +32,11 @@ FIELD_ALIASES = {
     "volume": ["volume", "cbm", "measurement", "体积", "尺码"],
     "pol": ["pol", "port of loading", "loading port", "起运港", "装货港", "发运港"],
     "pod": ["pod", "port of discharge", "destination", "目的港", "卸货港", "指运港"],
+    "vessel": ["vessel", "vessel name", "vsl", "船名"],
+    "voyage": ["voyage", "voy", "航次"],
+    "etd": ["etd", "sailing", "开船", "开船日"],
+    "eta": ["eta", "arrival", "到港", "预计到港"],
+    "tareWeight": ["tare", "tare weight", "皮重", "箱皮重"],
 }
 
 OCR_ENGINE = None
@@ -249,7 +256,7 @@ def inbox_meta(obj, filename):
 
 @app.get("/api/health")
 def health():
-    return jsonify({"ok": True, "ocr": True, "engine": "rapidocr", "inbox": True})
+    return jsonify({"ok": True, "ocr": True, "engine": "rapidocr", "inbox": True, "vault": True})
 
 
 @app.get("/api/inbox")
@@ -293,6 +300,46 @@ def inbox_get(item_id):
     with open(path, "r", encoding="utf-8") as f:
         obj = json.load(f)
     return jsonify(obj)
+
+
+def vault_safe(org_id: str) -> str:
+    safe = re.sub(r"[^A-Za-z0-9_\-\u4e00-\u9fff]+", "", str(org_id or ""))[:48]
+    return safe or "demo"
+
+
+@app.get("/api/vault/<org_id>")
+def vault_get(org_id):
+    safe = vault_safe(org_id)
+    path = os.path.join(VAULT_DIR, safe + ".json")
+    if not os.path.isfile(path):
+        return jsonify({"ok": True, "kind": "smartdoc-org-vault", "orgId": safe, "tickets": []})
+    with open(path, "r", encoding="utf-8") as f:
+        obj = json.load(f)
+    obj.setdefault("ok", True)
+    obj.setdefault("orgId", safe)
+    return jsonify(obj)
+
+
+@app.put("/api/vault/<org_id>")
+@app.post("/api/vault/<org_id>")
+def vault_put(org_id):
+    obj = request.get_json(silent=True)
+    if not obj:
+        return jsonify({"error": "missing json"}), 400
+    safe = vault_safe(org_id)
+    tickets = obj.get("tickets") if isinstance(obj.get("tickets"), list) else []
+    payload = {
+        "kind": "smartdoc-org-vault",
+        "version": int(obj.get("version") or 1),
+        "orgId": safe,
+        "company": obj.get("company") or "",
+        "tickets": tickets,
+        "updatedAt": datetime.now().isoformat(timespec="seconds"),
+    }
+    path = os.path.join(VAULT_DIR, safe + ".json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+    return jsonify({"ok": True, "orgId": safe, "count": len(tickets)})
 
 
 @app.post("/api/extract")

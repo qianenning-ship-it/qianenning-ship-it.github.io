@@ -40,7 +40,8 @@ table.cargo th{background:#f7faff;font-size:12px;}
   <div id="emptyBox" class="card" style="display:none">
     <h2>打开只读链接</h2>
     <p style="font-size:14px;color:#7a8699;">把协作链接贴到地址栏，或在此粘贴令牌 / 短码。</p>
-    <textarea id="pasteToken" class="paste" placeholder="粘贴 SD1.... 令牌或带 #sd= 的链接"></textarea>
+    <textarea id="pasteToken" class="paste" placeholder="粘贴 SD1.... / SD2.... 令牌或带 #sd= 的链接"></textarea>
+    <input type="password" id="pastePass" class="paste" style="min-height:42px;" placeholder="若为 SD2 加密令牌，填写分享口令">
     <button class="btn btn-blue" style="height:40px;padding:0 18px;" type="button" onclick="loadPasted()">打开</button>
     <p class="err" id="emptyErr"></p>
   </div>
@@ -99,26 +100,39 @@ function renderPack(pack) {
     </div>`;
 }
 
-function openFrom(input) {
+async function openFrom(input, password) {
   try {
-    const pack = SmartShare.decode(input);
+    if (SmartShare.isEncrypted && SmartShare.isEncrypted(input) && !password) {
+      document.getElementById('emptyBox').style.display = 'block';
+      document.getElementById('packBox').style.display = 'none';
+      document.getElementById('emptyErr').textContent = '这是口令加密的分享链接，请输入口令后打开。';
+      return;
+    }
+    const pack = await SmartShare.decode(input, password || undefined);
     renderPack(pack);
     if (location.hash.indexOf('#sd=') === 0) history.replaceState(null, '', location.pathname + location.search + location.hash);
   } catch (e) {
     document.getElementById('emptyBox').style.display = 'block';
     document.getElementById('packBox').style.display = 'none';
-    document.getElementById('emptyErr').textContent = e.message || String(e);
+    document.getElementById('emptyErr').textContent = e.code === 'NEED_PASSWORD' ? '请输入分享口令' : (e.message || String(e));
   }
 }
 
 function loadPasted() {
-  openFrom(document.getElementById('pasteToken').value || '');
+  openFrom(document.getElementById('pasteToken').value || '', document.getElementById('pastePass').value || '');
 }
 
 (function init() {
   const h = location.hash || '';
-  if (h.indexOf('#sd=') === 0) openFrom(h);
-  else {
+  if (h.indexOf('#sd=') === 0) {
+    if (SmartShare.isEncrypted && SmartShare.isEncrypted(h)) {
+      document.getElementById('emptyBox').style.display = 'block';
+      document.getElementById('pasteToken').value = h;
+      document.getElementById('emptyErr').textContent = '加密链接已识别，请输入口令后打开。';
+    } else {
+      openFrom(h);
+    }
+  } else {
     document.getElementById('emptyBox').style.display = 'block';
   }
 })();
