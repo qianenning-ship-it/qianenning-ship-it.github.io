@@ -18,6 +18,7 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
 .sign{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:28px;font-size:11px}
 .sign .line{border-top:1px solid #0f172a;margin-top:36px;padding-top:6px}
 .badge{display:inline-block;background:#e8f1ff;color:#006aff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px}
+.sheet-foot{margin:12px auto 0;padding:8px 4px 0;border-top:1px dashed #94a3b8;font-size:9px;color:#64748b;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;max-width:190mm}
 .print-bar{text-align:center;margin:0 0 10px}
 .print-bar button{background:#006aff;color:#fff;border:0;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer}
 @media print{body{padding:0}.no-print{display:none!important} .sheet{border-width:1.5px;max-width:none} *{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
@@ -183,6 +184,25 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     </div>`;
   }
 
+  function buildBk(s, carrierId) {
+    const c = CARRIERS[carrierId] || CARRIERS.generic;
+    const bkNo = "BK" + String(s.ticketNo || "").replace(/^SH/, "");
+    return `<div class="sheet" style="border-color:${c.color}">
+      ${head("BOOKING CONFIRMATION / 订舱确认书", "Homologous booking · 舱位以船司配载为准", s.ticketNo, c.id)}
+      <div class="grid2">
+        ${cell("Booking No.", bkNo)}${cell("Ticket / Ref.", s.ticketNo)}
+        ${cell("Carrier / SCAC", c.name + " / " + c.scac)}${cell("Shipper", s.shipper)}
+        ${cell("Consignee", s.consignee)}${cell("Notify Party", s.notifyParty)}
+        ${cell("Place of Receipt / POL", s.pol)}${cell("Port of Discharge / POD", s.pod)}
+        ${cell("Vessel / Voyage", (s.vessel || "") + " / " + (s.voyage || ""))}${cell("ETD", fmtWhen(s.etd))}
+        ${cell("Container / Seal", (s.containerNo || "") + " / " + (s.sealNo || ""))}${cell("Packages / Weight", (s.packages || "") + " / " + (s.grossWeight || ""))}
+      </div>
+      ${cargoTableHtml(s, "bl")}
+      <p class="clause">This booking confirmation is generated from the SmartDoc cargo archive. Space is subject to carrier allocation. Not a bill of lading. 本确认书与提单草稿同源，非正式订舱合同。</p>
+      <div class="sign"><div><div class="line">Shipper</div></div><div><div class="line">${e(c.name)} Booking desk</div></div><div><div class="line">Date</div></div></div>
+    </div>`;
+  }
+
   function buildAn(s) {
     const eta = etaOf(s);
     const blNo = String(s.ticketNo || "").replace("SH", "SHSE");
@@ -209,6 +229,7 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     if (type === "pl") return buildPl(s);
     if (type === "vgm") return buildVgm(s);
     if (type === "an") return buildAn(s);
+    if (type === "bk") return buildBk(s, carrier);
     if (type === "ams") {
       return `<div class="sheet">
         ${head("US CUSTOMS AMS MANIFEST", "Automated Manifest System · 24-Hour Rule", s.ticketNo)}
@@ -221,6 +242,21 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
         ${cargoTableHtml(s, "ams")}
         <p class="clause">AMS must be filed at least 24 hours before cargo is laden aboard the vessel at the foreign port. Empty notify party may trigger a do-not-load (DNL) hold.</p>
       </div>`;
+    }
+    if (type === "isf") {
+      return `<div class="sheet">
+      ${head("IMPORTER SECURITY FILING (ISF 10+2)", "U.S. CBP · file 24 hours before loading", s.ticketNo)}
+      <div class="grid2">
+        ${cell("ISF No.", "ISF" + String(s.ticketNo || "").slice(2))}${cell("B/L No.", blNo)}
+        ${cell("1. Importer of Record", s.consignee)}${cell("2. Consignee", s.consignee)}
+        ${cell("3. Seller / Owner", s.shipper)}${cell("4. Manufacturer / Supplier", s.shipper)}
+        ${cell("5. Ship to Party", s.consignee)}${cell("6. Country of Origin", "CHINA")}
+        ${cell("7. HTSUS", cargoLines(s).map((l) => l.hsCode).filter(Boolean).join(" / ") || s.hsCode)}${cell("8. Container Stuffing Location", s.pol)}
+        ${cell("9. Consolidator", s.shipper)}${cell("10. Container No.", s.containerNo)}
+      </div>
+      ${cargoTableHtml(s, "ams")}
+      <p class="clause">+2 data elements (stow plan / container status) are filed by the carrier. Commodity: ${e(s.description)}. Packages: ${e(s.packages)}.</p>
+    </div>`;
     }
     if (type === "export") {
       return `<div class="sheet">
@@ -235,28 +271,26 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
         <div class="sign"><div><div class="line">申报单位</div></div><div><div class="line">报关员</div></div><div><div class="line">申报日期</div></div></div>
       </div>`;
     }
-    return `<div class="sheet">
-      ${head("IMPORTER SECURITY FILING (ISF 10+2)", "U.S. CBP · file 24 hours before loading", s.ticketNo)}
-      <div class="grid2">
-        ${cell("ISF No.", "ISF" + String(s.ticketNo || "").slice(2))}${cell("B/L No.", blNo)}
-        ${cell("1. Importer of Record", s.consignee)}${cell("2. Consignee", s.consignee)}
-        ${cell("3. Seller / Owner", s.shipper)}${cell("4. Manufacturer / Supplier", s.shipper)}
-        ${cell("5. Ship to Party", s.consignee)}${cell("6. Country of Origin", "CHINA")}
-        ${cell("7. HTSUS", cargoLines(s).map((l) => l.hsCode).filter(Boolean).join(" / ") || s.hsCode)}${cell("8. Container Stuffing Location", s.pol)}
-        ${cell("9. Consolidator", s.shipper)}${cell("10. Container No.", s.containerNo)}
-      </div>
-      ${cargoTableHtml(s, "ams")}
-      <p class="clause">+2 data elements (stow plan / container status) are filed by the carrier. Commodity: ${e(s.description)}. Packages: ${e(s.packages)}.</p>
-    </div>`;
+    return `<div class="sheet"><p class="clause">未知单证类型 ${e(type)}</p></div>`;
   }
 
-  const TITLES = { bl: "B/L", ams: "AMS", export: "EXPORT", isf: "ISF", pl: "PACKING", vgm: "VGM", an: "ARRIVAL" };
+  const TITLES = { bl: "B/L", ams: "AMS", export: "EXPORT", isf: "ISF", pl: "PACKING", vgm: "VGM", an: "ARRIVAL", bk: "BOOKING" };
+
+  function stampHtml(opts, s) {
+    opts = opts || {};
+    const code = String(opts.shareCode || "").trim();
+    const url = String(opts.shareUrl || "").trim();
+    if (!code && !url) return "";
+    const right = url ? (url.length > 96 ? url.slice(0, 93) + "…" : url) : "打开 view.html 粘贴短码（本机分享簿）";
+    return `<div class="sheet-foot"><span>智单通 · ${e(s.ticketNo || "")} · 只读码 ${e(code || "—")}</span><span>${e(right)}</span></div>`;
+  }
 
   function wrap(type, s, opts) {
-    const carrier = type === "bl" ? ((opts && opts.carrier) || s.blCarrier || "generic") : "generic";
+    opts = opts || {};
+    const carrier = (type === "bl" || type === "bk") ? (opts.carrier || s.blCarrier || "generic") : "generic";
     const css = cssFor(carrier);
     const bar = `<div class="print-bar no-print"><button type="button" onclick="window.print()">打印 A4（${e((PRINT_PAGE[carrier] || PRINT_PAGE.generic).margin)}）</button></div>`;
-    return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>${TITLES[type] || type}-${e(s.ticketNo)}</title><style>${css}</style></head><body>${bar}${build(type, s, opts)}</body></html>`;
+    return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>${TITLES[type] || type}-${e(s.ticketNo)}</title><style>${css}</style></head><body>${bar}${build(type, s, opts)}${stampHtml(opts, s)}</body></html>`;
   }
 
   function print(type, s, opts) {
@@ -277,7 +311,7 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
   }
 
   function checkReport(shipment, rows, selected, summary) {
-    const labels = { bl: "B/L", ams: "AMS", export: "报关单", isf: "ISF", pl: "装箱单", vgm: "VGM", an: "到货通知" };
+    const labels = { bl: "B/L", ams: "AMS", export: "报关单", isf: "ISF", pl: "装箱单", vgm: "VGM", an: "到货通知", bk: "订舱确认" };
     const body = (rows || [])
       .map((row) => {
         const cells = selected.map((d) => `<td>${e(row[d] || "")}</td>`).join("");
@@ -293,5 +327,5 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
       </div></body></html>`;
   }
 
-  w.SmartDocs = { build, wrap, print, checkReport, CSS, cssFor, CARRIERS, PRINT_PAGE, carrierName, vgmOf, etaOf, TITLES };
+  w.SmartDocs = { build, wrap, print, checkReport, CSS, cssFor, CARRIERS, PRINT_PAGE, carrierName, vgmOf, etaOf, TITLES, stampHtml };
 })(window);

@@ -166,9 +166,9 @@
     return "SH" + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + p(d.getHours()) + p(d.getMinutes());
   }
 
-  function iso6346Valid(code) {
-    const c = String(code || "").toUpperCase().replace(/[\s-]/g, "");
-    if (!/^[A-Z]{4}\d{7}$/.test(c)) return false;
+  function iso6346Digit(prefix10) {
+    const c = String(prefix10 || "").toUpperCase().replace(/[\s-]/g, "").slice(0, 10);
+    if (!/^[A-Z]{4}\d{6}$/.test(c)) return "";
     const map = {};
     let n = 10;
     for (let i = 0; i < 26; i++) {
@@ -180,11 +180,61 @@
     for (let i = 0; i < 10; i++) {
       const ch = c[i];
       const val = /[A-Z]/.test(ch) ? map[ch] : parseInt(ch, 10);
+      if (Number.isNaN(val)) return "";
       total += val * Math.pow(2, i);
     }
     let check = total % 11;
     if (check === 10) check = 0;
-    return check === parseInt(c[10], 10);
+    return String(check);
+  }
+
+  function iso6346Valid(code) {
+    const c = String(code || "").toUpperCase().replace(/[\s-]/g, "");
+    if (!/^[A-Z]{4}\d{7}$/.test(c)) return false;
+    return iso6346Digit(c.slice(0, 10)) === c[10];
+  }
+
+  function iso6346Fix(code) {
+    const raw = String(code || "").toUpperCase().replace(/[\s-]/g, "");
+    if (!raw) return "";
+    const owner = raw.slice(0, 4).replace(/0/g, "O");
+    const serial = raw.slice(4).replace(/O/g, "0").replace(/[IL]/g, "1").replace(/\D/g, "");
+    if (!/^[A-Z]{4}$/.test(owner) || serial.length < 6) return "";
+    const prefix10 = owner + serial.slice(0, 6);
+    const d = iso6346Digit(prefix10);
+    if (!d) return "";
+    return prefix10 + d;
+  }
+
+  function hsFix(v) {
+    const n = normalizeHs(v);
+    return hsLooksValid(n) ? n : "";
+  }
+
+  function suggestFixes(s) {
+    const items = [];
+    if (!s) return items;
+    const cn = String(s.containerNo || "").trim();
+    if (cn && !iso6346Valid(cn)) {
+      const to = iso6346Fix(cn);
+      if (to && to !== cn) {
+        items.push({ id: "hdr-container", scope: "header", field: "containerNo", from: cn, to, reason: "ISO 6346 校验位" });
+      }
+    }
+    const hs = String(s.hsCode || "").trim();
+    if (hs && !hsLooksValid(hs)) {
+      const to = hsFix(hs);
+      if (to && to !== hs) items.push({ id: "hdr-hs", scope: "header", field: "hsCode", from: hs, to, reason: "HS 点分格式" });
+    }
+    (s.lines || []).forEach((l, i) => {
+      const lhs = String((l && l.hsCode) || "").trim();
+      if (!lhs || hsLooksValid(lhs)) return;
+      const to = hsFix(lhs);
+      if (to && to !== lhs) {
+        items.push({ id: "line-" + i + "-hs", scope: "line", index: i, field: "hsCode", from: lhs, to, reason: "HS 点分格式" });
+      }
+    });
+    return items;
   }
 
   function normalizeHs(v) {
@@ -615,9 +665,13 @@
     emptyShipment,
     parseLabeledText,
     parseTable,
+    iso6346Digit,
     iso6346Valid,
+    iso6346Fix,
     normalizeHs,
     hsLooksValid,
+    hsFix,
+    suggestFixes,
     sourceHash,
     snapshot,
     buildCheck,

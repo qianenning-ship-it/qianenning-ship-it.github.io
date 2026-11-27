@@ -7,8 +7,9 @@
     pl: "装箱单 P/L",
     vgm: "VGM 称重",
     an: "到货通知",
+    bk: "订舱确认",
   };
-  const DOC_IDS = ["bl", "ams", "export", "isf", "pl", "vgm", "an"];
+  const DOC_IDS = ["bl", "ams", "export", "isf", "pl", "vgm", "an", "bk"];
 
   function pushEvent(list, text) {
     const next = Array.isArray(list) ? list.slice() : [];

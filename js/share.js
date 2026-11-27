@@ -228,5 +228,5 @@
     return decodeSync(input);
   }
 
-  w.SmartShare = { encode, decode, decodeSync, compact, expand, peek, isEncrypted };
+  w.SmartShare = { encode, decode, decodeSync, compact, expand, peek, isEncrypted, shortCode, shareUrl, storeToken };
 })(window);
