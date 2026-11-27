@@ -41,12 +41,12 @@ D:\Python\python.exe server.py
 4. 一键按档案修正快照，导出/打印校验报告；单证可下载 HTML / Word / A4 PDF（船司套版），或打包 ZIP
 5. 发单与收件：JSON 包带校验报告与时间线；导入先核对再载入，可点「已核对并回传」
 6. 货物档案里打开「作业夹」回看来源文件、已出单证、校验摘要、发单时间线、模拟申报回执、截关状态与批注
-7. 提单可切换 COSCO / MSC / MAERSK / OOCL / CMA CGM / Hapag-Lloyd / ONE 套版；规则库可开关并随包发出；校验页可模拟申报 AMS / ISF，并下载 CUSCAR / ISF XML 草稿（拒绝原因对应报文节点）
+7. 提单可切换 COSCO / MSC / MAERSK / OOCL / CMA CGM / Hapag-Lloyd / ONE / Evergreen / Wan Hai / Yang Ming 套版；规则库可开关并随包发出；校验页可模拟申报 AMS / ISF，并下载 CUSCAR / ISF XML 草稿（拒绝原因对应报文节点）
 8. 档案填 ETD 后自动计算 AMS 24h / ISF 截关；过点未 Accepted 在顶栏和作业夹标红
 9. 顶栏可切换已挂起的票，或「复制上一票」改柜号/船期；发单页分享码 / `#sd=` 链接跨浏览器载入
 10. 截关看板按 AMS/ISF 截止排序全库票；作业夹记录字段修订并可回滚；只读协作链接走 `view.html`（可看档案/批注，不能写入）
 11. 识别建档、同源出单、模拟申报各扣 1 票额度，套餐页可导出审计 CSV
-12. 货描支持多行品名 / HS / 件数 / 毛重，同源写入八套单证与 AMS CUSCAR / ISF XML
+12. 货描支持多行品名 / HS / 件数 / 毛重 / 单价，同源写入九套单证与 AMS CUSCAR / ISF XML
 13. 收件遇本机同票时并排对账，可整票覆盖或按字段合并
 14. 制单员校验通过后须复核员（checker@smartdoc.com）确认，才能模拟申报
 15. 截关看板可导出 ICS；工作台票数 / 待办 / 通过率 / 工时按档案库实算
@@ -65,8 +65,12 @@ D:\Python\python.exe server.py
 28. 同源结果可一次打成带页脚短码的 PDF ZIP
 29. 美线 HS 须 10 位、其他航线建议 8 位，识别页与校验页可一键采用
 30. 唛头 Marks 写入货物档案，同源填入提单 Marks 栏与装箱单 Marks & Nos.
-31. 只读协作页可内嵌预览八套单证 HTML，不必先下载
+31. 只读协作页可内嵌预览九套单证 HTML，不必先下载
 32. 档案列表与作业夹显示协作 ACK 灯（已核对 / 待回执）
 33. 箱主码 CMAU / HLCU / ONEU 分别建议 CMA CGM / Hapag-Lloyd / ONE 套版
+34. 商业发票同源第 9 套：单价 × 件数 = 金额，装箱单同步金额栏
+35. 一票多柜 `containers[]` 写入提单 / VGM / AMS / ISF XML，第一柜同步表头
+36. 分享簿可导出 / 导入 JSON，同事本机同步短码，无需 8090
+37. 箱主码 EGLV/EMCU → Evergreen，WHLU → Wan Hai，YMLU → Yang Ming
 
 示例文件在 `samples/`。
