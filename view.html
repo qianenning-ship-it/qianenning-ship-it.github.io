@@ -97,7 +97,23 @@ function renderPack(pack) {
     <div class="card">
       <h2>申报回执</h2>
       ${(pack.filings || []).length ? (pack.filings || []).map(f => `<div class="note">${escapeHtml((f.name || f.channel) + ' · ' + (f.status || '') + ' · ' + (f.ref || ''))}${f.late ? ' · 逾时' : ''}</div>`).join('') : '<p style="font-size:13px;color:#7a8699;">尚未申报</p>'}
+    </div>
+    <div class="card">
+      <h2>转给工作台（无需服务器）</h2>
+      <p style="font-size:13px;color:#7a8699;">下载 JSON 后在工作台「发单与收件」导入，写入对方浏览器收件箱。</p>
+      <button class="btn btn-blue" type="button" onclick="downloadPackJson()">⬇️ 下载本票 JSON</button>
     </div>`;
+  window._viewPack = pack;
+}
+
+function downloadPackJson() {
+  const pack = window._viewPack;
+  if (!pack) return;
+  const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'SmartDoc_' + (pack.ticketNo || 'pack') + '.json';
+  a.click();
 }
 
 async function openFrom(input, password) {
