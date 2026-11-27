@@ -29,6 +29,7 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     cosco: { size: "A4", margin: "12mm 12mm 12mm 20mm" },
     msc: { size: "A4", margin: "15mm 14mm 18mm 14mm" },
     maersk: { size: "A4", margin: "10mm 16mm 14mm 16mm" },
+    oocl: { size: "A4", margin: "12mm 14mm 16mm 14mm" },
   };
 
   function cssFor(carrierId) {
@@ -121,7 +122,25 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     cosco: { id: "cosco", name: "COSCO SHIPPING", scac: "COSU", mark: "中", color: "#c41e3a", title: "COSCO SHIPPING BILL OF LADING", legal: "COSCO SHIPPING Lines Co., Ltd. Combined Transport B/L (draft). Terms of carriage as per COSCO bill of lading. This copy is generated from a SmartDoc archive for checking only." },
     msc: { id: "msc", name: "MSC", scac: "MSCU", mark: "M", color: "#003366", title: "MEDITERRANEAN SHIPPING COMPANY B/L", legal: "Mediterranean Shipping Company S.A. Bill of Lading (non-negotiable draft). Particulars furnished by the shipper. Not valid for negotiation until signed by the carrier." },
     maersk: { id: "maersk", name: "MAERSK", scac: "MAEU", mark: "★", color: "#42b0d5", title: "MAERSK LINE BILL OF LADING", legal: "Maersk A/S transport document (draft). Contract of carriage subject to Maersk Bill of Lading terms. For document check and pre-alert only." },
+    oocl: { id: "oocl", name: "OOCL", scac: "OOLU", mark: "O", color: "#c8102e", title: "OOCL BILL OF LADING", legal: "Orient Overseas Container Line (draft). Particulars furnished by the merchant. This copy is generated from a SmartDoc archive for checking only." },
   };
+
+  const OWNER_CARRIER = {
+    COSU: "cosco", CBHU: "cosco",
+    MSCU: "msc",
+    MAEU: "maersk", MSKU: "maersk", MRKU: "maersk", MWHU: "maersk",
+    OOCU: "oocl", OOLU: "oocl",
+  };
+
+  function ownerCode(containerNo) {
+    return String(containerNo || "").toUpperCase().replace(/[\s-]/g, "").replace(/0/g, "O").slice(0, 4);
+  }
+
+  function carrierFromOwner(containerNo) {
+    const owner = ownerCode(containerNo);
+    if (!/^[A-Z]{4}$/.test(owner)) return "";
+    return OWNER_CARRIER[owner] || "";
+  }
 
   function head(title, sub, ticket, carrier) {
     const c = CARRIERS[carrier] || CARRIERS.generic;
@@ -327,5 +346,5 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
       </div></body></html>`;
   }
 
-  w.SmartDocs = { build, wrap, print, checkReport, CSS, cssFor, CARRIERS, PRINT_PAGE, carrierName, vgmOf, etaOf, TITLES, stampHtml };
+  w.SmartDocs = { build, wrap, print, checkReport, CSS, cssFor, CARRIERS, PRINT_PAGE, carrierName, vgmOf, etaOf, TITLES, stampHtml, ownerCode, carrierFromOwner, OWNER_CARRIER };
 })(window);

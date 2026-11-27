@@ -33,8 +33,12 @@
         items.push(item(channel, "containerNo", "ISO 6346 柜号未通过（申报拒绝）"));
       }
     }
-    if (on("hs") && s.hsCode && w.SmartDoc && !w.SmartDoc.hsLooksValid(s.hsCode) && !(s.lines && s.lines.length > 1)) {
-      items.push(item(channel, "hsCode", "HS / HTS 格式未通过规则库"));
+    if (on("hs") && s.hsCode && w.SmartDoc && !(s.lines && s.lines.length > 1)) {
+      if (!w.SmartDoc.hsLooksValid(s.hsCode)) {
+        items.push(item(channel, "hsCode", "HS / HTS 格式未通过规则库"));
+      } else if (w.SmartDoc.hsLaneLooksValid && !w.SmartDoc.hsLaneLooksValid(s.hsCode, s.pod)) {
+        items.push(item(channel, "hsCode", w.SmartDoc.hsLane(s.pod) === "us" ? "美线 HS 须 10 位（申报拒绝）" : "该航线 HS 建议 8 位（申报拒绝）"));
+      }
     }
     const lines = (w.SmartDoc && w.SmartDoc.normalizeLines(s)) || [];
     if (lines.length) {

@@ -103,6 +103,27 @@
     return localList().find((x) => x.id === id) || null;
   }
 
+  function makeAck(pack, by) {
+    const src = pack || {};
+    const who = by || { name: "只读协作方", company: "只读协作" };
+    const ack = {
+      at: new Date().toISOString(),
+      by: who,
+      status: "已核对",
+      ticketNo: src.ticketNo || (src.shipment && src.shipment.ticketNo) || "",
+      via: "view.html",
+    };
+    return Object.assign({}, src, {
+      kind: KIND,
+      version: src.version || 1,
+      sentAt: new Date().toISOString(),
+      from: who,
+      ack,
+      remark: String(src.remark || "").replace(/\s*\[已核对回执\]/g, "") + " [已核对回执]",
+      readOnly: true,
+    });
+  }
+
   async function receiveBrowser(raw, password) {
     const text = String(raw || "").trim();
     if (!text) throw new Error("请粘贴 JSON 或分享令牌");
@@ -153,6 +174,7 @@
     localPush,
     localGet,
     receiveBrowser,
+    makeAck,
     pushInbox,
     listInbox,
     getInbox,

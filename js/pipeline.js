@@ -211,6 +211,33 @@
     return hsLooksValid(n) ? n : "";
   }
 
+  function hsLane(pod) {
+    const t = String(pod || "").toUpperCase();
+    return /\b(USA|U\.S\.A\.?|U\.S\.|UNITED STATES|AMERICA|LOS ANGELES|LONG BEACH|NEW YORK|NEWARK|SAVANNAH|HOUSTON|CHARLESTON|NORFOLK|OAKLAND|SEATTLE|TACOMA|MIAMI|BALTIMORE|BOSTON|LAX|NYC)\b/.test(t) ? "us" : "other";
+  }
+
+  function hsLaneNeed(pod) {
+    return hsLane(pod) === "us" ? 10 : 8;
+  }
+
+  function hsDigitLen(v) {
+    return String(v || "").replace(/\D/g, "").length;
+  }
+
+  function hsLaneLooksValid(v, pod) {
+    if (!v) return false;
+    const n = hsDigitLen(v);
+    return n === hsLaneNeed(pod) && hsLooksValid(normalizeHs(v) || v);
+  }
+
+  function hsFixForLane(v, pod) {
+    const d = String(v || "").replace(/\D/g, "");
+    const need = hsLaneNeed(pod);
+    if (d.length === need) return normalizeHs(d);
+    if (need === 8 && d.length === 10) return normalizeHs(d.slice(0, 8));
+    return "";
+  }
+
   function suggestFixes(s) {
     const items = [];
     if (!s) return items;
@@ -222,16 +249,21 @@
       }
     }
     const hs = String(s.hsCode || "").trim();
-    if (hs && !hsLooksValid(hs)) {
-      const to = hsFix(hs);
-      if (to && to !== hs) items.push({ id: "hdr-hs", scope: "header", field: "hsCode", from: hs, to, reason: "HS 点分格式" });
+    if (hs) {
+      const to = hsFixForLane(hs, s.pod);
+      const laneOk = hsLaneLooksValid(hs, s.pod);
+      if (to && to !== hs && (!laneOk || !hsLooksValid(hs))) {
+        const need = hsLaneNeed(s.pod);
+        items.push({ id: "hdr-hs", scope: "header", field: "hsCode", from: hs, to, reason: hsLane(s.pod) === "us" ? "美线 HS 10 位" : ("该航线 HS " + need + " 位") });
+      }
     }
     (s.lines || []).forEach((l, i) => {
       const lhs = String((l && l.hsCode) || "").trim();
-      if (!lhs || hsLooksValid(lhs)) return;
-      const to = hsFix(lhs);
-      if (to && to !== lhs) {
-        items.push({ id: "line-" + i + "-hs", scope: "line", index: i, field: "hsCode", from: lhs, to, reason: "HS 点分格式" });
+      if (!lhs) return;
+      const to = hsFixForLane(lhs, s.pod);
+      const laneOk = hsLaneLooksValid(lhs, s.pod);
+      if (to && to !== lhs && (!laneOk || !hsLooksValid(lhs))) {
+        items.push({ id: "line-" + i + "-hs", scope: "line", index: i, field: "hsCode", from: lhs, to, reason: hsLane(s.pod) === "us" ? "美线明细 HS 10 位" : "该航线明细 HS 位数" });
       }
     });
     return items;
@@ -561,8 +593,15 @@
         if (!/^[A-Z]{4}\d{7}$/.test(row.source)) ruleWarn = "柜号应为 4 位字母 + 7 位数字（ISO 6346）";
         else if (!iso6346Valid(row.source)) ruleWarn = "柜号校验位不正确（ISO 6346 check digit）";
       }
-      if (ruleOn("hs") && meta.key === "hsCode" && row.source && !hsLooksValid(row.source)) {
-        ruleWarn = "HS 编码建议采用 xxxx.xx.xxxx 格式";
+      if (ruleOn("hs") && meta.key === "hsCode" && row.source) {
+        if (!hsLooksValid(row.source)) {
+          ruleWarn = "HS 编码建议采用 xxxx.xx.xx 或 xxxx.xx.xxxx 格式";
+          row.fixTo = hsFixForLane(row.source, source.pod);
+        } else if (!hsLaneLooksValid(row.source, source.pod)) {
+          const us = hsLane(source.pod) === "us";
+          ruleWarn = us ? "美线 HS 须 10 位（HTSUS）" : "该航线 HS 建议 8 位";
+          row.fixTo = hsFixForLane(row.source, source.pod);
+        }
       }
       if (ruleOn("notify") && meta.key === "notifyParty" && selectedDocs.includes("ams") && !row.source) {
         ruleWarn = "AMS 24h：Notify Party 为空，可能触发 DNL";
@@ -593,10 +632,21 @@
       rows.push(row);
     }
     normalizeLines(source).forEach((l, i) => {
-      if (ruleOn("hs") && l.hsCode && !hsLooksValid(l.hsCode)) {
-        const row = { key: "line-hs-" + i, label: "明细 HS #" + (i + 1), required: false, source: l.hsCode, ruleWarn: "明细行 HS 格式未通过", stale: false, hasEmpty: false, mismatch: false, sourceMismatch: false };
-        selectedDocs.forEach((d) => { row[d] = l.hsCode; });
-        rows.push(row);
+      if (ruleOn("hs") && l.hsCode) {
+        let warn = "";
+        let fixTo = "";
+        if (!hsLooksValid(l.hsCode)) {
+          warn = "明细行 HS 格式未通过";
+          fixTo = hsFixForLane(l.hsCode, source.pod);
+        } else if (!hsLaneLooksValid(l.hsCode, source.pod)) {
+          warn = hsLane(source.pod) === "us" ? "美线明细 HS 须 10 位" : "该航线明细 HS 建议 8 位";
+          fixTo = hsFixForLane(l.hsCode, source.pod);
+        }
+        if (warn) {
+          const row = { key: "line-hs-" + i, label: "明细 HS #" + (i + 1), required: false, source: l.hsCode, ruleWarn: warn, fixTo, stale: false, hasEmpty: false, mismatch: false, sourceMismatch: false };
+          selectedDocs.forEach((d) => { row[d] = l.hsCode; });
+          rows.push(row);
+        }
       }
     });
     const custom = (w.SmartRules && w.SmartRules.get().custom) || [];
@@ -671,6 +721,10 @@
     normalizeHs,
     hsLooksValid,
     hsFix,
+    hsLane,
+    hsLaneNeed,
+    hsLaneLooksValid,
+    hsFixForLane,
     suggestFixes,
     sourceHash,
     snapshot,

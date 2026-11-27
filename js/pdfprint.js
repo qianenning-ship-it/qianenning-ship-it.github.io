@@ -9,7 +9,7 @@
     }
   }
 
-  async function exportPdf(type, shipment, opts) {
+  async function exportPdfBlob(type, shipment, opts) {
     if (!w.SmartDocs) throw new Error("单证模块未加载");
     await loadLibs();
     const html = w.SmartDocs.wrap(type, shipment, opts || {}).replace("class=\"print-bar no-print\"", "class=\"print-bar no-print\" style=\"display:none\"");
@@ -41,9 +41,14 @@
       left -= pageH;
     }
     const name = String(type || "DOC").toUpperCase() + "_" + (shipment.ticketNo || "TICKET") + ".pdf";
-    pdf.save(name);
-    return name;
+    return { name, blob: pdf.output("blob"), pdf };
   }
 
-  w.SmartPdf = { exportPdf };
+  async function exportPdf(type, shipment, opts) {
+    const out = await exportPdfBlob(type, shipment, opts);
+    out.pdf.save(out.name);
+    return out.name;
+  }
+
+  w.SmartPdf = { exportPdf, exportPdfBlob };
 })(window);
