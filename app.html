@@ -502,6 +502,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
         <div class="fields-grid" id="fieldsGrid"></div>
         <div id="fixBar"></div>
         <div class="lines-box" id="linesBox"></div>
+        <div class="lines-box" id="containersBox" style="margin-top:12px;"></div>
         <div class="extract-meta" id="extractMeta"></div>
         <div id="extractFailBanner" class="fail-banner" style="display:none"></div>
         <div class="field-actions">
@@ -515,7 +516,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
     <!-- ========== GENERATE ========== -->
     <div class="page" id="page-generate">
       <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:4px;">📋 单证同源数据批量生成</h2>
-      <p style="color:var(--g500);font-size:.9rem;margin-bottom:20px;">依托统一标准货物档案，同源输出提单、AMS、报关、ISF、装箱单、VGM、到货通知、订舱确认书，彻底消除重复录入导致的错漏</p>
+      <p style="color:var(--g500);font-size:.9rem;margin-bottom:20px;">依托统一标准货物档案，同源输出提单、AMS、报关、ISF、装箱单、VGM、到货通知、订舱确认书、商业发票，彻底消除重复录入导致的错漏</p>
 
       <div class="source-summary">
         <h3>
@@ -537,9 +538,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <div class="doc-check"><input type="checkbox" checked id="chk-vgm"><label for="chk-vgm">⚖️ VGM 称重单 (SOLAS Method 2)</label></div>
           <div class="doc-check"><input type="checkbox" checked id="chk-an"><label for="chk-an">📬 到货通知 (Arrival Notice)</label></div>
           <div class="doc-check"><input type="checkbox" checked id="chk-bk"><label for="chk-bk">📝 订舱确认书 (Booking Confirmation)</label></div>
+          <div class="doc-check"><input type="checkbox" checked id="chk-ci"><label for="chk-ci">💵 商业发票 (Commercial Invoice)</label></div>
         </div>
         <h3 style="margin-top:18px;">🚢 提单船司套版</h3>
-        <p style="font-size:.8rem;color:var(--g500);margin:6px 0 0;">同一套档案可切换 COSCO / MSC / MAERSK / OOCL / CMA CGM / Hapag-Lloyd / ONE 版式。柜号前四位箱主码会给出建议，一点采用。</p>
+        <p style="font-size:.8rem;color:var(--g500);margin:6px 0 0;">同一套档案可切换 COSCO / MSC / MAERSK / OOCL / CMA CGM / Hapag-Lloyd / ONE / Evergreen / Wan Hai / Yang Ming 版式。柜号前四位箱主码会给出建议，一点采用。</p>
         <div class="carrier-picks" id="carrierPicks"></div>
         <div id="carrierHint"></div>
         <div style="margin-top:20px;text-align:center;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
@@ -552,7 +554,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <h3 style="font-size:1rem;font-weight:700;">📄 同源单证生成结果</h3>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <button class="btn btn-s" onclick="downloadDocZip()">📦 打包 ZIP（已生成单证 + 档案）</button>
-            <button class="btn btn-s" onclick="downloadPdfZip()">📄 八套 PDF ZIP</button>
+            <button class="btn btn-s" onclick="downloadPdfZip()">📄 九套 PDF ZIP</button>
             <button class="btn btn-s" onclick="switchTab('exchange')">📨 发送给协作方</button>
             <button class="btn btn-ok" onclick="switchTab('check')">下一步：去执行一致性智能校验 →</button>
           </div>
@@ -577,6 +579,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <div class="check-doc" data-doc="vgm" onclick="this.classList.toggle('selected')">⚖️ VGM</div>
           <div class="check-doc" data-doc="an" onclick="this.classList.toggle('selected')">📬 到货通知</div>
           <div class="check-doc" data-doc="bk" onclick="this.classList.toggle('selected')">📝 订舱确认</div>
+          <div class="check-doc" data-doc="ci" onclick="this.classList.toggle('selected')">💵 商业发票</div>
         </div>
         <p class="stale-note" style="margin-top:12px;">校验对象是「已生成的单证快照」对照当前货物档案，并叠加 ISO 6346 柜号、美线 HS 10 位 / 其他航线 8 位、AMS 24h / ISF 10+2 必填规则。请先在「同源单证生成」落快照；若改过档案请重新生成。</p>
         <button class="btn btn-p btn-lg" onclick="startCheck()">🔍 开始智能校验</button>
@@ -712,6 +715,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <input type="password" id="shareUnlock" placeholder="若为 SD2 加密令牌，在此填写口令" style="width:100%;max-width:420px;height:40px;border:1px solid var(--g200);border-radius:8px;padding:0 12px;margin:8px 0;">
           <button class="btn btn-p" onclick="redeemShare()">载入分享票</button>
           <button class="btn btn-s" onclick="receiveToLocalInbox()">先收入本机收件箱</button>
+          <div style="margin-top:16px;padding-top:12px;border-top:1px dashed var(--g200);">
+            <h3 style="margin:0 0 8px;">本机分享簿（短码）</h3>
+            <p style="font-size:.82rem;color:var(--g500);margin-bottom:10px;">短码只存在这台浏览器。导出 JSON 给同事，对方导入后即可用同一短码打开，不需要 8090。</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+              <button class="btn btn-s" onclick="exportShareBook()">⬇️ 导出分享簿 JSON</button>
+              <button class="btn btn-s" onclick="document.getElementById('shareBookInput').click()">📂 导入分享簿</button>
+            </div>
+            <input type="file" id="shareBookInput" accept=".json,.txt" hidden>
+            <div id="shareBookMeta" style="font-size:.8rem;color:var(--g500);"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -869,9 +882,15 @@ const DEFAULT_SHIPMENT = {
   eta: '',
   tareWeight: '3800 KGS',
   marks: 'AIL / LA\nC/NO.1-500',
+  currency: 'USD',
+  incoterms: 'FOB',
+  containers: [
+    { containerNo: 'MSKU1234565', sealNo: 'SH20240815', tareWeight: '3800 KGS', type: '40HC', packages: '250 CTNS', grossWeight: '4300 KGS' },
+    { containerNo: 'MSKU2345671', sealNo: 'SH20240816', tareWeight: '3800 KGS', type: '40HC', packages: '250 CTNS', grossWeight: '4200 KGS' }
+  ],
   lines: [
-    { hsCode: '8471.30.0100', description: 'LAPTOP COMPUTERS', packages: '200 CTNS', grossWeight: '3400 KGS', volume: '18.0 CBM' },
-    { hsCode: '8471.60.2000', description: 'WIRELESS MOUSE', packages: '300 CTNS', grossWeight: '5100 KGS', volume: '27.6 CBM' }
+    { hsCode: '8471.30.0100', description: 'LAPTOP COMPUTERS', packages: '200 CTNS', grossWeight: '3400 KGS', volume: '18.0 CBM', unitPrice: '120.00', amount: 'USD 24000.00' },
+    { hsCode: '8471.60.2000', description: 'WIRELESS MOUSE', packages: '300 CTNS', grossWeight: '5100 KGS', volume: '27.6 CBM', unitPrice: '8.50', amount: 'USD 2550.00' }
   ]
 };
 
@@ -1004,7 +1023,7 @@ function renderLinesBox() {
       <button class="btn btn-s" type="button" onclick="addCargoLine()">+ 增行</button>
     </div>
     <table class="lines-table">
-      <thead><tr><th>#</th><th>品名</th><th>HS</th><th>件数</th><th>毛重</th><th>体积</th><th>置信</th><th></th></tr></thead>
+      <thead><tr><th>#</th><th>品名</th><th>HS</th><th>件数</th><th>毛重</th><th>体积</th><th>单价</th><th>金额</th><th>置信</th><th></th></tr></thead>
       <tbody>${lines.map((l, i) => `<tr style="${l.flagged || (l.conf && l.conf < 80) ? 'background:#fff7ed;' : ''}">
         <td>${i + 1}</td>
         <td><input value="${escapeHtml(l.description || '')}" oninput="updateCargoLine(${i},'description',this.value)"></td>
@@ -1012,6 +1031,8 @@ function renderLinesBox() {
         <td><input value="${escapeHtml(l.packages || '')}" oninput="updateCargoLine(${i},'packages',this.value)"></td>
         <td><input value="${escapeHtml(l.grossWeight || '')}" oninput="updateCargoLine(${i},'grossWeight',this.value)"></td>
         <td><input value="${escapeHtml(l.volume || '')}" oninput="updateCargoLine(${i},'volume',this.value)"></td>
+        <td><input value="${escapeHtml(l.unitPrice || '')}" oninput="updateCargoLine(${i},'unitPrice',this.value)"></td>
+        <td><input value="${escapeHtml(l.amount || '')}" oninput="updateCargoLine(${i},'amount',this.value)"></td>
         <td style="white-space:nowrap;font-size:.75rem;color:${l.flagged || (l.conf && l.conf < 80) ? '#c2410c' : 'var(--g500)'};">${l.conf ? (l.conf + '%') : '—'}${l.flagged ? ' 待确认' : ''}</td>
         <td style="white-space:nowrap;">
           ${(l.flagged || (l.conf && l.conf < 80)) ? `<button class="action-btn" type="button" onclick="confirmCargoLine(${i})">确认</button>` : ''}
@@ -1019,8 +1040,71 @@ function renderLinesBox() {
         </td>
       </tr>`).join('')}</tbody>
     </table>
-    <p style="font-size:.75rem;color:var(--g500);margin-top:8px;">多行时表头品名 / HS / 件数 / 毛重按明细汇总。低置信行改完后点「确认」再出单。柜号 / HS 格式错误会在上方给出一键修正。</p>`;
+    <p style="font-size:.75rem;color:var(--g500);margin-top:8px;">多行时表头品名 / HS / 件数 / 毛重按明细汇总。金额 = 单价 × 件数（未填金额时发票自动算）。低置信行改完后点「确认」再出单。</p>`;
+  renderContainersBox();
   renderFixBar();
+}
+
+function renderContainersBox() {
+  const box = document.getElementById('containersBox');
+  if (!box || typeof SmartDoc === 'undefined' || !SmartDoc.normalizeContainers) return;
+  if (!state.shipment.containers || !state.shipment.containers.length) {
+    state.shipment.containers = SmartDoc.normalizeContainers(state.shipment);
+  }
+  const rows = state.shipment.containers.length ? state.shipment.containers : [SmartDoc.emptyContainer()];
+  box.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;flex-wrap:wrap;">
+      <strong style="font-size:.9rem;">柜清单（一票多柜写入提单 / VGM / AMS）</strong>
+      <button class="btn btn-s" type="button" onclick="addContainerRow()">+ 加柜</button>
+    </div>
+    <table class="lines-table">
+      <thead><tr><th>#</th><th>柜号</th><th>封号</th><th>箱型</th><th>皮重</th><th>分柜毛重</th><th></th></tr></thead>
+      <tbody>${rows.map((c, i) => `<tr>
+        <td>${i + 1}</td>
+        <td><input value="${escapeHtml(c.containerNo || '')}" oninput="updateContainerRow(${i},'containerNo',this.value)"></td>
+        <td><input value="${escapeHtml(c.sealNo || '')}" oninput="updateContainerRow(${i},'sealNo',this.value)"></td>
+        <td><input value="${escapeHtml(c.type || '')}" placeholder="40HC" oninput="updateContainerRow(${i},'type',this.value)"></td>
+        <td><input value="${escapeHtml(c.tareWeight || '')}" oninput="updateContainerRow(${i},'tareWeight',this.value)"></td>
+        <td><input value="${escapeHtml(c.grossWeight || '')}" oninput="updateContainerRow(${i},'grossWeight',this.value)"></td>
+        <td><button class="action-btn" type="button" onclick="removeContainerRow(${i})">删</button></td>
+      </tr>`).join('')}</tbody>
+    </table>
+    <p style="font-size:.75rem;color:var(--g500);margin-top:8px;">第一柜同步到表头柜号 / 封号 / 皮重。VGM 未填分柜毛重时按总货重均分。</p>`;
+}
+
+function addContainerRow() {
+  if (!state.shipment.containers) state.shipment.containers = SmartDoc.normalizeContainers(state.shipment);
+  state.shipment.containers.push(SmartDoc.emptyContainer());
+  renderContainersBox();
+}
+
+function removeContainerRow(i) {
+  state.shipment.containers = (state.shipment.containers || []).filter((_, idx) => idx !== i);
+  SmartDoc.rollupContainers(state.shipment);
+  invalidateApproval('改柜清单');
+  saveState();
+  renderContainersBox();
+  renderFixBar();
+}
+
+let ctrDebounce;
+function updateContainerRow(i, key, val) {
+  if (!state.shipment.containers) state.shipment.containers = SmartDoc.normalizeContainers(state.shipment);
+  if (!state.shipment.containers[i]) state.shipment.containers[i] = SmartDoc.emptyContainer();
+  if (key === 'containerNo') val = String(val || '').toUpperCase().replace(/[\s-]/g, '');
+  state.shipment.containers[i][key] = val;
+  clearTimeout(ctrDebounce);
+  ctrDebounce = setTimeout(() => {
+    SmartDoc.rollupContainers(state.shipment);
+    invalidateApproval('改柜清单');
+    const rec = state.archive.find(a => a.ticketNo === state.shipment.ticketNo);
+    if (rec) upsertArchive(rec.status === '已校验' ? '待复核' : (rec.status || '待校验'));
+    else saveState();
+    renderFixBar();
+    renderCarrierPicks();
+    const input = document.querySelector('.f-input[data-key="containerNo"]');
+    if (input) input.value = state.shipment.containerNo || '';
+  }, 400);
 }
 
 function renderFixBar() {
@@ -1053,8 +1137,17 @@ function applyOneFix(it) {
       state.fieldConf = state.fieldConf || {};
       state.fieldConf.containerNo = 100;
     }
+    if ((it.field === 'containerNo' || it.field === 'sealNo' || it.field === 'tareWeight') && typeof SmartDoc.normalizeContainers === 'function') {
+      const list = SmartDoc.normalizeContainers(state.shipment);
+      if (!list.length) list.push(SmartDoc.emptyContainer());
+      list[0][it.field] = it.to;
+      state.shipment.containers = list;
+    }
   } else if (it.scope === 'line' && state.shipment.lines && state.shipment.lines[it.index]) {
     state.shipment.lines[it.index][it.field] = it.to;
+  } else if (it.scope === 'container' && state.shipment.containers && state.shipment.containers[it.index]) {
+    state.shipment.containers[it.index][it.field] = it.to;
+    if (typeof SmartDoc.rollupContainers === 'function') SmartDoc.rollupContainers(state.shipment);
   }
 }
 
@@ -1509,6 +1602,7 @@ function applyExtractResult(fileName, sizeStr, result) {
   }).join('');
 
   renderLinesBox();
+  renderContainersBox();
   renderCarrierPicks();
   const raw = state.extractMeta.rawText || '';
   document.getElementById('extractMeta').innerHTML = `
@@ -1522,6 +1616,12 @@ let fieldRevPrev = {};
 function updateShipmentField(key, val) {
   if (!(key in fieldRevPrev)) fieldRevPrev[key] = state.shipment[key] || '';
   state.shipment[key] = val;
+  if ((key === 'containerNo' || key === 'sealNo' || key === 'tareWeight') && typeof SmartDoc !== 'undefined' && SmartDoc.normalizeContainers) {
+    const list = SmartDoc.normalizeContainers(state.shipment);
+    if (!list.length) list.push(SmartDoc.emptyContainer());
+    list[0][key] = val;
+    state.shipment.containers = list;
+  }
   clearTimeout(fieldRevTimers[key]);
   fieldRevTimers[key] = setTimeout(() => {
     const from = fieldRevPrev[key];
@@ -1610,7 +1710,9 @@ function renderGenSummary() {
     ['收货人 Consignee', s.consignee],
     ['品名 Description', s.description],
     ['HS编码', s.hsCode],
-    ['柜号 / 封号', `${s.containerNo} / ${s.sealNo}`],
+    ['柜号 / 封号', (typeof SmartDocs !== 'undefined' && SmartDocs.cnText) ? SmartDocs.cnText(s) : `${s.containerNo} / ${s.sealNo}`],
+    ['柜清单', (typeof SmartDoc !== 'undefined' && SmartDoc.containersLabel) ? SmartDoc.containersLabel(s) : ''],
+    ['币种 / 条款', `${s.currency || 'USD'} / ${s.incoterms || 'FOB'}`],
     ['航线 POL → POD', `${s.pol} → ${s.pod}`],
     ['件数 / 毛重', `${s.packages} / ${s.grossWeight}`],
     ['体积 Volume', s.volume],
@@ -1625,7 +1727,7 @@ function renderGenSummary() {
 }
 
 function generateDocs() {
-  const ids = (typeof SmartJob !== 'undefined' && SmartJob.DOC_IDS) || ['bl','ams','export','isf','pl','vgm','an','bk'];
+  const ids = (typeof SmartJob !== 'undefined' && SmartJob.DOC_IDS) || ['bl','ams','export','isf','pl','vgm','an','bk','ci'];
   const selected = ids.filter(id => document.getElementById('chk-' + id)?.checked);
   if(selected.length === 0) {
     showToast('⚠️ 请至少勾选一种要生成的单证');
@@ -1641,6 +1743,7 @@ function generateDocs() {
     state.generated[id] = { fields: { ...snap }, sourceHash: hash, generatedAt: new Date().toISOString(), type: id };
   });
   if (state.generated.bl) state.generated.bl.carrier = state.blCarrier || 'generic';
+  if (state.generated.bk) state.generated.bk.carrier = state.blCarrier || 'generic';
 
   renderGenCards(selected, true);
   pushTimeline('同源生成 ' + selected.join('/'));
@@ -1662,7 +1765,8 @@ function genCardDefs(s) {
     pl: { title: '📦 装箱单 (Packing List)', fields: [['Marks', (typeof SmartDocs !== 'undefined' && SmartDocs.marksOf) ? SmartDocs.marksOf(s) : (s.marks || s.containerNo || s.ticketNo)], ['Pkgs', s.packages], ['G.W.', s.grossWeight], ['Meas.', s.volume], ['明细', typeof SmartDoc !== 'undefined' ? SmartDoc.linesLabel(s) : '']] },
     vgm: { title: '⚖️ VGM 称重单 (SOLAS)', fields: (function(){ const v = typeof SmartDocs !== 'undefined' ? SmartDocs.vgmOf(s) : { label: s.grossWeight, tareLabel: s.tareWeight || '3800 KGS' }; return [['Container', s.containerNo], ['Cargo GW', v.cargoLabel || s.grossWeight], ['Tare', v.tareLabel], ['VGM', v.label], ['Method', 'Method 2']]; })() },
     an: { title: '📬 到货通知 (Arrival Notice)', fields: [['Consignee', s.consignee], ['Vessel', (s.vessel || '') + ' / ' + (s.voyage || '')], ['ETD', s.etd], ['ETA', (typeof SmartDocs !== 'undefined' ? SmartDocs.etaOf(s) : s.eta) || 'ETD+14d'], ['POD', s.pod]] },
-    bk: { title: '📝 订舱确认书 (Booking Confirmation)', fields: [['Booking', 'BK' + String(s.ticketNo || '').replace(/^SH/, '')], ['Carrier', typeof SmartDocs !== 'undefined' ? SmartDocs.carrierName(state.blCarrier) : (state.blCarrier || '')], ['Shipper', s.shipper], ['POL → POD', `${s.pol} → ${s.pod}`], ['ETD', s.etd], ['Container', s.containerNo]] }
+    bk: { title: '📝 订舱确认书 (Booking Confirmation)', fields: [['Booking', 'BK' + String(s.ticketNo || '').replace(/^SH/, '')], ['Carrier', typeof SmartDocs !== 'undefined' ? SmartDocs.carrierName(state.blCarrier) : (state.blCarrier || '')], ['Shipper', s.shipper], ['POL → POD', `${s.pol} → ${s.pod}`], ['ETD', s.etd], ['Container', (typeof SmartDocs !== 'undefined' && SmartDocs.cnText) ? SmartDocs.cnText(s) : s.containerNo]] },
+    ci: { title: '💵 商业发票 (Commercial Invoice)', fields: (function(){ const inv = typeof SmartDocs !== 'undefined' && SmartDocs.invoiceOf ? SmartDocs.invoiceOf(s) : { currency: s.currency || 'USD', incoterms: s.incoterms || 'FOB', totalLabel: '' }; return [['Invoice', 'INV' + String(s.ticketNo || '').replace(/^SH/, '')], ['Incoterms', inv.incoterms], ['Currency', inv.currency], ['Total', inv.totalLabel || '—'], ['Buyer', s.consignee]]; })() }
   };
 }
 
@@ -1832,7 +1936,7 @@ function buildDocHTML(type) {
 }
 function openDocModal(type) {
   state.currentModalDocType = type;
-  const names = { bl:'🚢 海运提单草稿预览', ams:'📋 AMS 舱单预览', export:'📑 出口报关单预览', isf:'📝 ISF 10+2 申报表预览', pl:'📦 装箱单预览', vgm:'⚖️ VGM 称重单预览', an:'📬 到货通知预览', bk:'📝 订舱确认书预览' };
+  const names = { bl:'🚢 海运提单草稿预览', ams:'📋 AMS 舱单预览', export:'📑 出口报关单预览', isf:'📝 ISF 10+2 申报表预览', pl:'📦 装箱单预览', vgm:'⚖️ VGM 称重单预览', an:'📬 到货通知预览', bk:'📝 订舱确认书预览', ci:'💵 商业发票预览' };
   document.getElementById('modalTitle').textContent = `${names[type]} — ${state.shipment.ticketNo}`;
   document.getElementById('modalBody').innerHTML = buildDocHTML(type);
   document.getElementById('docModal').classList.add('show');
@@ -2025,7 +2129,7 @@ function buildCheckResults(selectedDocs) {
 }
 
 function renderCheckTable(selectedDocs) {
-  const docLabels = { bl:'提单 (B/L)', ams:'AMS舱单', isf:'ISF申报', export:'出口报关单', pl:'装箱单', vgm:'VGM', an:'到货通知', bk:'订舱确认' };
+  const docLabels = { bl:'提单 (B/L)', ams:'AMS舱单', isf:'ISF申报', export:'出口报关单', pl:'装箱单', vgm:'VGM', an:'到货通知', bk:'订舱确认', ci:'商业发票' };
   const table = document.getElementById('checkTable');
   let okCount = 0, warnCount = 0, errCount = 0;
   const issues = [];
@@ -2953,7 +3057,7 @@ function cloneCurrentTicket() {
   const rec = state.archive.find(a => a.ticketNo === state.shipment.ticketNo);
   upsertArchive(rec && rec.status ? rec.status : '待校验');
   const old = state.shipment.ticketNo;
-  const next = { ...SmartDoc.snapshot(state.shipment), ticketNo: SmartDoc.newTicket(), containerNo: '', sealNo: '', etd: '', voyage: state.shipment.voyage || '' };
+  const next = { ...SmartDoc.snapshot(state.shipment), ticketNo: SmartDoc.newTicket(), containerNo: '', sealNo: '', etd: '', voyage: state.shipment.voyage || '', containers: [] };
   applyExtractResult('clone-from-' + old, 'clone', {
     fields: next,
     conf: {},
@@ -3177,12 +3281,39 @@ async function consumeShareHash() {
   }
 }
 
+function paintShareBook() {
+  const el = document.getElementById('shareBookMeta');
+  if (!el || typeof SmartShare === 'undefined' || !SmartShare.readBook) return;
+  const n = Object.keys(SmartShare.readBook() || {}).length;
+  el.textContent = '本机已存 ' + n + ' 条短码（上限约 80）';
+}
+
+function exportShareBook() {
+  if (typeof SmartShare === 'undefined' || !SmartShare.exportBook) { showToast('分享模块未加载'); return; }
+  const pack = SmartShare.exportBook();
+  triggerDownload('SmartDoc_sharebook.json', JSON.stringify(pack, null, 2), 'application/json;charset=utf-8');
+  paintShareBook();
+  showToast('已导出分享簿 ' + (pack.count || 0) + ' 条');
+}
+
+async function importShareBookFile(file) {
+  try {
+    const obj = JSON.parse(await file.text());
+    const n = SmartShare.importBook(obj, 'merge');
+    paintShareBook();
+    showToast('已合并导入 ' + n + ' 条短码');
+  } catch (e) {
+    showToast('分享簿导入失败：' + (e.message || e));
+  }
+}
+
 async function renderExchange() {
   const s = state.shipment || {};
   const elT = document.getElementById('xchgTicket');
   const elC = document.getElementById('xchgDocCount');
   if (elT) elT.textContent = s.ticketNo || '-';
   if (elC) elC.textContent = String(Object.keys(state.generated || {}).length);
+  paintShareBook();
   const box = document.getElementById('inboxList');
   if (!box) return;
   const data = await SmartExchange.listInbox();
@@ -3259,6 +3390,16 @@ async function receiveToLocalInbox() {
     } catch (err) {
       showToast('不是发单包：' + (err.message || err));
     }
+  });
+})();
+
+(function bindShareBookInput() {
+  const el = document.getElementById('shareBookInput');
+  if (!el) return;
+  el.addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (f) await importShareBookFile(f);
   });
 })();
 
