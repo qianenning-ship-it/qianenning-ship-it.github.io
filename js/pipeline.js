@@ -18,6 +18,8 @@
     { key: "eta", label: "预计到港 / ETA", required: false },
     { key: "tareWeight", label: "箱皮重 / Tare", required: false },
     { key: "marks", label: "唛头 / Marks", required: false },
+    { key: "currency", label: "币种 / Currency", required: false },
+    { key: "incoterms", label: "贸易条款 / Incoterms", required: false },
   ];
 
   const ALIASES = {
@@ -40,12 +42,16 @@
     eta: ["eta", "eta date", "arrival", "eta time", "到港", "预计到港", "到港日"],
     tareWeight: ["tare", "tare weight", "tareweight", "皮重", "箱皮重", "柜皮"],
     marks: ["marks", "shipping marks", "shipping mark", "marks & nos", "marks and nos", "marks nos", "marksno", "唛头", "嘜头", "麦头"],
+    currency: ["currency", "curr", "ccy", "币种", "货币", "币别"],
+    incoterms: ["incoterms", "incoterm", "trade terms", "price term", "贸易条款", "成交方式", "价格条款"],
+    unitPrice: ["unit price", "unitprice", "price", "单价", "unprice"],
+    amount: ["amount", "amt", "value", "total amount", "金额", "总价", "货值"],
   };
 
-  const LINE_KEYS = ["hsCode", "description", "packages", "grossWeight", "volume"];
+  const LINE_KEYS = ["hsCode", "description", "packages", "grossWeight", "volume", "unitPrice", "amount"];
 
   function emptyShipment() {
-    const o = { ticketNo: "", lines: [] };
+    const o = { ticketNo: "", lines: [], containers: [] };
     FIELD_META.forEach((f) => (o[f.key] = ""));
     return o;
   }
@@ -54,6 +60,59 @@
     const o = {};
     LINE_KEYS.forEach((k) => (o[k] = ""));
     return o;
+  }
+
+  function emptyContainer() {
+    return { containerNo: "", sealNo: "", tareWeight: "", type: "", packages: "", grossWeight: "" };
+  }
+
+  function cleanContainer(raw) {
+    const o = emptyContainer();
+    Object.keys(o).forEach((k) => {
+      o[k] = String((raw && raw[k]) || "").trim();
+    });
+    o.containerNo = o.containerNo.toUpperCase().replace(/[\s-]/g, "");
+    return o;
+  }
+
+  function containerFilled(c) {
+    return !!(c && String(c.containerNo || "").trim());
+  }
+
+  function normalizeContainers(s) {
+    const raw = s && Array.isArray(s.containers) ? s.containers : [];
+    const list = raw.map(cleanContainer).filter(containerFilled).slice(0, 12);
+    if (list.length) return list;
+    if (s && String(s.containerNo || "").trim()) {
+      return [cleanContainer({
+        containerNo: s.containerNo,
+        sealNo: s.sealNo,
+        tareWeight: s.tareWeight,
+      })];
+    }
+    return [];
+  }
+
+  function containersLabel(s) {
+    const list = normalizeContainers(s);
+    if (!list.length) return "";
+    return list.length + " 柜 · " + list.map((c) => c.containerNo + (c.sealNo ? "/" + c.sealNo : "")).join(" / ");
+  }
+
+  function containersSig(s) {
+    return JSON.stringify(normalizeContainers(s).map((c) => [c.containerNo, c.sealNo, c.tareWeight, c.type, c.grossWeight, c.packages]));
+  }
+
+  function rollupContainers(s) {
+    if (!s) return s;
+    const list = normalizeContainers(s);
+    s.containers = list;
+    if (list.length) {
+      s.containerNo = list[0].containerNo || s.containerNo || "";
+      if (list[0].sealNo) s.sealNo = list[0].sealNo;
+      if (list[0].tareWeight) s.tareWeight = list[0].tareWeight;
+    }
+    return s;
   }
 
   function cleanLine(raw) {
@@ -82,6 +141,8 @@
         packages: s.packages,
         grossWeight: s.grossWeight,
         volume: s.volume,
+        unitPrice: s.unitPrice,
+        amount: s.amount,
       })];
     }
     return [];
@@ -111,7 +172,7 @@
     const lines = normalizeLines(s);
     if (!s) return s;
     s.lines = lines;
-    if (!lines.length) return s;
+    if (!lines.length) return rollupContainers(s);
     if (lines.length === 1) {
       LINE_KEYS.forEach((k) => {
         if (lines[0][k]) s[k] = lines[0][k];
@@ -123,7 +184,7 @@
       s.grossWeight = sumQty(lines, "grossWeight");
       s.volume = sumQty(lines, "volume");
     }
-    return s;
+    return rollupContainers(s);
   }
 
   function linesLabel(s) {
@@ -243,13 +304,22 @@
   function suggestFixes(s) {
     const items = [];
     if (!s) return items;
-    const cn = String(s.containerNo || "").trim();
-    if (cn && !iso6346Valid(cn)) {
+    normalizeContainers(s).forEach((c, i) => {
+      const cn = String(c.containerNo || "").trim();
+      if (!cn || iso6346Valid(cn)) return;
       const to = iso6346Fix(cn);
       if (to && to !== cn) {
-        items.push({ id: "hdr-container", scope: "header", field: "containerNo", from: cn, to, reason: "ISO 6346 校验位" });
+        items.push({
+          id: "ctr-" + i,
+          scope: i === 0 ? "header" : "container",
+          index: i,
+          field: "containerNo",
+          from: cn,
+          to,
+          reason: i === 0 ? "ISO 6346 校验位" : ("ISO 6346 柜号 #" + (i + 1)),
+        });
       }
-    }
+    });
     const hs = String(s.hsCode || "").trim();
     if (hs) {
       const to = hsFixForLane(hs, s.pod);
@@ -337,6 +407,35 @@
       const m = t.match(/(?:shipping\s*marks|marks(?:\s*&\s*nos?\.?)?|唛头|嘜头)\s*[:：]\s*([^\n]{1,80})/i);
       if (m && !/^(no\.?|#|item|hs|hts|pkgs?)$/i.test(m[1].trim())) fields.marks = m[1].trim();
     }
+    if (!fields.currency) {
+      const m = t.match(/(?:currency|币种|货币|币别)\s*[:：]\s*(USD|EUR|CNY|GBP|JPY|AUD|HKD)/i);
+      if (m) fields.currency = m[1].toUpperCase();
+    }
+    if (!fields.incoterms) {
+      const m = t.match(/(?:incoterms?|trade\s*terms?|贸易条款|成交方式)\s*[:：]\s*(FOB|CIF|CFR|EXW|FCA|DAP|DDP|CPT|CIP)/i);
+      if (m) fields.incoterms = m[1].toUpperCase();
+    }
+    harvestAllContainers(t, fields);
+  }
+
+  function harvestAllContainers(text, fields) {
+    const t = String(text || "").toUpperCase();
+    const re = /\b([A-Z]{4}[\s-]?\d{7})\b/g;
+    const codes = [];
+    let m;
+    while ((m = re.exec(t))) {
+      const raw = m[1].replace(/[\s-]/g, "");
+      const code = iso6346Valid(raw) ? raw : (iso6346Fix(raw) || "");
+      if (!code || !/^[A-Z]{4}\d{7}$/.test(code)) continue;
+      if (codes.indexOf(code) < 0) codes.push(code);
+    }
+    if (!codes.length) return;
+    const have = normalizeContainers(fields);
+    codes.forEach((code) => {
+      if (!have.some((c) => c.containerNo === code)) have.push(cleanContainer({ containerNo: code }));
+    });
+    fields.containers = have.slice(0, 12);
+    if (!fields.containerNo && have[0]) fields.containerNo = have[0].containerNo;
   }
 
   function assignField(fields, conf, key, val, score) {
@@ -507,7 +606,7 @@
       .filter(Boolean);
     const out = [];
     const seen = {};
-    const headerish = /^(no\.?|marks|#|item|description|goods|hs|hts|qty|pkgs|packages|gw|weight|cbm|volume|品名|税号|件数|毛重|体积|装箱单|packing|唛头|嘜头)/i;
+    const headerish = /^(no\.?|marks|#|item|description|goods|hs|hts|qty|pkgs|packages|gw|weight|cbm|volume|品名|税号|件数|毛重|体积|装箱单|packing|唛头|嘜头|单价|金额|currency|invoice)/i;
     rows.forEach((line) => {
       const colon = line.split(/[:：]/);
       if (colon.length >= 2) {
@@ -564,13 +663,14 @@
   }
 
   function sourceHash(s) {
-    return FIELD_META.map((f) => String((s && s[f.key]) || "").trim()).join("|") + "|" + String((s && s.ticketNo) || "") + "|" + linesSig(s);
+    return FIELD_META.map((f) => String((s && s[f.key]) || "").trim()).join("|") + "|" + String((s && s.ticketNo) || "") + "|" + linesSig(s) + "|" + containersSig(s);
   }
 
   function snapshot(s) {
     const o = { ticketNo: s.ticketNo };
     FIELD_META.forEach((f) => (o[f.key] = s[f.key] || ""));
     o.lines = normalizeLines(s);
+    o.containers = normalizeContainers(s);
     return o;
   }
 
@@ -637,6 +737,40 @@
       row.sourceMismatch = vals.some((v) => v && v.toUpperCase() !== srcLines.toUpperCase());
       rows.push(row);
     }
+    const srcCtr = containersLabel(source);
+    if (srcCtr) {
+      const row = { key: "containers", label: "柜清单", required: false, source: srcCtr };
+      selectedDocs.forEach((d) => {
+        const g = generated[d];
+        row[d] = g && g.fields ? containersLabel(g.fields) : "";
+        row[d + "_stale"] = !!(g && g.sourceHash && g.sourceHash !== currentHash);
+      });
+      const vals = selectedDocs.map((d) => row[d]);
+      const unique = new Set(vals.filter(Boolean).map((v) => v.toUpperCase()));
+      row.ruleWarn = "";
+      row.stale = selectedDocs.some((d) => row[d + "_stale"]);
+      row.hasEmpty = false;
+      row.mismatch = unique.size > 1;
+      row.sourceMismatch = vals.some((v) => v && v.toUpperCase() !== srcCtr.toUpperCase());
+      rows.push(row);
+    }
+    normalizeContainers(source).forEach((c, i) => {
+      if (!ruleOn("iso6346") || !c.containerNo || iso6346Valid(c.containerNo)) return;
+      const row = {
+        key: "ctr-iso-" + i,
+        label: "柜号 #" + (i + 1),
+        required: false,
+        source: c.containerNo,
+        ruleWarn: "ISO 6346 校验位不正确",
+        fixTo: iso6346Fix(c.containerNo),
+        stale: false,
+        hasEmpty: false,
+        mismatch: false,
+        sourceMismatch: false,
+      };
+      selectedDocs.forEach((d) => { row[d] = c.containerNo; });
+      rows.push(row);
+    });
     normalizeLines(source).forEach((l, i) => {
       if (ruleOn("hs") && l.hsCode) {
         let warn = "";
@@ -704,6 +838,16 @@
       fields.lines = allLines;
       rollupHeader(fields);
     }
+    const allCtr = [];
+    (results || []).forEach((r) => {
+      (normalizeContainers(r.fields || {})).forEach((c) => {
+        if (!allCtr.some((x) => x.containerNo === c.containerNo)) allCtr.push(c);
+      });
+    });
+    if (allCtr.length) {
+      fields.containers = allCtr;
+      rollupContainers(fields);
+    }
     if (!fields.ticketNo) fields.ticketNo = newTicket();
     return {
       fields,
@@ -749,5 +893,12 @@
     harvestCargoLines,
     attachLines,
     scoreLine,
+    emptyContainer,
+    cleanContainer,
+    normalizeContainers,
+    containersLabel,
+    containersSig,
+    rollupContainers,
+    harvestAllContainers,
   };
 })(window);

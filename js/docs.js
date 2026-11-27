@@ -33,6 +33,9 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     cma: { size: "A4", margin: "14mm 12mm 16mm 18mm" },
     hapag: { size: "A4", margin: "12mm 15mm 14mm 15mm" },
     one: { size: "A4", margin: "11mm 13mm 15mm 13mm" },
+    evergreen: { size: "A4", margin: "13mm 12mm 16mm 16mm" },
+    wanhai: { size: "A4", margin: "12mm 14mm 15mm 14mm" },
+    yangming: { size: "A4", margin: "11mm 15mm 14mm 15mm" },
   };
 
   function cssFor(carrierId) {
@@ -64,6 +67,50 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     return e(marksOf(s)).replace(/\n/g, "<br>");
   }
 
+  function containersOf(s) {
+    if (w.SmartDoc && w.SmartDoc.normalizeContainers) return w.SmartDoc.normalizeContainers(s);
+    if (s && s.containerNo) return [{ containerNo: s.containerNo, sealNo: s.sealNo || "", tareWeight: s.tareWeight || "" }];
+    return [];
+  }
+
+  function cnText(s) {
+    const list = containersOf(s);
+    if (!list.length) return ((s.containerNo || "") + (s.sealNo ? " / " + s.sealNo : "")).trim();
+    return list.map((c) => c.containerNo + (c.sealNo ? " / " + c.sealNo : "")).join("; ");
+  }
+
+  function parseMoney(v) {
+    const m = String(v || "").replace(/,/g, "").match(/([\d.]+)/);
+    return m ? parseFloat(m[1]) : 0;
+  }
+
+  function moneyLabel(n, cur) {
+    if (!n && n !== 0) return "";
+    const c = String(cur || "USD").trim() || "USD";
+    return c + " " + (Math.round(n * 100) / 100).toFixed(2);
+  }
+
+  function lineAmount(l, s) {
+    const cur = (s && s.currency) || "USD";
+    if (l && String(l.amount || "").trim()) return String(l.amount).trim();
+    const qty = parseKg(l && l.packages);
+    const price = parseMoney(l && l.unitPrice);
+    if (qty && price) return moneyLabel(qty * price, cur);
+    return "";
+  }
+
+  function invoiceOf(s) {
+    const currency = String((s && s.currency) || "USD").trim() || "USD";
+    const incoterms = String((s && s.incoterms) || "FOB").trim() || "FOB";
+    const ls = cargoLines(s).map((l) => {
+      const amount = lineAmount(l, s);
+      return Object.assign({}, l, { unitPrice: l.unitPrice || "", amount: amount });
+    });
+    let total = 0;
+    ls.forEach((l) => { total += parseMoney(l.amount); });
+    return { currency, incoterms, lines: ls, total, totalLabel: total ? moneyLabel(total, currency) : "" };
+  }
+
   function cargoLines(s) {
     const ls = (w.SmartDoc && w.SmartDoc.normalizeLines(s)) || [];
     if (ls.length) return ls;
@@ -81,11 +128,43 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     return m ? parseFloat(m[1]) : 0;
   }
 
+  function vgmList(s) {
+    const list = containersOf(s);
+    const headerCargo = parseKg(s.grossWeight);
+    const n = list.length || 1;
+    const rows = (list.length ? list : [{ containerNo: s.containerNo, sealNo: s.sealNo, tareWeight: s.tareWeight }]).map((c) => {
+      const cargo = parseKg(c.grossWeight) || (headerCargo / n);
+      const tare = parseKg(c.tareWeight) || parseKg(s.tareWeight) || 3800;
+      const vgm = Math.round((cargo + tare) * 100) / 100;
+      return {
+        containerNo: c.containerNo || "",
+        sealNo: c.sealNo || "",
+        type: c.type || "",
+        cargo,
+        tare,
+        vgm,
+        cargoLabel: cargo ? cargo.toFixed(0) + " KGS" : (s.grossWeight || "—"),
+        tareLabel: tare.toFixed(0) + " KGS",
+        label: vgm.toFixed(0) + " KGS",
+      };
+    });
+    return rows;
+  }
+
   function vgmOf(s) {
-    const cargo = parseKg(s.grossWeight);
-    const tare = parseKg(s.tareWeight) || 3800;
+    const list = vgmList(s);
+    const cargo = list.reduce((a, r) => a + (r.cargo || 0), 0);
+    const tare = list.reduce((a, r) => a + (r.tare || 0), 0);
     const vgm = Math.round((cargo + tare) * 100) / 100;
-    return { cargo, tare, vgm, label: vgm.toFixed(0) + " KGS", tareLabel: tare.toFixed(0) + " KGS", cargoLabel: cargo ? cargo.toFixed(0) + " KGS" : (s.grossWeight || "—") };
+    return {
+      cargo,
+      tare,
+      vgm,
+      list,
+      label: vgm.toFixed(0) + " KGS",
+      tareLabel: tare.toFixed(0) + " KGS",
+      cargoLabel: cargo ? cargo.toFixed(0) + " KGS" : (s.grossWeight || "—"),
+    };
   }
 
   function etaOf(s) {
@@ -115,17 +194,19 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
       const body = ls.map((l) => `<tr><td>${e(l.hsCode)}</td><td>${e(l.description)}</td><td>${e(l.packages)}</td><td>${e(l.grossWeight)}</td></tr>`).join("");
       return `<table class="cargo"><thead><tr><th>HTS</th><th>Cargo Description</th><th>Quantity</th><th>Gross Weight</th></tr></thead><tbody>${body}</tbody></table>`;
     }
-    if (kind === "pl") {
+    if (kind === "pl" || kind === "ci") {
+      const inv = invoiceOf(s);
       let pkgs = 0, gw = 0, vol = 0;
       const mk = marksHtml(s);
-      const body = ls.map((l, i) => {
+      const body = inv.lines.map((l, i) => {
         pkgs += parseKg(l.packages);
         gw += parseKg(l.grossWeight);
         vol += parseKg(l.volume);
-        return `<tr><td>${i === 0 ? mk : ""}</td><td>${e(l.description)}</td><td>${e(l.hsCode)}</td><td>${e(l.packages)}</td><td>${e(l.grossWeight)}</td><td>${e(l.volume)}</td></tr>`;
+        return `<tr><td>${i === 0 ? mk : ""}</td><td>${e(l.description)}</td><td>${e(l.hsCode)}</td><td>${e(l.packages)}</td><td>${e(l.grossWeight)}</td><td>${e(l.volume)}</td><td>${e(l.unitPrice)}</td><td>${e(l.amount)}</td></tr>`;
       }).join("");
-      return `<table class="cargo"><thead><tr><th>Marks</th><th>Description of Goods</th><th>HS</th><th>Pkgs</th><th>G.W.</th><th>Meas.</th></tr></thead><tbody>${body}</tbody>
-        <tfoot><tr><td colspan="3">TOTAL</td><td>${pkgs || "—"}</td><td>${gw ? gw + " KGS" : "—"}</td><td>${vol ? vol.toFixed(2) + " CBM" : "—"}</td></tr></tfoot></table>`;
+      const money = inv.totalLabel || "—";
+      return `<table class="cargo"><thead><tr><th>Marks</th><th>Description of Goods</th><th>HS</th><th>Pkgs</th><th>G.W.</th><th>Meas.</th><th>Unit Price</th><th>Amount</th></tr></thead><tbody>${body}</tbody>
+        <tfoot><tr><td colspan="3">TOTAL</td><td>${pkgs || "—"}</td><td>${gw ? gw + " KGS" : "—"}</td><td>${vol ? vol.toFixed(2) + " CBM" : "—"}</td><td></td><td>${e(money)}</td></tr></tfoot></table>`;
     }
     const mk = marksHtml(s);
     const body = ls.map((l, i) => `<tr><td>${i === 0 ? mk : ""}</td><td>${e(l.packages)}</td><td>${e(l.description)}<br>HS ${e(l.hsCode)}</td><td>${e(l.grossWeight)}</td><td>${e(l.volume)}</td></tr>`).join("");
@@ -141,6 +222,9 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     cma: { id: "cma", name: "CMA CGM", scac: "CMAU", mark: "C", color: "#003da5", title: "CMA CGM BILL OF LADING", legal: "CMA CGM S.A. Bill of Lading (non-negotiable draft). Particulars furnished by the merchant. This copy is generated from a SmartDoc archive for checking only." },
     hapag: { id: "hapag", name: "HAPAG-LLOYD", scac: "HLCU", mark: "H", color: "#ff6600", title: "HAPAG-LLOYD BILL OF LADING", legal: "Hapag-Lloyd AG Bill of Lading (draft). Contract of carriage subject to Hapag-Lloyd bill of lading terms. For document check and pre-alert only." },
     one: { id: "one", name: "ONE", scac: "ONEY", mark: "1", color: "#e6007e", title: "OCEAN NETWORK EXPRESS B/L", legal: "Ocean Network Express Pte. Ltd. Bill of Lading (draft). Particulars furnished by the shipper. Not valid for negotiation until signed by the carrier." },
+    evergreen: { id: "evergreen", name: "EVERGREEN", scac: "EGLV", mark: "E", color: "#006633", title: "EVERGREEN LINE BILL OF LADING", legal: "Evergreen Line Bill of Lading (draft). Particulars furnished by the merchant. This copy is generated from a SmartDoc archive for checking only." },
+    wanhai: { id: "wanhai", name: "WAN HAI", scac: "WHLC", mark: "W", color: "#e87722", title: "WAN HAI LINES BILL OF LADING", legal: "Wan Hai Lines Ltd. Bill of Lading (draft). Contract of carriage subject to Wan Hai bill of lading terms. For document check and pre-alert only." },
+    yangming: { id: "yangming", name: "YANG MING", scac: "YMLU", mark: "Y", color: "#9e1b32", title: "YANG MING MARINE TRANSPORT B/L", legal: "Yang Ming Marine Transport Corporation Bill of Lading (draft). Particulars furnished by the shipper. Not valid for negotiation until signed by the carrier." },
   };
 
   const OWNER_CARRIER = {
@@ -151,6 +235,9 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     CMAU: "cma",
     HLCU: "hapag",
     ONEU: "one", ONEY: "one",
+    EGLV: "evergreen", EMCU: "evergreen", EISU: "evergreen", EITU: "evergreen", EGSU: "evergreen",
+    WHLU: "wanhai", WHLC: "wanhai",
+    YMLU: "yangming", YMMU: "yangming",
   };
 
   function ownerCode(containerNo) {
@@ -183,7 +270,7 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
         ${cell("B/L No.", blNo)}${cell("Booking / Ticket", s.ticketNo)}
         ${cell("Shipper / Exporter", s.shipper)}${cell("Consignee", s.consignee)}
         ${cell("Notify Party", s.notifyParty)}${cell("Place of Receipt / POL", s.pol)}
-        ${cell("Port of Discharge / POD", s.pod)}${cell("Container / Seal", (s.containerNo || "") + " / " + (s.sealNo || ""))}
+        ${cell("Port of Discharge / POD", s.pod)}${cell("Container / Seal", cnText(s))}
         ${cell("Vessel / Voyage", (s.vessel || "") + " / " + (s.voyage || ""))}${cell("ETD", s.etd)}
       </div>
       ${cargoTableHtml(s, "bl")}
@@ -198,7 +285,7 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
       <div class="grid2">
         ${cell("Invoice / Ticket", s.ticketNo)}${cell("Date", fmtWhen(new Date().toISOString()))}
         ${cell("Shipper", s.shipper)}${cell("Consignee", s.consignee)}
-        ${cell("POL → POD", (s.pol || "") + " → " + (s.pod || ""))}${cell("Container / Seal", (s.containerNo || "") + " / " + (s.sealNo || ""))}
+        ${cell("POL → POD", (s.pol || "") + " → " + (s.pod || ""))}${cell("Container / Seal", cnText(s))}
         ${cell("Vessel / Voyage", (s.vessel || "") + " / " + (s.voyage || ""))}${cell("Marks & Nos.", marksOf(s))}
       </div>
       ${cargoTableHtml(s, "pl")}
@@ -209,18 +296,41 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
 
   function buildVgm(s) {
     const v = vgmOf(s);
+    const extra = (v.list && v.list.length > 1)
+      ? `<table class="cargo"><thead><tr><th>Container</th><th>Seal</th><th>Cargo GW</th><th>Tare</th><th>VGM</th></tr></thead><tbody>${
+        v.list.map((r) => `<tr><td>${e(r.containerNo)}</td><td>${e(r.sealNo)}</td><td>${e(r.cargoLabel)}</td><td>${e(r.tareLabel)}</td><td>${e(r.label)}</td></tr>`).join("")
+      }</tbody></table>`
+      : cargoTableHtml(s, "ams");
     return `<div class="sheet">
-      ${head("VERIFIED GROSS MASS (VGM)", "SOLAS VI/2 · Method 2 货重 + 箱皮", s.ticketNo)}
+      ${head("VERIFIED GROSS MASS (VGM)", "SOLAS VI/2 · Method 2 货重 + 箱皮" + (v.list && v.list.length > 1 ? " · " + v.list.length + " 柜" : ""), s.ticketNo)}
       <div class="grid2">
         ${cell("Booking / B/L Ref.", s.ticketNo)}${cell("Shipper (responsible party)", s.shipper)}
-        ${cell("Container No.", s.containerNo)}${cell("Seal No.", s.sealNo)}
+        ${cell("Container / Seal", cnText(s))}${cell("Boxes", String((v.list && v.list.length) || 1))}
         ${cell("Vessel / Voyage", (s.vessel || "") + " / " + (s.voyage || ""))}${cell("POL", s.pol)}
         ${cell("Cargo Gross Weight", v.cargoLabel)}${cell("Container Tare", v.tareLabel)}
         ${cell("Verified Gross Mass", v.label)}${cell("Weighing Method", "Method 2 — cargo + tare")}
       </div>
-      ${cargoTableHtml(s, "ams")}
-      <p class="clause">SOLAS 要求装船前申报 VGM。未填皮重时按默认 3800 KGS 估算，出单前请按箱门铭牌核对。本单为作业草稿，不替代称重证明。</p>
+      ${extra}
+      <p class="clause">SOLAS 要求装船前申报 VGM。未填皮重时按默认 3800 KGS 估算；多柜时未填分柜货重则按总货重均分。出单前请按箱门铭牌核对。本单为作业草稿，不替代称重证明。</p>
       <div class="sign"><div><div class="line">Authorized signatory</div></div><div><div class="line">Weighing location</div></div><div><div class="line">Date / Time</div></div></div>
+    </div>`;
+  }
+
+  function buildCi(s) {
+    const inv = invoiceOf(s);
+    const invNo = "INV" + String(s.ticketNo || "").replace(/^SH/, "");
+    return `<div class="sheet">
+      ${head("COMMERCIAL INVOICE / 商业发票", "Homologous invoice · 单价×件数 = 金额", s.ticketNo)}
+      <div class="grid2">
+        ${cell("Invoice No.", invNo)}${cell("Date", fmtWhen(new Date().toISOString()))}
+        ${cell("Seller / Shipper", s.shipper)}${cell("Buyer / Consignee", s.consignee)}
+        ${cell("POL → POD", (s.pol || "") + " → " + (s.pod || ""))}${cell("Container / Seal", cnText(s))}
+        ${cell("Incoterms", inv.incoterms)}${cell("Currency", inv.currency)}
+        ${cell("Marks & Nos.", marksOf(s))}${cell("Invoice Total", inv.totalLabel || "—")}
+      </div>
+      ${cargoTableHtml(s, "ci")}
+      <p class="clause">本商业发票由智单通按货物档案同源生成。金额 = 单价 × 件数（未填单价则金额栏为空）。非正式税务发票，成交条款默认 ${e(inv.incoterms)} / ${e(inv.currency)}。</p>
+      <div class="sign"><div><div class="line">Seller</div></div><div><div class="line">Buyer</div></div><div><div class="line">Date</div></div></div>
     </div>`;
   }
 
@@ -235,7 +345,7 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
         ${cell("Consignee", s.consignee)}${cell("Notify Party", s.notifyParty)}
         ${cell("Place of Receipt / POL", s.pol)}${cell("Port of Discharge / POD", s.pod)}
         ${cell("Vessel / Voyage", (s.vessel || "") + " / " + (s.voyage || ""))}${cell("ETD", fmtWhen(s.etd))}
-        ${cell("Container / Seal", (s.containerNo || "") + " / " + (s.sealNo || ""))}${cell("Packages / Weight", (s.packages || "") + " / " + (s.grossWeight || ""))}
+        ${cell("Container / Seal", cnText(s))}${cell("Packages / Weight", (s.packages || "") + " / " + (s.grossWeight || ""))}
       </div>
       ${cargoTableHtml(s, "bl")}
       <p class="clause">This booking confirmation is generated from the SmartDoc cargo archive. Space is subject to carrier allocation. Not a bill of lading. 本确认书与提单草稿同源，非正式订舱合同。</p>
@@ -253,7 +363,7 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
         ${cell("Consignee", s.consignee)}${cell("Notify Party", s.notifyParty)}
         ${cell("Vessel / Voyage", (s.vessel || "") + " / " + (s.voyage || ""))}${cell("POL → POD", (s.pol || "") + " → " + (s.pod || ""))}
         ${cell("ETD", fmtWhen(s.etd))}${cell("ETA", fmtWhen(eta))}
-        ${cell("Container / Seal", (s.containerNo || "") + " / " + (s.sealNo || ""))}${cell("Packages / Weight", (s.packages || "") + " / " + (s.grossWeight || ""))}
+        ${cell("Container / Seal", cnText(s))}${cell("Packages / Weight", (s.packages || "") + " / " + (s.grossWeight || ""))}
       </div>
       ${cargoTableHtml(s, "bl")}
       <p class="clause">Please arrange customs clearance and pickup against original B/L or telex release. Free time and demurrage are as per carrier tariff. 本通知由智单通按档案预告，ETA 未填时按开船日后 14 天估算。</p>
@@ -270,6 +380,7 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     if (type === "vgm") return buildVgm(s);
     if (type === "an") return buildAn(s);
     if (type === "bk") return buildBk(s, carrier);
+    if (type === "ci") return buildCi(s);
     if (type === "ams") {
       return `<div class="sheet">
         ${head("US CUSTOMS AMS MANIFEST", "Automated Manifest System · 24-Hour Rule", s.ticketNo)}
@@ -277,7 +388,7 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
           ${cell("AMS House Bill", "AMS" + String(s.ticketNo || "").slice(2))}${cell("Master B/L", blNo)}
           ${cell("Shipper", s.shipper)}${cell("Consignee", s.consignee)}
           ${cell("Notify Party (mandatory)", s.notifyParty)}${cell("Last Foreign Port / POL", s.pol)}
-          ${cell("Port of Unlading / POD", s.pod)}${cell("Container / Seal", (s.containerNo || "") + " / " + (s.sealNo || ""))}
+          ${cell("Port of Unlading / POD", s.pod)}${cell("Container / Seal", cnText(s))}
         </div>
         ${cargoTableHtml(s, "ams")}
         <p class="clause">AMS must be filed at least 24 hours before cargo is laden aboard the vessel at the foreign port. Empty notify party may trigger a do-not-load (DNL) hold.</p>
@@ -292,7 +403,7 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
         ${cell("3. Seller / Owner", s.shipper)}${cell("4. Manufacturer / Supplier", s.shipper)}
         ${cell("5. Ship to Party", s.consignee)}${cell("6. Country of Origin", "CHINA")}
         ${cell("7. HTSUS", cargoLines(s).map((l) => l.hsCode).filter(Boolean).join(" / ") || s.hsCode)}${cell("8. Container Stuffing Location", s.pol)}
-        ${cell("9. Consolidator", s.shipper)}${cell("10. Container No.", s.containerNo)}
+        ${cell("9. Consolidator", s.shipper)}${cell("10. Container No.", cnText(s))}
       </div>
       ${cargoTableHtml(s, "ams")}
       <p class="clause">+2 data elements (stow plan / container status) are filed by the carrier. Commodity: ${e(s.description)}. Packages: ${e(s.packages)}.</p>
@@ -304,7 +415,7 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
         <div class="grid2">
           ${cell("预录入编号", "3102" + String(s.ticketNo || "").slice(2))}${cell("境内发货人", s.shipper)}
           ${cell("境外收货人", s.consignee)}${cell("提运单号", blNo)}
-          ${cell("集装箱号 / 封号", (s.containerNo || "") + " / " + (s.sealNo || ""))}${cell("运输路线", (s.pol || "") + " → " + (s.pod || ""))}
+          ${cell("集装箱号 / 封号", cnText(s))}${cell("运输路线", (s.pol || "") + " → " + (s.pod || ""))}
         </div>
         ${cargoTableHtml(s, "export")}
         <p class="clause">本单为智单通按货物档案同源生成的报关草稿，申报前须由报关员核对品名、税号与成交数量。</p>
@@ -314,7 +425,7 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     return `<div class="sheet"><p class="clause">未知单证类型 ${e(type)}</p></div>`;
   }
 
-  const TITLES = { bl: "B/L", ams: "AMS", export: "EXPORT", isf: "ISF", pl: "PACKING", vgm: "VGM", an: "ARRIVAL", bk: "BOOKING" };
+  const TITLES = { bl: "B/L", ams: "AMS", export: "EXPORT", isf: "ISF", pl: "PACKING", vgm: "VGM", an: "ARRIVAL", bk: "BOOKING", ci: "INVOICE" };
 
   function stampHtml(opts, s) {
     opts = opts || {};
@@ -351,7 +462,7 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
   }
 
   function checkReport(shipment, rows, selected, summary) {
-    const labels = { bl: "B/L", ams: "AMS", export: "报关单", isf: "ISF", pl: "装箱单", vgm: "VGM", an: "到货通知", bk: "订舱确认" };
+    const labels = { bl: "B/L", ams: "AMS", export: "报关单", isf: "ISF", pl: "装箱单", vgm: "VGM", an: "到货通知", bk: "订舱确认", ci: "商业发票" };
     const body = (rows || [])
       .map((row) => {
         const cells = selected.map((d) => `<td>${e(row[d] || "")}</td>`).join("");
@@ -367,5 +478,5 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
       </div></body></html>`;
   }
 
-  w.SmartDocs = { build, wrap, print, checkReport, CSS, cssFor, CARRIERS, PRINT_PAGE, carrierName, vgmOf, etaOf, TITLES, stampHtml, ownerCode, carrierFromOwner, OWNER_CARRIER, marksOf };
+  w.SmartDocs = { build, wrap, print, checkReport, CSS, cssFor, CARRIERS, PRINT_PAGE, carrierName, vgmOf, vgmList, etaOf, TITLES, stampHtml, ownerCode, carrierFromOwner, OWNER_CARRIER, marksOf, containersOf, cnText, invoiceOf };
 })(window);
