@@ -4,7 +4,11 @@
     ams: "AMS舱单",
     export: "出口报关",
     isf: "ISF 10+2",
+    pl: "装箱单 P/L",
+    vgm: "VGM 称重",
+    an: "到货通知",
   };
+  const DOC_IDS = ["bl", "ams", "export", "isf", "pl", "vgm", "an"];
 
   function pushEvent(list, text) {
     const next = Array.isArray(list) ? list.slice() : [];
@@ -106,5 +110,5 @@
     return out;
   }
 
-  w.SmartJob = { DOC_LABELS, pushEvent, checkSummaryFromRows, diffRows, archiveSlice, pushRev, fieldPairs, applyMerge };
+  w.SmartJob = { DOC_LABELS, DOC_IDS, pushEvent, checkSummaryFromRows, diffRows, archiveSlice, pushRev, fieldPairs, applyMerge };
 })(window);

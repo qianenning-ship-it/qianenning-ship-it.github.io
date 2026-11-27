@@ -15,6 +15,8 @@
     { key: "vessel", label: "船名 / Vessel", required: false },
     { key: "voyage", label: "航次 / Voyage", required: false },
     { key: "etd", label: "开船时间 / ETD", required: false },
+    { key: "eta", label: "预计到港 / ETA", required: false },
+    { key: "tareWeight", label: "箱皮重 / Tare", required: false },
   ];
 
   const ALIASES = {
@@ -34,6 +36,8 @@
     vessel: ["vessel", "vessel name", "vsl", "船名", "船名航次"],
     voyage: ["voyage", "voy", "voyage no", "航次"],
     etd: ["etd", "etd date", "sailing", "departure", "开船", "开船日", "预计开船"],
+    eta: ["eta", "eta date", "arrival", "eta time", "到港", "预计到港", "到港日"],
+    tareWeight: ["tare", "tare weight", "tareweight", "皮重", "箱皮重", "柜皮"],
   };
 
   const LINE_KEYS = ["hsCode", "description", "packages", "grossWeight", "volume"];

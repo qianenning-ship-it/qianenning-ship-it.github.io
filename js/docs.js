@@ -1,8 +1,7 @@
 (function (w) {
-  const CSS = `
-@page{size:A4;margin:12mm}
+  const CSS_BODY = `
 body{font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#0f172a;padding:8px}
-.sheet{border:2px solid #0f172a;padding:18px 20px;max-width:860px;margin:0 auto;background:#fff}
+.sheet{border:2px solid #0f172a;padding:18px 20px;max-width:190mm;margin:0 auto;background:#fff}
 .sheet-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #006aff;padding-bottom:10px;margin-bottom:12px}
 .mark{width:36px;height:36px;background:#006aff;color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:800}
 .sheet-head h1{font-size:18px;margin:0 0 4px}
@@ -14,12 +13,29 @@ body{font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#0f
 table.cargo{width:100%;border-collapse:collapse;margin-top:10px;font-size:12px}
 table.cargo th,table.cargo td{border:1px solid #cbd5e1;padding:7px;text-align:left}
 table.cargo th{background:#f1f5f9;font-size:11px}
+table.cargo tfoot td{font-weight:700;background:#f8fafc}
 .clause{margin-top:12px;font-size:10px;color:#475569;line-height:1.45}
 .sign{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:28px;font-size:11px}
 .sign .line{border-top:1px solid #0f172a;margin-top:36px;padding-top:6px}
 .badge{display:inline-block;background:#e8f1ff;color:#006aff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px}
-@media print{body{padding:0}.no-print{display:none!important}}
+.print-bar{text-align:center;margin:0 0 10px}
+.print-bar button{background:#006aff;color:#fff;border:0;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer}
+@media print{body{padding:0}.no-print{display:none!important} .sheet{border-width:1.5px;max-width:none} *{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 `;
+
+  const PRINT_PAGE = {
+    generic: { size: "A4", margin: "12mm" },
+    cosco: { size: "A4", margin: "12mm 12mm 12mm 20mm" },
+    msc: { size: "A4", margin: "15mm 14mm 18mm 14mm" },
+    maersk: { size: "A4", margin: "10mm 16mm 14mm 16mm" },
+  };
+
+  function cssFor(carrierId) {
+    const p = PRINT_PAGE[carrierId] || PRINT_PAGE.generic;
+    return `@page{size:${p.size};margin:${p.margin}}\n` + CSS_BODY;
+  }
+
+  const CSS = cssFor("generic");
 
   function e(s) {
     return String(s ?? "")
@@ -45,6 +61,35 @@ table.cargo th{background:#f1f5f9;font-size:11px}
     }];
   }
 
+  function parseKg(v) {
+    const m = String(v || "").replace(/,/g, "").match(/([\d.]+)/);
+    return m ? parseFloat(m[1]) : 0;
+  }
+
+  function vgmOf(s) {
+    const cargo = parseKg(s.grossWeight);
+    const tare = parseKg(s.tareWeight) || 3800;
+    const vgm = Math.round((cargo + tare) * 100) / 100;
+    return { cargo, tare, vgm, label: vgm.toFixed(0) + " KGS", tareLabel: tare.toFixed(0) + " KGS", cargoLabel: cargo ? cargo.toFixed(0) + " KGS" : (s.grossWeight || "—") };
+  }
+
+  function etaOf(s) {
+    if (s.eta) return s.eta;
+    if (!s.etd) return "";
+    const d = new Date(s.etd);
+    if (isNaN(d.getTime())) return "";
+    d.setDate(d.getDate() + 14);
+    const iso = d.toISOString();
+    return iso.slice(0, 16);
+  }
+
+  function fmtWhen(v) {
+    if (!v) return "—";
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return String(v);
+    return d.toISOString().slice(0, 16).replace("T", " ");
+  }
+
   function cargoTableHtml(s, kind) {
     const ls = cargoLines(s);
     if (kind === "export") {
@@ -54,6 +99,17 @@ table.cargo th{background:#f1f5f9;font-size:11px}
     if (kind === "ams") {
       const body = ls.map((l) => `<tr><td>${e(l.hsCode)}</td><td>${e(l.description)}</td><td>${e(l.packages)}</td><td>${e(l.grossWeight)}</td></tr>`).join("");
       return `<table class="cargo"><thead><tr><th>HTS</th><th>Cargo Description</th><th>Quantity</th><th>Gross Weight</th></tr></thead><tbody>${body}</tbody></table>`;
+    }
+    if (kind === "pl") {
+      let pkgs = 0, gw = 0, vol = 0;
+      const body = ls.map((l, i) => {
+        pkgs += parseKg(l.packages);
+        gw += parseKg(l.grossWeight);
+        vol += parseKg(l.volume);
+        return `<tr><td>${i + 1}</td><td>${e(l.description)}</td><td>${e(l.hsCode)}</td><td>${e(l.packages)}</td><td>${e(l.grossWeight)}</td><td>${e(l.volume)}</td></tr>`;
+      }).join("");
+      return `<table class="cargo"><thead><tr><th>#</th><th>Description of Goods</th><th>HS</th><th>Pkgs</th><th>G.W.</th><th>Meas.</th></tr></thead><tbody>${body}</tbody>
+        <tfoot><tr><td colspan="3">TOTAL</td><td>${pkgs || "—"}</td><td>${gw ? gw + " KGS" : "—"}</td><td>${vol ? vol.toFixed(2) + " CBM" : "—"}</td></tr></tfoot></table>`;
     }
     const body = ls.map((l, i) => `<tr><td>${i + 1}</td><td>${e(l.packages)}</td><td>${e(l.description)}<br>HS ${e(l.hsCode)}</td><td>${e(l.grossWeight)}</td><td>${e(l.volume)}</td></tr>`).join("");
     return `<table class="cargo"><thead><tr><th>Marks</th><th>No. of Pkgs</th><th>Description of Goods / HS</th><th>Gross Weight</th><th>Measurement</th></tr></thead><tbody>${body}</tbody></table>`;
@@ -81,7 +137,7 @@ table.cargo th{background:#f1f5f9;font-size:11px}
     const c = CARRIERS[carrierId] || CARRIERS.generic;
     const blNo = (c.scac || "SHSE") + String(s.ticketNo || "").replace(/^SH/, "");
     return `<div class="sheet" style="border-color:${c.color}">
-      ${head(c.title, "非可转让草稿 · " + c.name + " 套版", s.ticketNo, c.id)}
+      ${head(c.title, "非可转让草稿 · " + c.name + " 套版 · A4 " + (PRINT_PAGE[c.id] || PRINT_PAGE.generic).margin, s.ticketNo, c.id)}
       <div class="grid2">
         ${cell("B/L No.", blNo)}${cell("Booking / Ticket", s.ticketNo)}
         ${cell("Shipper / Exporter", s.shipper)}${cell("Consignee", s.consignee)}
@@ -95,11 +151,64 @@ table.cargo th{background:#f1f5f9;font-size:11px}
     </div>`;
   }
 
+  function buildPl(s) {
+    return `<div class="sheet">
+      ${head("PACKING LIST / 装箱单", "Homologous packing list · 与提单货描同源", s.ticketNo)}
+      <div class="grid2">
+        ${cell("Invoice / Ticket", s.ticketNo)}${cell("Date", fmtWhen(new Date().toISOString()))}
+        ${cell("Shipper", s.shipper)}${cell("Consignee", s.consignee)}
+        ${cell("POL → POD", (s.pol || "") + " → " + (s.pod || ""))}${cell("Container / Seal", (s.containerNo || "") + " / " + (s.sealNo || ""))}
+        ${cell("Vessel / Voyage", (s.vessel || "") + " / " + (s.voyage || ""))}${cell("Marks & Nos.", s.containerNo || s.ticketNo)}
+      </div>
+      ${cargoTableHtml(s, "pl")}
+      <p class="clause">本装箱单由智单通按货物档案货描明细同源生成，件数 / 毛重 / 体积与提单、报关草稿一致。非正式签章件。</p>
+      <div class="sign"><div><div class="line">Shipper</div></div><div><div class="line">Packed by</div></div><div><div class="line">Date</div></div></div>
+    </div>`;
+  }
+
+  function buildVgm(s) {
+    const v = vgmOf(s);
+    return `<div class="sheet">
+      ${head("VERIFIED GROSS MASS (VGM)", "SOLAS VI/2 · Method 2 货重 + 箱皮", s.ticketNo)}
+      <div class="grid2">
+        ${cell("Booking / B/L Ref.", s.ticketNo)}${cell("Shipper (responsible party)", s.shipper)}
+        ${cell("Container No.", s.containerNo)}${cell("Seal No.", s.sealNo)}
+        ${cell("Vessel / Voyage", (s.vessel || "") + " / " + (s.voyage || ""))}${cell("POL", s.pol)}
+        ${cell("Cargo Gross Weight", v.cargoLabel)}${cell("Container Tare", v.tareLabel)}
+        ${cell("Verified Gross Mass", v.label)}${cell("Weighing Method", "Method 2 — cargo + tare")}
+      </div>
+      ${cargoTableHtml(s, "ams")}
+      <p class="clause">SOLAS 要求装船前申报 VGM。未填皮重时按默认 3800 KGS 估算，出单前请按箱门铭牌核对。本单为作业草稿，不替代称重证明。</p>
+      <div class="sign"><div><div class="line">Authorized signatory</div></div><div><div class="line">Weighing location</div></div><div><div class="line">Date / Time</div></div></div>
+    </div>`;
+  }
+
+  function buildAn(s) {
+    const eta = etaOf(s);
+    const blNo = String(s.ticketNo || "").replace("SH", "SHSE");
+    return `<div class="sheet">
+      ${head("ARRIVAL NOTICE / 到货通知", "Pre-alert · ETA = ETD + 14d unless specified", s.ticketNo)}
+      <div class="grid2">
+        ${cell("B/L No.", blNo)}${cell("Ticket", s.ticketNo)}
+        ${cell("Consignee", s.consignee)}${cell("Notify Party", s.notifyParty)}
+        ${cell("Vessel / Voyage", (s.vessel || "") + " / " + (s.voyage || ""))}${cell("POL → POD", (s.pol || "") + " → " + (s.pod || ""))}
+        ${cell("ETD", fmtWhen(s.etd))}${cell("ETA", fmtWhen(eta))}
+        ${cell("Container / Seal", (s.containerNo || "") + " / " + (s.sealNo || ""))}${cell("Packages / Weight", (s.packages || "") + " / " + (s.grossWeight || ""))}
+      </div>
+      ${cargoTableHtml(s, "bl")}
+      <p class="clause">Please arrange customs clearance and pickup against original B/L or telex release. Free time and demurrage are as per carrier tariff. 本通知由智单通按档案预告，ETA 未填时按开船日后 14 天估算。</p>
+      <div class="sign"><div><div class="line">Agent</div></div><div><div class="line">Consignee acknowledgement</div></div><div><div class="line">Date</div></div></div>
+    </div>`;
+  }
+
   function build(type, s, opts) {
     s = s || {};
     const carrier = (opts && opts.carrier) || s.blCarrier || "generic";
     const blNo = String(s.ticketNo || "").replace("SH", "SHSE");
     if (type === "bl") return buildBl(s, carrier);
+    if (type === "pl") return buildPl(s);
+    if (type === "vgm") return buildVgm(s);
+    if (type === "an") return buildAn(s);
     if (type === "ams") {
       return `<div class="sheet">
         ${head("US CUSTOMS AMS MANIFEST", "Automated Manifest System · 24-Hour Rule", s.ticketNo)}
@@ -141,9 +250,26 @@ table.cargo th{background:#f1f5f9;font-size:11px}
     </div>`;
   }
 
+  const TITLES = { bl: "B/L", ams: "AMS", export: "EXPORT", isf: "ISF", pl: "PACKING", vgm: "VGM", an: "ARRIVAL" };
+
   function wrap(type, s, opts) {
-    const titles = { bl: "B/L", ams: "AMS", export: "EXPORT", isf: "ISF" };
-    return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>${titles[type] || type}-${e(s.ticketNo)}</title><style>${CSS}</style></head><body>${build(type, s, opts)}</body></html>`;
+    const carrier = type === "bl" ? ((opts && opts.carrier) || s.blCarrier || "generic") : "generic";
+    const css = cssFor(carrier);
+    const bar = `<div class="print-bar no-print"><button type="button" onclick="window.print()">打印 A4（${e((PRINT_PAGE[carrier] || PRINT_PAGE.generic).margin)}）</button></div>`;
+    return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>${TITLES[type] || type}-${e(s.ticketNo)}</title><style>${css}</style></head><body>${bar}${build(type, s, opts)}</body></html>`;
+  }
+
+  function print(type, s, opts) {
+    const html = wrap(type, s, opts);
+    const win = w.open("", "_blank");
+    if (!win) return false;
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => {
+      try { win.print(); } catch (err) { /* ignore */ }
+    }, 350);
+    return true;
   }
 
   function carrierName(id) {
@@ -151,7 +277,7 @@ table.cargo th{background:#f1f5f9;font-size:11px}
   }
 
   function checkReport(shipment, rows, selected, summary) {
-    const labels = { bl: "B/L", ams: "AMS", export: "报关单", isf: "ISF" };
+    const labels = { bl: "B/L", ams: "AMS", export: "报关单", isf: "ISF", pl: "装箱单", vgm: "VGM", an: "到货通知" };
     const body = (rows || [])
       .map((row) => {
         const cells = selected.map((d) => `<td>${e(row[d] || "")}</td>`).join("");
@@ -159,7 +285,7 @@ table.cargo th{background:#f1f5f9;font-size:11px}
         return `<tr><td>${e(row.label)}</td><td>${e(row.source)}</td>${cells}<td>${st}</td></tr>`;
       })
       .join("");
-    return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>校验报告 ${e(shipment.ticketNo)}</title><style>${CSS}</style></head><body>
+    return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>校验报告 ${e(shipment.ticketNo)}</title><style>${cssFor("generic")}</style></head><body>
       <div class="sheet">
         ${head("装船前一致性校验报告", summary || "", shipment.ticketNo)}
         <table class="cargo"><thead><tr><th>字段</th><th>货物档案</th>${selected.map((d) => `<th>${labels[d] || d}</th>`).join("")}<th>结论</th></tr></thead><tbody>${body}</tbody></table>
@@ -167,5 +293,5 @@ table.cargo th{background:#f1f5f9;font-size:11px}
       </div></body></html>`;
   }
 
-  w.SmartDocs = { build, wrap, checkReport, CSS, CARRIERS, carrierName };
+  w.SmartDocs = { build, wrap, print, checkReport, CSS, cssFor, CARRIERS, PRINT_PAGE, carrierName, vgmOf, etaOf, TITLES };
 })(window);

@@ -109,7 +109,12 @@
         if (location.hash && location.hash.indexOf("#sd=") === 0) {
           if (w.SmartShare) {
             try {
-              const pack = w.SmartShare.decode(location.hash);
+              const peek = w.SmartShare.peek ? w.SmartShare.peek(location.hash) : { encrypted: false };
+              if (peek.encrypted) {
+                location.replace("view.html" + location.hash);
+                return;
+              }
+              const pack = w.SmartShare.decodeSync ? w.SmartShare.decodeSync(location.hash) : null;
               if (pack && pack.readOnly) {
                 location.replace("view.html" + location.hash);
                 return;
