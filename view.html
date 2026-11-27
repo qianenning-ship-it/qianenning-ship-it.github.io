@@ -51,6 +51,7 @@ table.cargo th{background:#f7faff;font-size:12px;}
 <script src="js/job.js"></script>
 <script src="js/filing.js"></script>
 <script src="js/share.js"></script>
+<script src="js/exchange.js"></script>
 <script>
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -100,20 +101,44 @@ function renderPack(pack) {
     </div>
     <div class="card">
       <h2>转给工作台（无需服务器）</h2>
-      <p style="font-size:13px;color:#7a8699;">下载 JSON 后在工作台「发单与收件」导入，写入对方浏览器收件箱。</p>
-      <button class="btn btn-blue" type="button" onclick="downloadPackJson()">⬇️ 下载本票 JSON</button>
+      <p style="font-size:13px;color:#7a8699;">下载 JSON 后在工作台「发单与收件」导入。点「已核对并回传」会生成 ACK 包，制单员拖进本机收件箱即可，无需登录、无需 8090。</p>
+      <input id="ackName" class="paste" style="min-height:42px;" placeholder="你的姓名或公司（回传时写入）" value="">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-blue" type="button" onclick="downloadPackJson()">⬇️ 下载本票 JSON</button>
+        <button class="btn btn-blue" type="button" onclick="downloadAckJson()">✅ 已核对并回传 ACK</button>
+      </div>
     </div>`;
   window._viewPack = pack;
+}
+
+function downloadBlob(name, obj) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
 }
 
 function downloadPackJson() {
   const pack = window._viewPack;
   if (!pack) return;
-  const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'SmartDoc_' + (pack.ticketNo || 'pack') + '.json';
-  a.click();
+  downloadBlob('SmartDoc_' + (pack.ticketNo || 'pack') + '.json', pack);
+}
+
+function downloadAckJson() {
+  const pack = window._viewPack;
+  if (!pack) return;
+  const name = ((document.getElementById('ackName') || {}).value || '').trim() || '只读协作方';
+  const by = { name, company: '只读协作' };
+  const ackPack = (window.SmartExchange && SmartExchange.makeAck) ? SmartExchange.makeAck(pack, by) : Object.assign({}, pack, {
+    kind: 'smartdoc-pack',
+    ack: { at: new Date().toISOString(), by, status: '已核对', ticketNo: pack.ticketNo, via: 'view.html' },
+    remark: String(pack.remark || '') + ' [已核对回执]',
+    from: by,
+    readOnly: true
+  });
+  window._viewPack = Object.assign({}, pack, { ack: ackPack.ack });
+  downloadBlob('SmartDoc_ACK_' + (pack.ticketNo || 'pack') + '.json', ackPack);
 }
 
 async function openFrom(input, password) {
