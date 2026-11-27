@@ -78,7 +78,7 @@
       }
     });
     if (!fields.ticketNo) fields.ticketNo = SmartDoc.newTicket();
-    return { fields, conf, rawText: text.slice(0, 4000), method: "Excel 表格解析" };
+    return { fields, conf, rawText: text.slice(0, 4000), method: "Excel 表格解析", engine: "browser", fileName: file.name };
   }
 
   async function extractPdfClient(file) {
@@ -225,6 +225,7 @@
       rawText: (got.text || "").slice(0, 4000),
       method: got.method,
       engine: got.engine,
+      fileName: file.name,
     };
   }
 
@@ -246,7 +247,7 @@
       Object.keys(table.fields).forEach((k) => {
         if (table.fields[k]) fields[k] = table.fields[k];
       });
-      return { fields, conf: { ...table.conf, ...parsed.conf }, rawText: text.slice(0, 4000), method: "CSV/文本解析", engine: "browser" };
+      return { fields, conf: { ...table.conf, ...parsed.conf }, rawText: text.slice(0, 4000), method: "CSV/文本解析", engine: "browser", fileName: file.name };
     }
     if (ext === "json") {
       const text = await readAsText(file);
@@ -260,14 +261,26 @@
       Object.keys(fields).forEach((k) => {
         if (fields[k]) conf[k] = 100;
       });
-      return { fields, conf, rawText: text.slice(0, 4000), method: "JSON 字段映射", engine: "browser" };
+      return { fields, conf, rawText: text.slice(0, 4000), method: "JSON 字段映射", engine: "browser", fileName: file.name };
     }
     if (["xlsx", "xls"].includes(ext)) return extractSpreadsheet(file);
     if (ext === "pdf") return extractPdfClient(file);
     if (["png", "jpg", "jpeg", "webp", "bmp"].includes(ext)) return extractImageClient(file);
     const text = await readAsText(file).catch(() => "");
     const parsed = SmartDoc.parseLabeledText(text);
-    return { fields: parsed.fields, conf: parsed.conf, rawText: text.slice(0, 4000), method: "通用文本解析", engine: "browser" };
+    return { fields: parsed.fields, conf: parsed.conf, rawText: text.slice(0, 4000), method: "通用文本解析", engine: "browser", fileName: file.name };
+  }
+
+  async function extractMany(files, onProgress) {
+    const list = Array.from(files || []);
+    const results = [];
+    for (let i = 0; i < list.length; i++) {
+      if (onProgress) onProgress(i, list.length, list[i].name);
+      const r = await extractFromFile(list[i]);
+      r.fileName = list[i].name;
+      results.push(r);
+    }
+    return { merged: SmartDoc.mergeExtracts(results), results };
   }
 
   async function preloadOcr() {
@@ -281,5 +294,5 @@
     }
   }
 
-  w.SmartExtract = { extractFromFile, health, preloadOcr };
+  w.SmartExtract = { extractFromFile, extractMany, health, preloadOcr, loadScript };
 })(window);

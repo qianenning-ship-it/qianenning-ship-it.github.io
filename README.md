@@ -34,10 +34,10 @@ D:\Python\python.exe server.py
 
 ## 核心流程（不可跳过）
 
-1. 上传真实 Excel / CSV / PDF / 图片，抽出可改字段
+1. 上传真实 Excel / CSV / PDF / 图片（可一次多份合并成一票），抽出可改字段
 2. 确认建档后同源生成海运提单、AMS、出口报关单、ISF（写入档案快照）
 3. 对已生成快照做交叉校验：一致性、ISO 6346 柜号、HS 格式、AMS 24h / ISF 10+2 提示
-4. 一键按档案修正快照，导出 HTML 报告；单证可下载 HTML / Word
+4. 一键按档案修正快照，导出/打印校验报告；单证可下载 HTML / Word，或打包 ZIP
 5. 发单与收件：导出智单通 JSON 包给报关行/船司/同事；本地 `server.py` 另有本机收件箱 `/api/inbox`
 
 示例文件在 `samples/`。

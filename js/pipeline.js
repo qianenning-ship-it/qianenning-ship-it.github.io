@@ -313,6 +313,37 @@
     return rows;
   }
 
+  function mergeExtracts(results) {
+    const fields = emptyShipment();
+    const conf = {};
+    const source = {};
+    const rawParts = [];
+    (results || []).forEach((r) => {
+      if (!r || !r.fields) return;
+      if (r.rawText) rawParts.push("----- " + (r.fileName || r.method || "file") + " -----\n" + r.rawText);
+      const keys = Object.keys(emptyShipment());
+      keys.forEach((k) => {
+        const v = r.fields[k];
+        const c = (r.conf && r.conf[k]) || (v ? 80 : 0);
+        if (v && (!fields[k] || c > (conf[k] || 0))) {
+          fields[k] = v;
+          conf[k] = c;
+          source[k] = r.fileName || r.method || "";
+        }
+      });
+    });
+    if (!fields.ticketNo) fields.ticketNo = newTicket();
+    return {
+      fields,
+      conf,
+      source,
+      rawText: rawParts.join("\n"),
+      method: "多文件合并 " + (results || []).length + " 份",
+      engine: ((results || []).map((r) => r.engine).filter(Boolean)[0]) || "merge",
+      files: (results || []).map((r) => r.fileName).filter(Boolean),
+    };
+  }
+
   w.SmartDoc = {
     FIELD_META,
     emptyShipment,
@@ -328,5 +359,6 @@
     harvestRegex,
     splitCsvLine,
     aliasKey,
+    mergeExtracts,
   };
 })(window);
