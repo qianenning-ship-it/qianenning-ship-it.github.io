@@ -23,6 +23,10 @@
       extractFiles: opts.extractFiles || [],
       timeline: opts.timeline || [],
       ack: opts.ack || null,
+      blCarrier: opts.blCarrier || "generic",
+      filings: opts.filings || [],
+      rules: opts.rules || null,
+      shareCode: opts.shareCode || "",
     };
   }
 
@@ -48,6 +52,10 @@
         extractFiles: obj.extractFiles || [],
         timeline: obj.timeline || [],
         ack: obj.ack || null,
+        blCarrier: obj.blCarrier || "generic",
+        filings: obj.filings || [],
+        rules: obj.rules || null,
+        shareCode: obj.shareCode || "",
       };
     }
     throw new Error("不是智单通发单包（缺少 kind=smartdoc-pack 或货物字段）");

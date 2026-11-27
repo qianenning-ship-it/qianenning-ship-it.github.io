@@ -59,7 +59,12 @@
       location.href = "index.html";
     },
     require() {
-      if (!this.current()) location.replace("login.html");
+      if (!this.current()) {
+        if (location.hash && location.hash.indexOf("#sd=") === 0) {
+          try { sessionStorage.setItem("smartdoc_pending_share", location.hash); } catch (e) { /* ignore */ }
+        }
+        location.replace("login.html");
+      }
     },
   };
 })(window);

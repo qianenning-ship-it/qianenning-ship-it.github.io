@@ -75,7 +75,12 @@
 </div>
 <script src="js/auth.js"></script>
 <script>
-if (SmartAuth.current()) location.replace('app.html');
+function appTarget(){
+  let h = '';
+  try { h = sessionStorage.getItem('smartdoc_pending_share') || ''; } catch (e) { h = ''; }
+  return 'app.html' + (h.indexOf('#sd=') === 0 ? h : '');
+}
+if (SmartAuth.current()) location.replace(appTarget());
 function showPane(which){
   document.getElementById('loginForm').style.display = which==='login'?'block':'none';
   document.getElementById('regForm').style.display = which==='reg'?'block':'none';
@@ -86,7 +91,7 @@ function doLogin(e){
   e.preventDefault();
   const r = SmartAuth.login(document.getElementById('loginEmail').value, document.getElementById('loginPwd').value);
   if(!r.ok){ document.getElementById('loginErr').textContent = r.msg; return false; }
-  location.href = 'app.html';
+  location.href = appTarget();
   return false;
 }
 function doReg(e){
@@ -98,7 +103,7 @@ function doReg(e){
     password: document.getElementById('regPwd').value
   });
   if(!r.ok){ document.getElementById('regErr').textContent = r.msg; return false; }
-  location.href = 'app.html';
+  location.href = appTarget();
   return false;
 }
 </script>

@@ -33,40 +33,53 @@ table.cargo th{background:#f1f5f9;font-size:11px}
     return `<div class="cell"><div class="lbl">${label}</div><div class="val">${e(value) || "—"}</div></div>`;
   }
 
-  function head(title, sub, ticket) {
-    return `<div class="sheet-head">
+  const CARRIERS = {
+    generic: { id: "generic", name: "通用套版", scac: "SDTU", mark: "智", color: "#006aff", title: "OCEAN BILL OF LADING (DRAFT)", legal: "Shipped on board in apparent good order. Freight as arranged. SmartDoc homologous draft — not a signed original B/L." },
+    cosco: { id: "cosco", name: "COSCO SHIPPING", scac: "COSU", mark: "中", color: "#c41e3a", title: "COSCO SHIPPING BILL OF LADING", legal: "COSCO SHIPPING Lines Co., Ltd. Combined Transport B/L (draft). Terms of carriage as per COSCO bill of lading. This copy is generated from a SmartDoc archive for checking only." },
+    msc: { id: "msc", name: "MSC", scac: "MSCU", mark: "M", color: "#003366", title: "MEDITERRANEAN SHIPPING COMPANY B/L", legal: "Mediterranean Shipping Company S.A. Bill of Lading (non-negotiable draft). Particulars furnished by the shipper. Not valid for negotiation until signed by the carrier." },
+    maersk: { id: "maersk", name: "MAERSK", scac: "MAEU", mark: "★", color: "#42b0d5", title: "MAERSK LINE BILL OF LADING", legal: "Maersk A/S transport document (draft). Contract of carriage subject to Maersk Bill of Lading terms. For document check and pre-alert only." },
+  };
+
+  function head(title, sub, ticket, carrier) {
+    const c = CARRIERS[carrier] || CARRIERS.generic;
+    return `<div class="sheet-head" style="border-color:${c.color}">
       <div style="display:flex;gap:10px;align-items:center">
-        <div class="mark">智</div>
+        <div class="mark" style="background:${c.color}">${c.mark}</div>
         <div><h1>${e(title)}</h1><p>${e(sub)}</p></div>
       </div>
-      <div style="text-align:right"><span class="badge">SmartDoc 同源草稿</span><p style="margin-top:6px">票号 ${e(ticket)}</p></div>
+      <div style="text-align:right"><span class="badge" style="background:${c.color}22;color:${c.color}">${e(c.name)} · SCAC ${e(c.scac)}</span><p style="margin-top:6px">票号 ${e(ticket)}</p></div>
     </div>`;
   }
 
-  function build(type, s) {
+  function buildBl(s, carrierId) {
+    const c = CARRIERS[carrierId] || CARRIERS.generic;
+    const blNo = (c.scac || "SHSE") + String(s.ticketNo || "").replace(/^SH/, "");
+    return `<div class="sheet" style="border-color:${c.color}">
+      ${head(c.title, "非可转让草稿 · " + c.name + " 套版", s.ticketNo, c.id)}
+      <div class="grid2">
+        ${cell("B/L No.", blNo)}${cell("Booking / Ticket", s.ticketNo)}
+        ${cell("Shipper / Exporter", s.shipper)}${cell("Consignee", s.consignee)}
+        ${cell("Notify Party", s.notifyParty)}${cell("Place of Receipt / POL", s.pol)}
+        ${cell("Port of Discharge / POD", s.pod)}${cell("Container / Seal", (s.containerNo || "") + " / " + (s.sealNo || ""))}
+      </div>
+      <table class="cargo">
+        <thead><tr><th>Marks</th><th>No. of Pkgs</th><th>Description of Goods / HS</th><th>Gross Weight</th><th>Measurement</th></tr></thead>
+        <tbody><tr>
+          <td>N/M</td><td>${e(s.packages)}</td>
+          <td>${e(s.description)}<br>HS ${e(s.hsCode)}</td>
+          <td>${e(s.grossWeight)}</td><td>${e(s.volume)}</td>
+        </tr></tbody>
+      </table>
+      <p class="clause">${e(c.legal)}</p>
+      <div class="sign"><div><div class="line">Shipper</div></div><div><div class="line">${e(c.name)} / Agent</div></div><div><div class="line">Date / Place</div></div></div>
+    </div>`;
+  }
+
+  function build(type, s, opts) {
     s = s || {};
+    const carrier = (opts && opts.carrier) || s.blCarrier || "generic";
     const blNo = String(s.ticketNo || "").replace("SH", "SHSE");
-    if (type === "bl") {
-      return `<div class="sheet">
-        ${head("OCEAN BILL OF LADING (DRAFT)", "非可转让草稿 · 仅供核对与预申报", s.ticketNo)}
-        <div class="grid2">
-          ${cell("B/L No.", blNo)}${cell("Booking / Ticket", s.ticketNo)}
-          ${cell("Shipper / Exporter", s.shipper)}${cell("Consignee", s.consignee)}
-          ${cell("Notify Party", s.notifyParty)}${cell("Place of Receipt / POL", s.pol)}
-          ${cell("Port of Discharge / POD", s.pod)}${cell("Container / Seal", (s.containerNo || "") + " / " + (s.sealNo || ""))}
-        </div>
-        <table class="cargo">
-          <thead><tr><th>Marks</th><th>No. of Pkgs</th><th>Description of Goods / HS</th><th>Gross Weight</th><th>Measurement</th></tr></thead>
-          <tbody><tr>
-            <td>N/M</td><td>${e(s.packages)}</td>
-            <td>${e(s.description)}<br>HS ${e(s.hsCode)}</td>
-            <td>${e(s.grossWeight)}</td><td>${e(s.volume)}</td>
-          </tr></tbody>
-        </table>
-        <p class="clause">Shipped on board in apparent good order. Freight as arranged. This draft is generated from a single SmartDoc archive; it is not a signed original B/L.</p>
-        <div class="sign"><div><div class="line">Shipper</div></div><div><div class="line">Carrier / Agent</div></div><div><div class="line">Date / Place</div></div></div>
-      </div>`;
-    }
+    if (type === "bl") return buildBl(s, carrier);
     if (type === "ams") {
       return `<div class="sheet">
         ${head("US CUSTOMS AMS MANIFEST", "Automated Manifest System · 24-Hour Rule", s.ticketNo)}
@@ -113,9 +126,13 @@ table.cargo th{background:#f1f5f9;font-size:11px}
     </div>`;
   }
 
-  function wrap(type, s) {
+  function wrap(type, s, opts) {
     const titles = { bl: "B/L", ams: "AMS", export: "EXPORT", isf: "ISF" };
-    return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>${titles[type] || type}-${e(s.ticketNo)}</title><style>${CSS}</style></head><body>${build(type, s)}</body></html>`;
+    return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>${titles[type] || type}-${e(s.ticketNo)}</title><style>${CSS}</style></head><body>${build(type, s, opts)}</body></html>`;
+  }
+
+  function carrierName(id) {
+    return (CARRIERS[id] || CARRIERS.generic).name;
   }
 
   function checkReport(shipment, rows, selected, summary) {
@@ -135,5 +152,5 @@ table.cargo th{background:#f1f5f9;font-size:11px}
       </div></body></html>`;
   }
 
-  w.SmartDocs = { build, wrap, checkReport, CSS };
+  w.SmartDocs = { build, wrap, checkReport, CSS, CARRIERS, carrierName };
 })(window);

@@ -279,10 +279,15 @@
     return o;
   }
 
+  function ruleOn(id) {
+    return !w.SmartRules || w.SmartRules.on(id);
+  }
+
   function buildCheck(source, generated, selectedDocs) {
     const currentHash = sourceHash(source);
     const rows = [];
     const fields = [{ key: "ticketNo", label: "票号 / Ticket", required: true }].concat(FIELD_META);
+    const notifyRequired = ruleOn("notify") && selectedDocs.some((d) => d === "ams" || d === "bl");
     fields.forEach((meta) => {
       const row = { key: meta.key, label: meta.label, required: !!meta.required, source: String(source[meta.key] || "").trim() };
       selectedDocs.forEach((d) => {
@@ -292,15 +297,18 @@
       });
       const vals = selectedDocs.map((d) => row[d]);
       const present = vals.filter((v) => v && v !== "（未生成）");
-      const hasEmpty = meta.required && vals.some((v) => !v);
+      const hasEmpty = (meta.required || (meta.key === "notifyParty" && notifyRequired)) && vals.some((v) => !v);
       const unique = new Set(present.map((v) => v.toUpperCase()));
       let ruleWarn = "";
-      if (meta.key === "containerNo" && row.source) {
+      if (ruleOn("iso6346") && meta.key === "containerNo" && row.source) {
         if (!/^[A-Z]{4}\d{7}$/.test(row.source)) ruleWarn = "柜号应为 4 位字母 + 7 位数字（ISO 6346）";
         else if (!iso6346Valid(row.source)) ruleWarn = "柜号校验位不正确（ISO 6346 check digit）";
       }
-      if (meta.key === "hsCode" && row.source && !hsLooksValid(row.source)) {
+      if (ruleOn("hs") && meta.key === "hsCode" && row.source && !hsLooksValid(row.source)) {
         ruleWarn = "HS 编码建议采用 xxxx.xx.xxxx 格式";
+      }
+      if (ruleOn("notify") && meta.key === "notifyParty" && selectedDocs.includes("ams") && !row.source) {
+        ruleWarn = "AMS 24h：Notify Party 为空，可能触发 DNL";
       }
       const stale = selectedDocs.some((d) => row[d + "_stale"]);
       row.ruleWarn = ruleWarn;
@@ -308,6 +316,23 @@
       row.hasEmpty = hasEmpty;
       row.mismatch = unique.size > 1;
       row.sourceMismatch = present.some((v) => v.toUpperCase() !== row.source.toUpperCase() && row.source);
+      rows.push(row);
+    });
+    const custom = (w.SmartRules && w.SmartRules.get().custom) || [];
+    custom.filter((r) => r.enabled).forEach((r) => {
+      const val = String(source[r.field] || "").trim();
+      let fail = false;
+      if (r.test === "regex") {
+        try { fail = !(new RegExp(r.pattern)).test(val); } catch (e) { fail = true; }
+      } else {
+        fail = !val;
+      }
+      if (!fail) return;
+      const row = { key: r.field, label: r.name, required: r.test !== "regex", source: val, ruleWarn: r.message || "未通过自定义规则", stale: false, hasEmpty: !val, mismatch: false, sourceMismatch: false };
+      selectedDocs.forEach((d) => {
+        const g = generated[d];
+        row[d] = g && g.fields ? String(g.fields[r.field] || "").trim() : "";
+      });
       rows.push(row);
     });
     return rows;

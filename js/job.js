@@ -50,6 +50,9 @@
       fieldSource: state.fieldSource || {},
       fieldConf: state.fieldConf || {},
       ack: state.ack || null,
+      blCarrier: state.blCarrier || "generic",
+      filings: state.filings || [],
+      shareCode: state.shareCode || "",
     };
   }
 
