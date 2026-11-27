@@ -511,7 +511,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
     <!-- ========== GENERATE ========== -->
     <div class="page" id="page-generate">
       <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:4px;">📋 单证同源数据批量生成</h2>
-      <p style="color:var(--g500);font-size:.9rem;margin-bottom:20px;">依托统一标准货物档案，同源输出四大核心单证，彻底消除重复录入导致的错漏</p>
+      <p style="color:var(--g500);font-size:.9rem;margin-bottom:20px;">依托统一标准货物档案，同源输出提单、AMS、报关、ISF、装箱单、VGM、到货通知，彻底消除重复录入导致的错漏</p>
 
       <div class="source-summary">
         <h3>
@@ -529,6 +529,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <div class="doc-check"><input type="checkbox" checked id="chk-ams"><label for="chk-ams">📋 AMS 舱单 (US 24-Hour Manifest)</label></div>
           <div class="doc-check"><input type="checkbox" checked id="chk-export"><label for="chk-export">📑 出口报关单 (Export Customs Declaration)</label></div>
           <div class="doc-check"><input type="checkbox" checked id="chk-isf"><label for="chk-isf">📝 ISF 申报表 (Importer Security Filing 10+2)</label></div>
+          <div class="doc-check"><input type="checkbox" checked id="chk-pl"><label for="chk-pl">📦 装箱单 (Packing List)</label></div>
+          <div class="doc-check"><input type="checkbox" checked id="chk-vgm"><label for="chk-vgm">⚖️ VGM 称重单 (SOLAS Method 2)</label></div>
+          <div class="doc-check"><input type="checkbox" checked id="chk-an"><label for="chk-an">📬 到货通知 (Arrival Notice)</label></div>
         </div>
         <h3 style="margin-top:18px;">🚢 提单船司套版</h3>
         <p style="font-size:.8rem;color:var(--g500);margin:6px 0 0;">同一套档案可切换 COSCO / MSC / MAERSK 版式，预览与下载跟随套版。</p>
@@ -542,7 +545,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
           <h3 style="font-size:1rem;font-weight:700;">📄 同源单证生成结果</h3>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn btn-s" onclick="downloadDocZip()">📦 打包 ZIP（四套单证 + 档案）</button>
+            <button class="btn btn-s" onclick="downloadDocZip()">📦 打包 ZIP（已生成单证 + 档案）</button>
             <button class="btn btn-s" onclick="switchTab('exchange')">📨 发送给协作方</button>
             <button class="btn btn-ok" onclick="switchTab('check')">下一步：去执行一致性智能校验 →</button>
           </div>
@@ -563,6 +566,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <div class="check-doc selected" data-doc="ams" onclick="this.classList.toggle('selected')">📋 AMS舱单</div>
           <div class="check-doc selected" data-doc="isf" onclick="this.classList.toggle('selected')">📝 ISF申报表</div>
           <div class="check-doc" data-doc="export" onclick="this.classList.toggle('selected')">📑 出口报关单</div>
+          <div class="check-doc" data-doc="pl" onclick="this.classList.toggle('selected')">📦 装箱单</div>
+          <div class="check-doc" data-doc="vgm" onclick="this.classList.toggle('selected')">⚖️ VGM</div>
+          <div class="check-doc" data-doc="an" onclick="this.classList.toggle('selected')">📬 到货通知</div>
         </div>
         <p class="stale-note" style="margin-top:12px;">校验对象是「已生成的单证快照」对照当前货物档案，并叠加 ISO 6346 柜号、HS 格式、AMS 24h / ISF 10+2 必填规则。请先在「同源单证生成」落快照；若改过档案请重新生成。</p>
         <button class="btn btn-p btn-lg" onclick="startCheck()">🔍 开始智能校验</button>
@@ -684,14 +690,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
         </div>
         <div class="xchg-card" style="grid-column:1 / -1;">
           <h3>一票分享码（跨浏览器）</h3>
-          <p style="font-size:.82rem;color:var(--g500);margin-bottom:12px;">生成短码（本机可再输入）和完整令牌。把链接或令牌发给另一台电脑，在工作台粘贴即可载入同一票，不需要开 8090。</p>
+          <p style="font-size:.82rem;color:var(--g500);margin-bottom:12px;">生成短码（本机可再输入）和完整令牌。填写口令后生成 SD2 加密令牌（AES-GCM），对方在只读页输入同一口令解锁。不填口令仍为明文 SD1。</p>
+          <input type="password" id="sharePass" placeholder="可选：分享口令（生成 SD2 加密令牌）" style="width:100%;max-width:420px;height:40px;border:1px solid var(--g200);border-radius:8px;padding:0 12px;margin-bottom:10px;">
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
             <button class="btn btn-p" onclick="makeShareCode()">🔗 生成分享码 / 链接</button>
             <button class="btn btn-s" onclick="makeReadOnlyShare()">👁️ 只读协作链接</button>
             <button class="btn btn-s" onclick="copyShareToken()">📋 复制令牌</button>
           </div>
           <div id="shareOut" style="font-size:.84rem;color:var(--g700);"></div>
-          <textarea id="shareRedeem" class="share-box" placeholder="粘贴分享码（如 AB-XXXXXX）、完整令牌（SD1....）或带 #sd= 的链接"></textarea>
+          <textarea id="shareRedeem" class="share-box" placeholder="粘贴分享码、SD1/SD2 令牌或带 #sd= 的链接"></textarea>
+          <input type="password" id="shareUnlock" placeholder="若为 SD2 加密令牌，在此填写口令" style="width:100%;max-width:420px;height:40px;border:1px solid var(--g200);border-radius:8px;padding:0 12px;margin:8px 0;">
           <button class="btn btn-p" onclick="redeemShare()">载入分享票</button>
         </div>
       </div>
@@ -738,6 +746,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           </div>
         </div>
         <div class="settings-card" style="grid-column:1 / -1;">
+          <h3>🏢 企业票库（跨账号 / 跨浏览器）</h3>
+          <p style="font-size:.82rem;color:var(--g500);margin-bottom:12px;">档案按企业名称分库（<code id="vaultOrgId">—</code>）。同一公司的制单员与复核员共用本机票库。GitHub Pages 可导出 JSON 给同事导入；本地 8090 可推送到 <code>/api/vault</code>。</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-p" onclick="exportOrgVault()">⬇️ 导出企业票库 JSON</button>
+            <button class="btn btn-s" onclick="document.getElementById('vaultFile').click()">📂 导入票库 JSON</button>
+            <button class="btn btn-s" onclick="pushOrgVault()">☁️ 推送到本机服务</button>
+            <button class="btn btn-s" onclick="pullOrgVault()">☁️ 从本机服务拉取</button>
+            <input type="file" id="vaultFile" accept=".json" hidden>
+          </div>
+          <p id="vaultStatus" style="font-size:.78rem;color:var(--g500);margin-top:10px;"></p>
+        </div>
+        <div class="settings-card" style="grid-column:1 / -1;">
           <h3>💬 一线单证操作员反馈（AI识别盲区与规则建议）</h3>
           <p style="font-size:.84rem;color:var(--g500);margin-bottom:12px;">遇到特殊船司格式或识别盲区？提交反馈后，平台规则库与模型将持续迭代优化。</p>
           <div style="display:flex;gap:12px;flex-wrap:wrap;">
@@ -757,6 +777,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
     <div class="modal-header">
       <h3 id="modalTitle">单证预览</h3>
       <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-s" style="padding:6px 12px;font-size:.8rem;" onclick="printCurrentModalDoc()">🖨️ 打印 A4</button>
         <button class="btn btn-s" style="padding:6px 12px;font-size:.8rem;" onclick="downloadCurrentModalDoc(false)">⬇️ HTML</button>
         <button class="btn btn-s" style="padding:6px 12px;font-size:.8rem;" onclick="downloadCurrentModalDoc(true)">⬇️ Word</button>
         <button class="modal-close" onclick="closeDocModal()">✕</button>
@@ -799,6 +820,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
   </div>
 </div>
 <script src="js/auth.js"></script>
+<script src="js/vault.js"></script>
 <script src="js/pipeline.js"></script>
 <script src="js/docs.js"></script>
 <script src="js/file-extract.js"></script>
@@ -829,6 +851,8 @@ const DEFAULT_SHIPMENT = {
   vessel: 'EVER GIVEN',
   voyage: '001W',
   etd: '2026-12-05T18:00',
+  eta: '',
+  tareWeight: '3800 KGS',
   lines: [
     { hsCode: '8471.30.0100', description: 'LAPTOP COMPUTERS', packages: '200 CTNS', grossWeight: '3400 KGS', volume: '18.0 CBM' },
     { hsCode: '8471.60.2000', description: 'WIRELESS MOUSE', packages: '300 CTNS', grossWeight: '5100 KGS', volume: '27.6 CBM' }
@@ -845,9 +869,25 @@ const INITIAL_ARCHIVE = [
   { ticketNo: 'SH2026112498', createdAt: '2026-11-24 14:45', shipper: 'XIAMEN CERAMICS CO., LTD', consignee: 'LONDON HOMEWARES LTD', notifyParty: 'SAME AS CONSIGNEE', containerNo: 'MSCU5512897', sealNo: 'XM261198', hsCode: '6912.00.1000', description: 'CERAMIC TABLEWARE', packages: '640 CTNS', grossWeight: '11,200 KGS', volume: '32.0 CBM', pol: 'XIAMEN, CHINA', pod: 'FELIXSTOWE, UK', docCount: 4, status: '已校验' }
 ];
 
+function loadArchiveState() {
+  if (typeof SmartVault !== 'undefined') {
+    if (!SmartVault.initialized()) {
+      const seed = SmartVault.isDemoOrg() ? INITIAL_ARCHIVE.slice() : [];
+      SmartVault.save(seed);
+      return seed;
+    }
+    return SmartVault.load();
+  }
+  try {
+    return JSON.parse(localStorage.getItem('smartdoc_archive') || 'null') || INITIAL_ARCHIVE;
+  } catch (e) {
+    return INITIAL_ARCHIVE;
+  }
+}
+
 let state = {
   shipment: JSON.parse(localStorage.getItem('smartdoc_shipment') || 'null') || { ...DEFAULT_SHIPMENT },
-  archive: JSON.parse(localStorage.getItem('smartdoc_archive') || 'null') || INITIAL_ARCHIVE,
+  archive: loadArchiveState(),
   processedCount: parseInt(localStorage.getItem('smartdoc_processed') || '128', 10),
   payPerCount: parseInt(localStorage.getItem('smartdoc_payper') || '15', 10),
   activities: JSON.parse(localStorage.getItem('smartdoc_activities') || 'null') || [
@@ -881,7 +921,8 @@ let state = {
 
 function saveState() {
   localStorage.setItem('smartdoc_shipment', JSON.stringify(state.shipment));
-  localStorage.setItem('smartdoc_archive', JSON.stringify(state.archive));
+  if (typeof SmartVault !== 'undefined') SmartVault.save(state.archive);
+  else localStorage.setItem('smartdoc_archive', JSON.stringify(state.archive));
   localStorage.setItem('smartdoc_processed', String(state.processedCount));
   localStorage.setItem('smartdoc_payper', String(state.payPerCount));
   localStorage.setItem('smartdoc_activities', JSON.stringify(state.activities.slice(0, 12)));
@@ -1012,6 +1053,9 @@ document.getElementById('userRole').textContent = (AUTH_USER.plan || '专业会�
 document.getElementById('userAvatar').textContent = (AUTH_USER.name || 'D').slice(0,1).toUpperCase();
 document.getElementById('settingsCompany').textContent = AUTH_USER.company;
 document.getElementById('settingsPlan').textContent = AUTH_USER.plan || '专业会员版';
+if (document.getElementById('vaultOrgId') && typeof SmartVault !== 'undefined') {
+  document.getElementById('vaultOrgId').textContent = SmartVault.orgId();
+}
 state._userName = AUTH_USER.name || '';
 
 function switchTab(tab, menuEl) {
@@ -1474,17 +1518,16 @@ function renderGenSummary() {
     ['通知方 Notify Party', s.notifyParty],
     ['船名 / 航次', `${s.vessel || ''} / ${s.voyage || ''}`],
     ['开船 ETD', s.etd],
+    ['预计到港 ETA', s.eta || (typeof SmartDocs !== 'undefined' ? SmartDocs.etaOf(s) : '')],
+    ['箱皮重 Tare', s.tareWeight || '3800 KGS（默认）'],
     ['货描明细', (typeof SmartDoc !== 'undefined' ? SmartDoc.linesLabel(s) : '') || '1 行表头']
   ].map(([l, v]) => `<div class="sf"><div class="sl">${l}</div><div class="sv">${escapeHtml(v)}</div></div>`).join('');
   renderGenDiff();
 }
 
 function generateDocs() {
-  const selected = [];
-  if(document.getElementById('chk-bl').checked) selected.push('bl');
-  if(document.getElementById('chk-ams').checked) selected.push('ams');
-  if(document.getElementById('chk-export').checked) selected.push('export');
-  if(document.getElementById('chk-isf').checked) selected.push('isf');
+  const ids = (typeof SmartJob !== 'undefined' && SmartJob.DOC_IDS) || ['bl','ams','export','isf','pl','vgm','an'];
+  const selected = ids.filter(id => document.getElementById('chk-' + id)?.checked);
   if(selected.length === 0) {
     showToast('⚠️ 请至少勾选一种要生成的单证');
     return;
@@ -1516,7 +1559,10 @@ function genCardDefs(s) {
     bl: { title: '🚢 海运提单草稿 (B/L) · ' + (typeof SmartDocs !== 'undefined' ? SmartDocs.carrierName(state.blCarrier) : ''), fields: [['B/L No.', s.ticketNo.replace('SH','SHSE')], ['Shipper', s.shipper], ['POL → POD', `${s.pol} → ${s.pod}`], ['Container', `${s.containerNo} / ${s.packages}`], ['套版', typeof SmartDocs !== 'undefined' ? SmartDocs.carrierName(state.blCarrier) : (state.blCarrier || '')]] },
     ams: { title: '📋 AMS 舱单 (24h Manifest)', fields: [['AMS Ref', 'AMS' + s.ticketNo.slice(2)], ['Shipper', s.shipper], ['Goods', s.description], ['Weight', s.grossWeight]] },
     export: { title: '📑 出口报关单', fields: [['报关单号', '3102' + s.ticketNo.slice(2)], ['HS编码', s.hsCode], ['数量/毛重', `${s.packages} / ${s.grossWeight}`], ['目的港', s.pod]] },
-    isf: { title: '📝 ISF 申报表 (10+2)', fields: [['ISF No.', 'ISF' + s.ticketNo.slice(2)], ['Importer', s.consignee], ['Manufacturer', s.shipper], ['Container', s.containerNo]] }
+    isf: { title: '📝 ISF 申报表 (10+2)', fields: [['ISF No.', 'ISF' + s.ticketNo.slice(2)], ['Importer', s.consignee], ['Manufacturer', s.shipper], ['Container', s.containerNo]] },
+    pl: { title: '📦 装箱单 (Packing List)', fields: [['Marks', s.containerNo || s.ticketNo], ['Pkgs', s.packages], ['G.W.', s.grossWeight], ['Meas.', s.volume], ['明细', typeof SmartDoc !== 'undefined' ? SmartDoc.linesLabel(s) : '']] },
+    vgm: { title: '⚖️ VGM 称重单 (SOLAS)', fields: (function(){ const v = typeof SmartDocs !== 'undefined' ? SmartDocs.vgmOf(s) : { label: s.grossWeight, tareLabel: s.tareWeight || '3800 KGS' }; return [['Container', s.containerNo], ['Cargo GW', v.cargoLabel || s.grossWeight], ['Tare', v.tareLabel], ['VGM', v.label], ['Method', 'Method 2']]; })() },
+    an: { title: '📬 到货通知 (Arrival Notice)', fields: [['Consignee', s.consignee], ['Vessel', (s.vessel || '') + ' / ' + (s.voyage || '')], ['ETD', s.etd], ['ETA', (typeof SmartDocs !== 'undefined' ? SmartDocs.etaOf(s) : s.eta) || 'ETD+14d'], ['POD', s.pod]] }
   };
 }
 
@@ -1660,7 +1706,7 @@ function buildDocHTML(type) {
 }
 function openDocModal(type) {
   state.currentModalDocType = type;
-  const names = { bl:'🚢 海运提单草稿预览', ams:'📋 AMS 舱单预览', export:'📑 出口报关单预览', isf:'📝 ISF 10+2 申报表预览' };
+  const names = { bl:'🚢 海运提单草稿预览', ams:'📋 AMS 舱单预览', export:'📑 出口报关单预览', isf:'📝 ISF 10+2 申报表预览', pl:'📦 装箱单预览', vgm:'⚖️ VGM 称重单预览', an:'📬 到货通知预览' };
   document.getElementById('modalTitle').textContent = `${names[type]} — ${state.shipment.ticketNo}`;
   document.getElementById('modalBody').innerHTML = buildDocHTML(type);
   document.getElementById('docModal').classList.add('show');
@@ -1677,6 +1723,15 @@ function downloadSingleDoc(type, asWord) {
   showToast(`⬇️ 已下载 ${type.toUpperCase()}_${state.shipment.ticketNo}.${ext}`);
 }
 function downloadCurrentModalDoc(asWord) { downloadSingleDoc(state.currentModalDocType, !!asWord); }
+function printCurrentModalDoc() {
+  const type = state.currentModalDocType;
+  if (typeof SmartDocs !== 'undefined' && SmartDocs.print) {
+    const ok = SmartDocs.print(type, shipmentForDoc(type), docOpts(type));
+    if (!ok) showToast('请允许弹出窗口后再打印');
+    return;
+  }
+  showToast('打印模块未加载');
+}
 
 async function downloadDocZip() {
   const types = Object.keys(state.generated || {});
@@ -2528,34 +2583,38 @@ function paintShareOut(share, kind) {
   lastShare = share;
   state.shareCode = share.code;
   const box = document.getElementById('shareOut');
-  const tag = share.readOnly ? '只读协作' : (kind || '可编辑载入');
-  box.innerHTML = `<div>${tag} · 短码 <strong>${escapeHtml(share.code)}</strong>（本机可再输入） · 令牌 ${share.bytes} 字节</div>
+  const tag = share.encrypted ? '口令加密 SD2' : (share.readOnly ? '只读协作' : (kind || '可编辑载入'));
+  box.innerHTML = `<div>${tag} · 短码 <strong>${escapeHtml(share.code)}</strong>（本机可再输入） · 令牌 ${share.bytes} 字节${share.encrypted ? ' · 对方须输入同一口令' : ''}</div>
     ${share.url ? `<div style="margin-top:6px;word-break:break-all;">链接：<a href="${escapeHtml(share.url)}">${escapeHtml(share.url.slice(0, 120))}…</a></div>` : '<div style="margin-top:6px;">令牌较长，请复制完整令牌发给对方粘贴。</div>'}`;
   document.getElementById('shareRedeem').value = share.url || share.token;
 }
 
-function makeShareCode() {
+function sharePassword() {
+  return (document.getElementById('sharePass')?.value || '').trim();
+}
+
+async function makeShareCode() {
   if (typeof SmartShare === 'undefined') { showToast('分享模块未加载'); return; }
   const pack = currentPack();
-  const share = SmartShare.encode(pack);
-  pushTimeline('生成分享码 ' + share.code);
+  const share = await SmartShare.encode(pack, { password: sharePassword() || undefined });
+  pushTimeline('生成分享码 ' + share.code + (share.encrypted ? '（加密）' : ''));
   upsertArchive(state.archive.find(a => a.ticketNo === pack.ticketNo)?.status || '待校验');
   paintShareOut(share, '可编辑载入');
   showToast('已生成分享码 ' + share.code);
 }
 
-function makeReadOnlyShare() {
+async function makeReadOnlyShare() {
   if (typeof SmartShare === 'undefined') { showToast('分享模块未加载'); return; }
   const pack = currentPack();
-  const share = SmartShare.encode(pack, { readOnly: true });
-  pushTimeline('生成只读协作链接 ' + share.code);
+  const share = await SmartShare.encode(pack, { readOnly: true, password: sharePassword() || undefined });
+  pushTimeline('生成只读协作链接 ' + share.code + (share.encrypted ? '（加密）' : ''));
   upsertArchive(state.archive.find(a => a.ticketNo === pack.ticketNo)?.status || '待校验');
   paintShareOut(share, '只读协作');
-  showToast('已生成只读链接（对方无需登录，不能改档案）');
+  showToast(share.encrypted ? '已生成加密只读链接（对方在 view.html 输入口令）' : '已生成只读链接（对方无需登录，不能改档案）');
 }
 
 async function copyShareToken() {
-  if (!lastShare) makeShareCode();
+  if (!lastShare) await makeShareCode();
   if (!lastShare) return;
   const text = lastShare.url || lastShare.token;
   try {
@@ -2566,19 +2625,24 @@ async function copyShareToken() {
   }
 }
 
-function redeemShare() {
+async function redeemShare() {
   const input = (document.getElementById('shareRedeem').value || '').trim();
+  const pw = (document.getElementById('shareUnlock')?.value || sharePassword() || '').trim();
   try {
-    const pack = SmartShare.decode(input);
-    if (pack.readOnly) {
-      const share = SmartShare.encode(pack, { readOnly: true });
+    if (SmartShare.isEncrypted && SmartShare.isEncrypted(input) && !pw) {
+      showToast('这是加密令牌，请填写口令');
+      return;
+    }
+    const pack = await SmartShare.decode(input, pw || undefined);
+    if (pack.readOnly || (SmartShare.isEncrypted && SmartShare.isEncrypted(input))) {
+      const share = await SmartShare.encode(pack, { readOnly: true, password: pw || undefined });
       if (share.url) { location.href = share.url; return; }
       showToast('只读包请用 view.html 打开');
       return;
     }
     reviewPack(pack, '分享码 ' + (pack.ticketNo || ''));
   } catch (err) {
-    showToast(err.message || String(err));
+    showToast(err.code === 'NEED_PASSWORD' ? '请填写分享口令' : (err.message || String(err)));
   }
 }
 
@@ -2806,7 +2870,7 @@ function downloadEdiRecord(id) {
   triggerDownload(SmartEdi.filename(rec.channel, state.shipment, rec), xml, 'application/xml;charset=utf-8');
 }
 
-function consumeShareHash() {
+async function consumeShareHash() {
   let h = location.hash || '';
   if (h.indexOf('#sd=') !== 0) {
     try { h = sessionStorage.getItem('smartdoc_pending_share') || ''; } catch (e) { h = ''; }
@@ -2814,7 +2878,11 @@ function consumeShareHash() {
   if (h.indexOf('#sd=') !== 0) return;
   try { sessionStorage.removeItem('smartdoc_pending_share'); } catch (e) { /* ignore */ }
   try {
-    const pack = SmartShare.decode(h);
+    if (SmartShare.isEncrypted && SmartShare.isEncrypted(h)) {
+      location.replace('view.html' + (location.hash || h));
+      return;
+    }
+    const pack = await SmartShare.decode(h);
     if (pack.readOnly) {
       location.replace('view.html' + (location.hash || h));
       return;
@@ -2822,7 +2890,7 @@ function consumeShareHash() {
     if (location.hash) history.replaceState(null, '', location.pathname + location.search);
     reviewPack(pack, '分享链接');
   } catch (e) {
-    showToast('分享链接无效');
+    showToast(e.code === 'NEED_PASSWORD' ? '加密链接请在只读页输入口令' : '分享链接无效');
   }
 }
 
@@ -2896,6 +2964,57 @@ function buyPack(count) {
   showToast(`✅ 成功加购 ${count} 票按次弹性包！`);
 }
 
+function paintVaultStatus(text) {
+  const el = document.getElementById('vaultStatus');
+  if (el) el.textContent = text || ('当前企业 ' + (typeof SmartVault !== 'undefined' ? SmartVault.orgId() : '-') + ' · 票数 ' + (state.archive || []).length);
+}
+
+function exportOrgVault() {
+  if (typeof SmartVault === 'undefined') { showToast('票库模块未加载'); return; }
+  const json = SmartVault.exportJson(state.archive);
+  triggerDownload('SmartDoc_vault_' + SmartVault.orgId() + '.json', json, 'application/json;charset=utf-8');
+  paintVaultStatus('已导出 ' + (state.archive || []).length + ' 票');
+  showToast('已导出企业票库 JSON');
+}
+
+async function importOrgVaultFile(file) {
+  const obj = JSON.parse(await file.text());
+  const parsed = SmartVault.parseVault(obj);
+  const merged = SmartVault.mergeTickets(state.archive, parsed.tickets);
+  state.archive = merged;
+  saveState();
+  renderArchive();
+  renderDashboard();
+  paintVaultStatus('已合并导入，现有 ' + merged.length + ' 票');
+  showToast('已导入并合并企业票库');
+}
+
+async function pushOrgVault() {
+  if (typeof SmartVault === 'undefined') return;
+  try {
+    const r = await SmartVault.push(state.archive);
+    paintVaultStatus('已推送到本机 /api/vault · ' + (r.count || state.archive.length) + ' 票');
+    showToast('票库已推送到本机服务');
+  } catch (e) {
+    showToast('推送失败（需启动智单通.bat）：' + (e.message || e));
+  }
+}
+
+async function pullOrgVault() {
+  if (typeof SmartVault === 'undefined') return;
+  try {
+    const r = await SmartVault.pull();
+    state.archive = r.tickets || [];
+    saveState();
+    renderArchive();
+    renderDashboard();
+    paintVaultStatus('已从本机服务拉取 ' + state.archive.length + ' 票');
+    showToast('已拉取企业票库');
+  } catch (e) {
+    showToast('拉取失败（GitHub Pages 无此接口，请改用 JSON 导入）：' + (e.message || e));
+  }
+}
+
 function submitFeedback() {
   const input = document.getElementById('feedbackInput');
   const val = input.value.trim();
@@ -2921,6 +3040,16 @@ maybeShowTour();
 consumeShareHash();
 renderCarrierPicks();
 renderFilings();
+paintVaultStatus();
+const vaultFile = document.getElementById('vaultFile');
+if (vaultFile) {
+  vaultFile.addEventListener('change', async e => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    try { await importOrgVaultFile(file); } catch (err) { showToast('导入失败：' + (err.message || err)); }
+    e.target.value = '';
+  });
+}
 </script>
 </body>
 </html>
