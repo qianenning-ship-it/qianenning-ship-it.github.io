@@ -30,6 +30,9 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     msc: { size: "A4", margin: "15mm 14mm 18mm 14mm" },
     maersk: { size: "A4", margin: "10mm 16mm 14mm 16mm" },
     oocl: { size: "A4", margin: "12mm 14mm 16mm 14mm" },
+    cma: { size: "A4", margin: "14mm 12mm 16mm 18mm" },
+    hapag: { size: "A4", margin: "12mm 15mm 14mm 15mm" },
+    one: { size: "A4", margin: "11mm 13mm 15mm 13mm" },
   };
 
   function cssFor(carrierId) {
@@ -49,6 +52,16 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
 
   function cell(label, value) {
     return `<div class="cell"><div class="lbl">${label}</div><div class="val">${e(value) || "—"}</div></div>`;
+  }
+
+  function marksOf(s) {
+    const v = String((s && s.marks) || "").trim();
+    if (v) return v;
+    return String((s && (s.containerNo || s.ticketNo)) || "").trim();
+  }
+
+  function marksHtml(s) {
+    return e(marksOf(s)).replace(/\n/g, "<br>");
   }
 
   function cargoLines(s) {
@@ -104,16 +117,18 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     }
     if (kind === "pl") {
       let pkgs = 0, gw = 0, vol = 0;
+      const mk = marksHtml(s);
       const body = ls.map((l, i) => {
         pkgs += parseKg(l.packages);
         gw += parseKg(l.grossWeight);
         vol += parseKg(l.volume);
-        return `<tr><td>${i + 1}</td><td>${e(l.description)}</td><td>${e(l.hsCode)}</td><td>${e(l.packages)}</td><td>${e(l.grossWeight)}</td><td>${e(l.volume)}</td></tr>`;
+        return `<tr><td>${i === 0 ? mk : ""}</td><td>${e(l.description)}</td><td>${e(l.hsCode)}</td><td>${e(l.packages)}</td><td>${e(l.grossWeight)}</td><td>${e(l.volume)}</td></tr>`;
       }).join("");
-      return `<table class="cargo"><thead><tr><th>#</th><th>Description of Goods</th><th>HS</th><th>Pkgs</th><th>G.W.</th><th>Meas.</th></tr></thead><tbody>${body}</tbody>
+      return `<table class="cargo"><thead><tr><th>Marks</th><th>Description of Goods</th><th>HS</th><th>Pkgs</th><th>G.W.</th><th>Meas.</th></tr></thead><tbody>${body}</tbody>
         <tfoot><tr><td colspan="3">TOTAL</td><td>${pkgs || "—"}</td><td>${gw ? gw + " KGS" : "—"}</td><td>${vol ? vol.toFixed(2) + " CBM" : "—"}</td></tr></tfoot></table>`;
     }
-    const body = ls.map((l, i) => `<tr><td>${i + 1}</td><td>${e(l.packages)}</td><td>${e(l.description)}<br>HS ${e(l.hsCode)}</td><td>${e(l.grossWeight)}</td><td>${e(l.volume)}</td></tr>`).join("");
+    const mk = marksHtml(s);
+    const body = ls.map((l, i) => `<tr><td>${i === 0 ? mk : ""}</td><td>${e(l.packages)}</td><td>${e(l.description)}<br>HS ${e(l.hsCode)}</td><td>${e(l.grossWeight)}</td><td>${e(l.volume)}</td></tr>`).join("");
     return `<table class="cargo"><thead><tr><th>Marks</th><th>No. of Pkgs</th><th>Description of Goods / HS</th><th>Gross Weight</th><th>Measurement</th></tr></thead><tbody>${body}</tbody></table>`;
   }
 
@@ -123,6 +138,9 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     msc: { id: "msc", name: "MSC", scac: "MSCU", mark: "M", color: "#003366", title: "MEDITERRANEAN SHIPPING COMPANY B/L", legal: "Mediterranean Shipping Company S.A. Bill of Lading (non-negotiable draft). Particulars furnished by the shipper. Not valid for negotiation until signed by the carrier." },
     maersk: { id: "maersk", name: "MAERSK", scac: "MAEU", mark: "★", color: "#42b0d5", title: "MAERSK LINE BILL OF LADING", legal: "Maersk A/S transport document (draft). Contract of carriage subject to Maersk Bill of Lading terms. For document check and pre-alert only." },
     oocl: { id: "oocl", name: "OOCL", scac: "OOLU", mark: "O", color: "#c8102e", title: "OOCL BILL OF LADING", legal: "Orient Overseas Container Line (draft). Particulars furnished by the merchant. This copy is generated from a SmartDoc archive for checking only." },
+    cma: { id: "cma", name: "CMA CGM", scac: "CMAU", mark: "C", color: "#003da5", title: "CMA CGM BILL OF LADING", legal: "CMA CGM S.A. Bill of Lading (non-negotiable draft). Particulars furnished by the merchant. This copy is generated from a SmartDoc archive for checking only." },
+    hapag: { id: "hapag", name: "HAPAG-LLOYD", scac: "HLCU", mark: "H", color: "#ff6600", title: "HAPAG-LLOYD BILL OF LADING", legal: "Hapag-Lloyd AG Bill of Lading (draft). Contract of carriage subject to Hapag-Lloyd bill of lading terms. For document check and pre-alert only." },
+    one: { id: "one", name: "ONE", scac: "ONEY", mark: "1", color: "#e6007e", title: "OCEAN NETWORK EXPRESS B/L", legal: "Ocean Network Express Pte. Ltd. Bill of Lading (draft). Particulars furnished by the shipper. Not valid for negotiation until signed by the carrier." },
   };
 
   const OWNER_CARRIER = {
@@ -130,6 +148,9 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
     MSCU: "msc",
     MAEU: "maersk", MSKU: "maersk", MRKU: "maersk", MWHU: "maersk",
     OOCU: "oocl", OOLU: "oocl",
+    CMAU: "cma",
+    HLCU: "hapag",
+    ONEU: "one", ONEY: "one",
   };
 
   function ownerCode(containerNo) {
@@ -178,7 +199,7 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
         ${cell("Invoice / Ticket", s.ticketNo)}${cell("Date", fmtWhen(new Date().toISOString()))}
         ${cell("Shipper", s.shipper)}${cell("Consignee", s.consignee)}
         ${cell("POL → POD", (s.pol || "") + " → " + (s.pod || ""))}${cell("Container / Seal", (s.containerNo || "") + " / " + (s.sealNo || ""))}
-        ${cell("Vessel / Voyage", (s.vessel || "") + " / " + (s.voyage || ""))}${cell("Marks & Nos.", s.containerNo || s.ticketNo)}
+        ${cell("Vessel / Voyage", (s.vessel || "") + " / " + (s.voyage || ""))}${cell("Marks & Nos.", marksOf(s))}
       </div>
       ${cargoTableHtml(s, "pl")}
       <p class="clause">本装箱单由智单通按货物档案货描明细同源生成，件数 / 毛重 / 体积与提单、报关草稿一致。非正式签章件。</p>
@@ -346,5 +367,5 @@ table.cargo tfoot td{font-weight:700;background:#f8fafc}
       </div></body></html>`;
   }
 
-  w.SmartDocs = { build, wrap, print, checkReport, CSS, cssFor, CARRIERS, PRINT_PAGE, carrierName, vgmOf, etaOf, TITLES, stampHtml, ownerCode, carrierFromOwner, OWNER_CARRIER };
+  w.SmartDocs = { build, wrap, print, checkReport, CSS, cssFor, CARRIERS, PRINT_PAGE, carrierName, vgmOf, etaOf, TITLES, stampHtml, ownerCode, carrierFromOwner, OWNER_CARRIER, marksOf };
 })(window);

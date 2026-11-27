@@ -17,6 +17,7 @@
     { key: "etd", label: "开船时间 / ETD", required: false },
     { key: "eta", label: "预计到港 / ETA", required: false },
     { key: "tareWeight", label: "箱皮重 / Tare", required: false },
+    { key: "marks", label: "唛头 / Marks", required: false },
   ];
 
   const ALIASES = {
@@ -38,6 +39,7 @@
     etd: ["etd", "etd date", "sailing", "departure", "开船", "开船日", "预计开船"],
     eta: ["eta", "eta date", "arrival", "eta time", "到港", "预计到港", "到港日"],
     tareWeight: ["tare", "tare weight", "tareweight", "皮重", "箱皮重", "柜皮"],
+    marks: ["marks", "shipping marks", "shipping mark", "marks & nos", "marks and nos", "marks nos", "marksno", "唛头", "嘜头", "麦头"],
   };
 
   const LINE_KEYS = ["hsCode", "description", "packages", "grossWeight", "volume"];
@@ -331,6 +333,10 @@
       const m = t.match(/(\d+)\s*(CTNS|CARTONS|PKGS|PACKAGES|PLTS|PALLETS|件数)\b/i);
       if (m) fields.packages = m[1] + " " + String(m[2]).toUpperCase().replace("件数", "CTNS");
     }
+    if (!fields.marks) {
+      const m = t.match(/(?:shipping\s*marks|marks(?:\s*&\s*nos?\.?)?|唛头|嘜头)\s*[:：]\s*([^\n]{1,80})/i);
+      if (m && !/^(no\.?|#|item|hs|hts|pkgs?)$/i.test(m[1].trim())) fields.marks = m[1].trim();
+    }
   }
 
   function assignField(fields, conf, key, val, score) {
@@ -501,7 +507,7 @@
       .filter(Boolean);
     const out = [];
     const seen = {};
-    const headerish = /^(no\.?|marks|#|item|description|goods|hs|hts|qty|pkgs|packages|gw|weight|cbm|volume|品名|税号|件数|毛重|体积|装箱单|packing)/i;
+    const headerish = /^(no\.?|marks|#|item|description|goods|hs|hts|qty|pkgs|packages|gw|weight|cbm|volume|品名|税号|件数|毛重|体积|装箱单|packing|唛头|嘜头)/i;
     rows.forEach((line) => {
       const colon = line.split(/[:：]/);
       if (colon.length >= 2) {
