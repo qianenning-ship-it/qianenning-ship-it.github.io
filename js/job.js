@@ -8,8 +8,9 @@
     vgm: "VGM 称重",
     an: "到货通知",
     bk: "订舱确认",
+    ci: "商业发票",
   };
-  const DOC_IDS = ["bl", "ams", "export", "isf", "pl", "vgm", "an", "bk"];
+  const DOC_IDS = ["bl", "ams", "export", "isf", "pl", "vgm", "an", "bk", "ci"];
 
   function pushEvent(list, text) {
     const next = Array.isArray(list) ? list.slice() : [];
@@ -85,8 +86,10 @@
   function fieldPairs(local, incoming) {
     const meta = [{ key: "ticketNo", label: "票号" }].concat((w.SmartDoc && w.SmartDoc.FIELD_META) || []);
     meta.push({ key: "lines", label: "货描明细" });
+    meta.push({ key: "containers", label: "柜清单" });
     const fmt = (obj, key) => {
       if (key === "lines") return (w.SmartDoc && w.SmartDoc.linesLabel(obj)) || "";
+      if (key === "containers") return (w.SmartDoc && w.SmartDoc.containersLabel(obj)) || "";
       return String((obj && obj[key]) || "");
     };
     return meta.map((f) => {
@@ -103,9 +106,11 @@
     Object.keys(choices || {}).forEach((key) => {
       if (choices[key] === "local") {
         if (key === "lines") out.lines = snapLoc.lines || [];
+        else if (key === "containers") out.containers = snapLoc.containers || [];
         else out[key] = snapLoc[key] || "";
       } else if (choices[key] === "incoming") {
         if (key === "lines") out.lines = snapIn.lines || [];
+        else if (key === "containers") out.containers = snapIn.containers || [];
         else out[key] = snapIn[key] || "";
       }
     });

@@ -49,6 +49,23 @@
     return [{ hsCode: s.hsCode, description: s.description, packages: s.packages, grossWeight: s.grossWeight, volume: s.volume }];
   }
 
+  function eqdBlocks(s) {
+    const list = (w.SmartDoc && w.SmartDoc.normalizeContainers) ? w.SmartDoc.normalizeContainers(s) : [];
+    const rows = list.length ? list : [{ containerNo: s.containerNo, sealNo: s.sealNo }];
+    return rows.map((c, i) => `  <EQD qualifier="CN" line="${i + 1}">
+    <ContainerNumber>${esc(c.containerNo)}</ContainerNumber>
+    <SEL>${esc(c.sealNo)}</SEL>
+  </EQD>`).join("\n");
+  }
+
+  function equipmentBlocks(s) {
+    const list = (w.SmartDoc && w.SmartDoc.normalizeContainers) ? w.SmartDoc.normalizeContainers(s) : [];
+    const rows = list.length ? list : [{ containerNo: s.containerNo }];
+    return rows.map((c, i) => `  <Equipment line="${i + 1}">
+    <ContainerNumber>${esc(c.containerNo)}</ContainerNumber>
+  </Equipment>`).join("\n");
+  }
+
   function gidBlocks(s) {
     return cargoLines(s).map((l, i) => `  <GID line="${i + 1}">
     <Packages>${esc(l.packages)}</Packages>
@@ -92,10 +109,7 @@
   <NAD qualifier="CZ"><Name>${esc(s.shipper)}</Name></NAD>
   <NAD qualifier="CN"><Name>${esc(s.consignee)}</Name></NAD>
   <NAD qualifier="NI"><Name>${esc(s.notifyParty)}</Name></NAD>
-  <EQD qualifier="CN">
-    <ContainerNumber>${esc(s.containerNo)}</ContainerNumber>
-    <SEL>${esc(s.sealNo)}</SEL>
-  </EQD>
+${eqdBlocks(s)}
 ${gidBlocks(s)}
   <Remark>SmartDoc homologous draft. Not a live ACE filing.</Remark>
 </CUSCAR>
@@ -121,9 +135,7 @@ ${gidBlocks(s)}
   <StuffingLocation>${esc(s.pol)}</StuffingLocation>
   <Consolidator>${esc(s.shipper)}</Consolidator>
 ${commodityBlocks(s)}
-  <Equipment>
-    <ContainerNumber>${esc(s.containerNo)}</ContainerNumber>
-  </Equipment>
+${equipmentBlocks(s)}
   <Conveyance>
     <Vessel>${esc(s.vessel)}</Vessel>
     <Voyage>${esc(s.voyage)}</Voyage>

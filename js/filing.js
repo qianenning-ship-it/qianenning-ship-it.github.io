@@ -27,11 +27,14 @@
       if (!String(s[k] || "").trim()) items.push(item(channel, k, "缺失 " + (labels[k] || k)));
     });
     const on = (id) => !w.SmartRules || w.SmartRules.on(id);
-    if (on("iso6346") && s.containerNo && w.SmartDoc) {
-      const c = String(s.containerNo).toUpperCase().replace(/[\s-]/g, "");
-      if (!/^[A-Z]{4}\d{7}$/.test(c) || !w.SmartDoc.iso6346Valid(c)) {
-        items.push(item(channel, "containerNo", "ISO 6346 柜号未通过（申报拒绝）"));
-      }
+    if (on("iso6346") && w.SmartDoc) {
+      const list = w.SmartDoc.normalizeContainers ? w.SmartDoc.normalizeContainers(s) : (s.containerNo ? [{ containerNo: s.containerNo }] : []);
+      list.forEach((box, i) => {
+        const c = String(box.containerNo || "").toUpperCase().replace(/[\s-]/g, "");
+        if (!/^[A-Z]{4}\d{7}$/.test(c) || !w.SmartDoc.iso6346Valid(c)) {
+          items.push(item(channel, "containerNo", "ISO 6346 柜号未通过（申报拒绝）" + (list.length > 1 ? " #" + (i + 1) : "")));
+        }
+      });
     }
     if (on("hs") && s.hsCode && w.SmartDoc && !(s.lines && s.lines.length > 1)) {
       if (!w.SmartDoc.hsLooksValid(s.hsCode)) {

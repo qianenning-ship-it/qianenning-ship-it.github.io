@@ -110,8 +110,48 @@
 
   function writeBook(book) {
     const keys = Object.keys(book);
-    if (keys.length > 40) keys.slice(40).forEach((k) => delete book[k]);
+    if (keys.length > 80) keys.slice(80).forEach((k) => delete book[k]);
     localStorage.setItem(BOOK, JSON.stringify(book));
+  }
+
+  function exportBook() {
+    const book = readBook();
+    const entries = Object.keys(book).map((code) => ({ code, token: book[code] }));
+    return {
+      kind: "smartdoc-sharebook",
+      version: 1,
+      at: new Date().toISOString(),
+      count: entries.length,
+      entries,
+    };
+  }
+
+  function importBook(obj, mode) {
+    const incoming = {};
+    if (!obj) throw new Error("不是智单通分享簿");
+    if (obj.kind === "smartdoc-sharebook") {
+      (obj.entries || []).forEach((e) => {
+        if (e && e.code && e.token) incoming[String(e.code)] = String(e.token);
+      });
+      if (obj.book && typeof obj.book === "object") {
+        Object.keys(obj.book).forEach((k) => {
+          if (obj.book[k]) incoming[k] = String(obj.book[k]);
+        });
+      }
+    } else if (typeof obj === "object" && !Array.isArray(obj)) {
+      Object.keys(obj).forEach((k) => {
+        const v = obj[k];
+        if (typeof v === "string" && (v.indexOf("SD1.") === 0 || v.indexOf("SD2.") === 0 || /^[A-Z0-9]{2}-[A-Z0-9]{6}$/i.test(k))) {
+          incoming[k] = v;
+        }
+      });
+    }
+    const n = Object.keys(incoming).length;
+    if (!n) throw new Error("分享簿里没有短码条目");
+    const cur = mode === "replace" ? {} : readBook();
+    Object.keys(incoming).forEach((k) => { cur[k] = incoming[k]; });
+    writeBook(cur);
+    return n;
   }
 
   function extractToken(input) {
@@ -228,5 +268,5 @@
     return decodeSync(input);
   }
 
-  w.SmartShare = { encode, decode, decodeSync, compact, expand, peek, isEncrypted, shortCode, shareUrl, storeToken };
+  w.SmartShare = { encode, decode, decodeSync, compact, expand, peek, isEncrypted, shortCode, shareUrl, storeToken, readBook, exportBook, importBook };
 })(window);
