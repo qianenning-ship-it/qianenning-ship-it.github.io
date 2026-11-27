@@ -120,16 +120,17 @@ function renderPack(pack) {
 }
 
 function docPreviewCardHtml(pack) {
-  const ids = (window.SmartJob && SmartJob.DOC_IDS) || ['bl', 'ams', 'export', 'isf', 'pl', 'vgm', 'an', 'bk', 'ci', 'co'];
+  const ids = (window.SmartJob && SmartJob.DOC_IDS) || ['bl', 'ams', 'export', 'isf', 'pl', 'vgm', 'an', 'bk', 'ci', 'co', 'ip'];
   const labels = (window.SmartJob && SmartJob.DOC_LABELS) || {};
   const tabs = ids.map((id, i) => `<button type="button" class="${i === 0 ? 'on' : ''}" data-doc="${id}" onclick="showDocPreview('${id}')">${escapeHtml(labels[id] || id)}</button>`).join('');
   return `<div class="card">
       <h2>单证预览（同源草稿）</h2>
-      <p style="font-size:13px;color:#7a8699;">按当前档案即时排版十套单证，无需先下载 HTML。套版 ${escapeHtml(pack.blCarrier || (pack.shipment && pack.shipment.blCarrier) || 'generic')}。打印 / PDF 在本机完成，不经过服务器。</p>
+      <p style="font-size:13px;color:#7a8699;">按当前档案即时排版十一套单证，无需先下载 HTML。套版 ${escapeHtml(pack.blCarrier || (pack.shipment && pack.shipment.blCarrier) || 'generic')}。打印 / PDF / .eml 在本机完成，不经过服务器。</p>
       <div class="doc-tabs">${tabs}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px;">
         <button class="btn btn-blue" type="button" onclick="printPreviewDoc()">🖨️ 打印当前预览 A4</button>
         <button class="btn btn-blue" type="button" onclick="downloadPreviewPdf()">⬇️ 下载当前预览 PDF</button>
+        <button class="btn btn-blue" type="button" onclick="downloadPreviewEml()">📬 到货通知 .eml</button>
       </div>
       <iframe id="docPreviewFrame" class="doc-frame" title="单证预览" sandbox="allow-same-origin allow-scripts allow-modals"></iframe>
     </div>`;
@@ -177,6 +178,21 @@ async function downloadPreviewPdf() {
   } catch (err) {
     alert('PDF 生成失败：' + (err.message || err) + '。可改用打印 A4。');
   }
+}
+
+function downloadPreviewEml() {
+  const pack = window._viewPack;
+  if (!pack || typeof SmartDocs === 'undefined' || !SmartDocs.anEml) {
+    alert('到货通知模块未加载');
+    return;
+  }
+  const eml = SmartDocs.anEml(pack.shipment || {});
+  const blob = new Blob([eml.raw], { type: 'message/rfc822' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = eml.filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 function downloadBlob(name, obj) {
