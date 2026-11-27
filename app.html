@@ -516,7 +516,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
     <!-- ========== GENERATE ========== -->
     <div class="page" id="page-generate">
       <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:4px;">📋 单证同源数据批量生成</h2>
-      <p style="color:var(--g500);font-size:.9rem;margin-bottom:20px;">依托统一标准货物档案，同源输出提单、AMS、报关、ISF、装箱单、VGM、到货通知、订舱确认书、商业发票、产地证，彻底消除重复录入导致的错漏</p>
+      <p style="color:var(--g500);font-size:.9rem;margin-bottom:20px;">依托统一标准货物档案，同源输出提单、AMS、报关、ISF、装箱单、VGM、到货通知、订舱确认书、商业发票、产地证、保险单，彻底消除重复录入导致的错漏</p>
 
       <div class="source-summary">
         <h3>
@@ -540,9 +540,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <div class="doc-check"><input type="checkbox" checked id="chk-bk"><label for="chk-bk">📝 订舱确认书 (Booking Confirmation)</label></div>
           <div class="doc-check"><input type="checkbox" checked id="chk-ci"><label for="chk-ci">💵 商业发票 (Commercial Invoice)</label></div>
           <div class="doc-check"><input type="checkbox" checked id="chk-co"><label for="chk-co">📜 产地证 (Certificate of Origin)</label></div>
+          <div class="doc-check"><input type="checkbox" checked id="chk-ip"><label for="chk-ip">🛡️ 保险单 (Marine Cargo Policy)</label></div>
         </div>
         <h3 style="margin-top:18px;">🚢 提单船司套版</h3>
-        <p style="font-size:.8rem;color:var(--g500);margin:6px 0 0;">同一套档案可切换 COSCO / MSC / MAERSK / OOCL / CMA CGM / Hapag-Lloyd / ONE / Evergreen / Wan Hai / Yang Ming / ZIM / HMM / Hamburg Süd 版式。柜号前四位箱主码会给出建议，一点采用。</p>
+        <p style="font-size:.8rem;color:var(--g500);margin:6px 0 0;">同一套档案可切换 COSCO / MSC / MAERSK / OOCL / CMA CGM / Hapag-Lloyd / ONE / Evergreen / Wan Hai / Yang Ming / ZIM / HMM / Hamburg Süd / PIL / KMTC / SITC 版式。柜号前四位箱主码会给出建议，一点采用。</p>
         <div class="carrier-picks" id="carrierPicks"></div>
         <div id="carrierHint"></div>
         <div style="margin-top:20px;text-align:center;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
@@ -555,7 +556,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <h3 style="font-size:1rem;font-weight:700;">📄 同源单证生成结果</h3>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <button class="btn btn-s" onclick="downloadDocZip()">📦 打包 ZIP（已生成单证 + 档案）</button>
-            <button class="btn btn-s" onclick="downloadPdfZip()">📄 十套 PDF ZIP</button>
+            <button class="btn btn-s" onclick="downloadPdfZip()">📄 十一套 PDF ZIP</button>
             <button class="btn btn-s" onclick="switchTab('exchange')">📨 发送给协作方</button>
             <button class="btn btn-ok" onclick="switchTab('check')">下一步：去执行一致性智能校验 →</button>
           </div>
@@ -582,6 +583,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <div class="check-doc" data-doc="bk" onclick="this.classList.toggle('selected')">📝 订舱确认</div>
           <div class="check-doc" data-doc="ci" onclick="this.classList.toggle('selected')">💵 商业发票</div>
           <div class="check-doc" data-doc="co" onclick="this.classList.toggle('selected')">📜 产地证</div>
+          <div class="check-doc" data-doc="ip" onclick="this.classList.toggle('selected')">🛡️ 保险单</div>
         </div>
         <p class="stale-note" style="margin-top:12px;">校验对象是「已生成的单证快照」对照当前货物档案，并叠加 ISO 6346 柜号、美线 HS 10 位 / 其他航线 8 位、AMS 24h / ISF 10+2 必填规则。请先在「同源单证生成」落快照；若改过档案请重新生成。</p>
         <button class="btn btn-p btn-lg" onclick="startCheck()">🔍 开始智能校验</button>
@@ -901,6 +903,9 @@ const DEFAULT_SHIPMENT = {
   discount: '',
   coCertNo: '',
   coIssuer: '',
+  insuredValue: '',
+  coverClause: 'ICC (A)',
+  insurer: '',
   containers: [
     { containerNo: 'MSKU1234565', sealNo: 'SH20240815', tareWeight: '3800 KGS', type: '40HC', packages: '250 CTNS', grossWeight: '4300 KGS' },
     { containerNo: 'MSKU2345671', sealNo: 'SH20240816', tareWeight: '3800 KGS', type: '40HC', packages: '250 CTNS', grossWeight: '4200 KGS' }
@@ -1733,6 +1738,7 @@ function renderGenSummary() {
     ['税率 / 折扣', `${s.taxRate ? (s.taxRate + '%') : '—'} / ${s.discount || '—'}`],
     ['原产国 / 标准', `${s.originCountry || 'CHINA'} / ${s.originCriterion || '—'}`],
     ['产地证号 / 签证机关', `${s.coCertNo || ('COO' + String(s.ticketNo || '').replace(/^SH/, ''))} / ${s.coIssuer || '—'}`],
+    ['保险保额 / 险别', (function(){ const ins = (typeof SmartDocs !== 'undefined' && SmartDocs.insuranceOf) ? SmartDocs.insuranceOf(s) : { amount: s.insuredValue || '—', cover: s.coverClause || 'ICC (A)' }; return `${ins.amount || '—'} / ${ins.cover}`; })()],
     ['危险品 IMO / UN', (s.imoClass || s.unNumber) ? `${s.imoClass || '—'} / ${s.unNumber || '—'} ${s.packingGroup || ''}`.trim() : '无（未填不写入提单）'],
     ['航线 POL → POD', `${s.pol} → ${s.pod}`],
     ['件数 / 毛重', `${s.packages} / ${s.grossWeight}`],
@@ -1748,7 +1754,7 @@ function renderGenSummary() {
 }
 
 function generateDocs() {
-  const ids = (typeof SmartJob !== 'undefined' && SmartJob.DOC_IDS) || ['bl','ams','export','isf','pl','vgm','an','bk','ci','co'];
+  const ids = (typeof SmartJob !== 'undefined' && SmartJob.DOC_IDS) || ['bl','ams','export','isf','pl','vgm','an','bk','ci','co','ip'];
   const selected = ids.filter(id => document.getElementById('chk-' + id)?.checked);
   if(selected.length === 0) {
     showToast('⚠️ 请至少勾选一种要生成的单证');
@@ -1788,7 +1794,8 @@ function genCardDefs(s) {
     an: { title: '📬 到货通知 (Arrival Notice)', fields: [['Consignee', s.consignee], ['Vessel', (s.vessel || '') + ' / ' + (s.voyage || '')], ['ETD', s.etd], ['ETA', (typeof SmartDocs !== 'undefined' ? SmartDocs.etaOf(s) : s.eta) || 'ETD+14d'], ['POD', s.pod]] },
     bk: { title: '📝 订舱确认书 (Booking Confirmation)', fields: [['Booking', 'BK' + String(s.ticketNo || '').replace(/^SH/, '')], ['Carrier', typeof SmartDocs !== 'undefined' ? SmartDocs.carrierName(state.blCarrier) : (state.blCarrier || '')], ['Shipper', s.shipper], ['POL → POD', `${s.pol} → ${s.pod}`], ['ETD', s.etd], ['Container', (typeof SmartDocs !== 'undefined' && SmartDocs.cnText) ? SmartDocs.cnText(s) : s.containerNo]] },
     ci: { title: '💵 商业发票 (Commercial Invoice)', fields: (function(){ const inv = typeof SmartDocs !== 'undefined' && SmartDocs.invoiceOf ? SmartDocs.invoiceOf(s) : { currency: s.currency || 'USD', incoterms: s.incoterms || 'FOB', totalLabel: '', taxRate: s.taxRate || 0, discountLabel: s.discount || '' }; return [['Invoice', 'INV' + String(s.ticketNo || '').replace(/^SH/, '')], ['Incoterms', inv.incoterms], ['Currency', inv.currency], ['Tax / Discount', (inv.taxRate ? inv.taxRate + '%' : '—') + ' / ' + (inv.discountLabel || '—')], ['Total', inv.totalLabel || '—'], ['Buyer', s.consignee]]; })() },
-    co: { title: '📜 产地证 (Certificate of Origin)', fields: [['Origin', (typeof SmartDocs !== 'undefined' && SmartDocs.originCountryOf) ? SmartDocs.originCountryOf(s) : (s.originCountry || 'CHINA')], ['Criterion', s.originCriterion || '—'], ['Cert No.', (typeof SmartDocs !== 'undefined' && SmartDocs.coCertOf) ? SmartDocs.coCertOf(s) : (s.coCertNo || '')], ['Issuer', (typeof SmartDocs !== 'undefined' && SmartDocs.coIssuerOf) ? (SmartDocs.coIssuerOf(s) || '—') : (s.coIssuer || '—')], ['Exporter', s.shipper], ['Consignee', s.consignee]] }
+    co: { title: '📜 产地证 (Certificate of Origin)', fields: [['Origin', (typeof SmartDocs !== 'undefined' && SmartDocs.originCountryOf) ? SmartDocs.originCountryOf(s) : (s.originCountry || 'CHINA')], ['Criterion', s.originCriterion || '—'], ['Cert No.', (typeof SmartDocs !== 'undefined' && SmartDocs.coCertOf) ? SmartDocs.coCertOf(s) : (s.coCertNo || '')], ['Issuer', (typeof SmartDocs !== 'undefined' && SmartDocs.coIssuerOf) ? (SmartDocs.coIssuerOf(s) || '—') : (s.coIssuer || '—')], ['Exporter', s.shipper], ['Consignee', s.consignee]] },
+    ip: { title: '🛡️ 保险单 (Marine Cargo Policy)', fields: (function(){ const ins = typeof SmartDocs !== 'undefined' && SmartDocs.insuranceOf ? SmartDocs.insuranceOf(s) : { policyNo: 'IP' + String(s.ticketNo || '').replace(/^SH/, ''), amount: s.insuredValue || '—', cover: s.coverClause || 'ICC (A)', insurer: s.insurer || '—' }; return [['Policy', ins.policyNo], ['Insured', ins.amount || '—'], ['Cover', ins.cover], ['Insurer', ins.insurer || '—'], ['Assured', s.shipper]]; })() }
   };
 }
 
@@ -1959,7 +1966,7 @@ function buildDocHTML(type) {
 }
 function openDocModal(type) {
   state.currentModalDocType = type;
-  const names = { bl:'🚢 海运提单草稿预览', ams:'📋 AMS 舱单预览', export:'📑 出口报关单预览', isf:'📝 ISF 10+2 申报表预览', pl:'📦 装箱单预览', vgm:'⚖️ VGM 称重单预览', an:'📬 到货通知预览', bk:'📝 订舱确认书预览', ci:'💵 商业发票预览', co:'📜 产地证预览' };
+  const names = { bl:'🚢 海运提单草稿预览', ams:'📋 AMS 舱单预览', export:'📑 出口报关单预览', isf:'📝 ISF 10+2 申报表预览', pl:'📦 装箱单预览', vgm:'⚖️ VGM 称重单预览', an:'📬 到货通知预览', bk:'📝 订舱确认书预览', ci:'💵 商业发票预览', co:'📜 产地证预览', ip:'🛡️ 保险单预览' };
   document.getElementById('modalTitle').textContent = `${names[type]} — ${state.shipment.ticketNo}`;
   document.getElementById('modalBody').innerHTML = buildDocHTML(type);
   const emlBtn = document.getElementById('btnAnEml');
@@ -2055,24 +2062,36 @@ async function downloadDocZip() {
 }
 
 async function downloadPdfZip() {
-  const types = Object.keys(state.generated || {});
-  if (!types.length) { showToast('请先同源生成单证'); return; }
+  return downloadPdfZipFrom('');
+}
+
+async function downloadPdfZipFrom(ticketNo) {
   if (typeof SmartPdf === 'undefined' || !SmartPdf.exportPdfBlob) { showToast('PDF 模块未加载'); return; }
+  const found = ticketNo ? (state.archive || []).find(a => a.ticketNo === ticketNo) : null;
+  const s = found || state.shipment;
+  const generated = (found && found.generated) || state.generated || {};
+  let types = Object.keys(generated);
+  if (!types.length) types = (typeof SmartJob !== 'undefined' && SmartJob.DOC_IDS) ? SmartJob.DOC_IDS.slice() : ['bl','ams','export','isf','pl','vgm','an','bk','ci','co','ip'];
+  const opts = {
+    carrier: (generated.bl && generated.bl.carrier) || (found && found.blCarrier) || state.blCarrier || 'generic',
+    shareCode: (found && found.shareCode) || state.shareCode || ''
+  };
+  const shipFor = (t) => (generated[t] && generated[t].fields) ? Object.assign({}, s, generated[t].fields) : s;
   showToast('正在生成 ' + types.length + ' 份 A4 PDF…');
   try {
     await SmartExtract.loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
     if (!window.JSZip) throw new Error('JSZip 未加载');
-    await ensureShareStamp();
+    if (!ticketNo) await ensureShareStamp();
     const zip = new window.JSZip();
     for (let i = 0; i < types.length; i++) {
       const t = types[i];
-      const out = await SmartPdf.exportPdfBlob(t, shipmentForDoc(t), docOpts(t));
+      const out = await SmartPdf.exportPdfBlob(t, shipFor(t), ticketNo ? opts : docOpts(t));
       zip.file(out.name, out.blob);
     }
     const blob = await zip.generateAsync({ type: 'blob' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'SmartDoc_' + state.shipment.ticketNo + '_pdf.zip';
+    a.download = 'SmartDoc_' + (s.ticketNo || 'ticket') + '_pdf.zip';
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1500);
     showToast('📄 已下载 ' + types.length + ' 份 PDF ZIP');
@@ -2172,7 +2191,7 @@ function buildCheckResults(selectedDocs) {
 }
 
 function renderCheckTable(selectedDocs) {
-  const docLabels = { bl:'提单 (B/L)', ams:'AMS舱单', isf:'ISF申报', export:'出口报关单', pl:'装箱单', vgm:'VGM', an:'到货通知', bk:'订舱确认', ci:'商业发票', co:'产地证' };
+  const docLabels = { bl:'提单 (B/L)', ams:'AMS舱单', isf:'ISF申报', export:'出口报关单', pl:'装箱单', vgm:'VGM', an:'到货通知', bk:'订舱确认', ci:'商业发票', co:'产地证', ip:'保险单' };
   const table = document.getElementById('checkTable');
   let okCount = 0, warnCount = 0, errCount = 0;
   const issues = [];
@@ -2888,6 +2907,7 @@ function openJobFolder(ticketNo) {
       <button class="btn btn-s" onclick="loadArchiveIntoWorkspace('${escapeHtml(ticketNo)}','check')">载入并校验</button>
       <button class="btn btn-s" onclick="cloneTicketFrom('${escapeHtml(ticketNo)}')">复制为新票</button>
       <button class="btn btn-s" onclick="downloadAnEmlFrom('${escapeHtml(ticketNo)}')">📬 到货通知 .eml</button>
+      <button class="btn btn-s" onclick="downloadPdfZipFrom('${escapeHtml(ticketNo)}')">📄 本票 PDF ZIP</button>
     </div>`;
   box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   if (typeof SmartBlobs !== 'undefined') {
