@@ -16,9 +16,17 @@ const ORT_WASM = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/";
 const MODEL_GH = "https://cdn.jsdelivr.net/gh/bent2685/ocr-web@v0.1.1/models";
 
 function emit(message, extra) {
-  const el = document.getElementById("recogStatus");
-  if (el) el.textContent = message;
-  window.dispatchEvent(new CustomEvent("smartdoc-ocr", { detail: { message, ...(extra || {}) } }));
+  extra = extra || {};
+  const panel = document.getElementById("ocrPanelText");
+  if (panel) panel.textContent = message;
+  const bar = document.getElementById("ocrBarFill");
+  if (bar && extra.pct != null) bar.style.width = Math.max(0, Math.min(100, extra.pct)) + "%";
+  const recog = document.getElementById("recogStatus");
+  const area = document.getElementById("recogArea");
+  if (recog && area && area.style.display !== "none" && area.style.display !== "") {
+    recog.textContent = message;
+  }
+  window.dispatchEvent(new CustomEvent("smartdoc-ocr", { detail: { message, ...extra } }));
 }
 
 function pick(mod, names) {
@@ -37,7 +45,7 @@ async function createFfocr() {
   if (!factory) throw new Error("ffocr 未导出 createDefaultPPOcrV5");
   const ocr = factory({
     cacheModels: true,
-    providerPreference: "auto",
+    providerPreference: "wasm",
     warmup: false,
     ort: { wasmPaths: ORT_WASM, wasmThreads: 1 },
   });
@@ -49,9 +57,12 @@ async function createFfocr() {
         onProgress(p) {
           const base = PHASE[p.phase] || p.phase || "识别中";
           let extra = "";
-          if (p.loaded != null && p.totalBytes) extra = " " + Math.round((p.loaded / p.totalBytes) * 100) + "%";
-          else if (p.phase === "recognizing" && p.total) extra = " " + (p.current || 0) + "/" + p.total;
-          emit(base + extra + "…");
+          let pct;
+          if (p.loaded != null && p.totalBytes) {
+            pct = Math.round((p.loaded / p.totalBytes) * 100);
+            extra = " " + pct + "%";
+          } else if (p.phase === "recognizing" && p.total) extra = " " + (p.current || 0) + "/" + p.total;
+          emit(base + extra + "…", { pct, phase: p.phase });
         },
       });
       return {

@@ -131,6 +131,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 .engine-pill{display:inline-block;font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:50px;background:var(--primary-light);color:var(--primary);margin-left:8px;vertical-align:middle;}
 .conf-badge.low{background:#fef3c7;color:#d97706;}
 .stale-note{font-size:.78rem;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:8px 12px;margin:8px 0 16px;}
+.ocr-panel{margin:0 0 16px;padding:12px 14px;background:#f7faff;border:1px solid #dbeafe;border-radius:10px;}
+.ocr-panel strong{font-size:.84rem;}
+.ocr-panel p{font-size:.8rem;color:var(--g600);margin:6px 0 8px;}
+.ocr-bar{height:6px;background:#e2e8f0;border-radius:99px;overflow:hidden;}
+.ocr-bar span{display:block;height:100%;width:0;background:var(--primary);transition:width .25s ease;}
 
 /* GENERATE PAGE */
 .source-summary{background:var(--white);border-radius:var(--radius);padding:24px;border:1px solid var(--g200);margin-bottom:24px;}
@@ -387,7 +392,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
         <div class="drop-zone" id="dropZone">
           <div class="dz-icon">📁</div>
           <h3>拖拽文件到此处，或点击选择本地文件</h3>
-          <p>支持 Excel / CSV / JSON / 电子 PDF 实时抽字段；扫描件与图片走 OCR（本地 RapidOCR 或浏览器 Tesseract）</p>
+          <p>支持 Excel / CSV / JSON / 电子 PDF 实时抽字段；扫描件与图片走浏览器 PP-OCRv5（中英）</p>
           <div class="format-tags">
             <span class="format-tag">📊 Excel / CSV</span>
             <span class="format-tag">📄 电子 PDF</span>
@@ -400,7 +405,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <button class="btn btn-s" onclick="loadSampleDoc('laptop')">📄 示例1：深圳电子笔记本发票 (PDF)</button>
           <button class="btn btn-s" onclick="loadSampleDoc('furniture')">📊 示例2：佛山家具出口托书 (Excel)</button>
           <button class="btn btn-s" onclick="loadSampleDoc('csv')">📑 示例3：同票发票 (CSV)</button>
-          <button class="btn btn-s" onclick="loadSampleDoc('scan')">🖼️ 示例4：装箱单扫描件 (PNG)</button>
+          <button class="btn btn-s" onclick="loadSampleDoc('scan')">🖼️ 示例4：装箱单扫描件（走真 OCR）</button>
+        </div>
+        <div class="ocr-panel" id="ocrPanel">
+          <strong>中文识别引擎（浏览器本地）</strong>
+          <p id="ocrPanelText">进入本页后会在后台下载 PP-OCRv5 模型（约 20MB，仅第一次）。Mac / Windows 请用 Chrome。</p>
+          <div class="ocr-bar"><span id="ocrBarFill"></span></div>
         </div>
       </div>
 
@@ -712,6 +722,7 @@ function switchTab(tab, menuEl) {
   document.getElementById('sidebar').classList.remove('open');
   if(tab === 'generate') renderGenSummary();
   if(tab === 'archive') renderArchive();
+  if(tab === 'upload') preloadOcrEngine();
   if(tab === 'dashboard') renderDashboard();
   if(tab === 'exchange') renderExchange();
 }
@@ -790,12 +801,80 @@ async function handleRealFile(file) {
   }
 }
 
+async function buildDemoScanFile() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 900;
+  canvas.height = 1180;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#f3ead8';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#c4b8a4';
+  for (let i = 0; i < 40; i++) ctx.fillRect(0, i * 30, canvas.width, 1);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.font = 'bold 34px "Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif';
+  ctx.fillText('PACKING LIST  装箱单', 56, 78);
+  ctx.font = '26px "Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif';
+  const lines = [
+    'Shipper: NINGBO MACHINERY CO., LTD',
+    'Consignee: EURO TECH GMBH',
+    'Notify Party: EURO TECH GMBH',
+    'Container No.: MAEU9912038',
+    'Seal No.: NB261103',
+    'HS Code: 8483.40.9000',
+    'Description: INDUSTRIAL GEARBOXES',
+    'Packages: 45 PLTS',
+    'Gross Weight: 14800 KGS',
+    'Volume: 28.0 CBM',
+    'Port of Loading: NINGBO, CHINA',
+    'Port of Discharge: HAMBURG, GERMANY'
+  ];
+  lines.forEach((line, i) => ctx.fillText(line, 56, 150 + i * 44));
+  const blob = await new Promise((resolve, reject) => {
+    canvas.toBlob(b => b ? resolve(b) : reject(new Error('无法生成示例扫描图')), 'image/png');
+  });
+  return new File([blob], 'demo_packinglist_scan.png', { type: 'image/png' });
+}
+
+let ocrPreloadStarted = false;
+function preloadOcrEngine() {
+  const text = document.getElementById('ocrPanelText');
+  if (!SmartExtract.preloadOcr) return;
+  if (ocrPreloadStarted) return;
+  ocrPreloadStarted = true;
+  if (text) text.textContent = '正在后台下载 PP-OCRv5 模型（约 20MB，仅第一次）…';
+  SmartExtract.preloadOcr().then(ok => {
+    const bar = document.getElementById('ocrBarFill');
+    if (ok) {
+      if (text) text.textContent = '中文识别引擎已就绪。点「示例4」或上传扫描件即可识图。';
+      if (bar) bar.style.width = '100%';
+    } else {
+      ocrPreloadStarted = false;
+      if (text) text.textContent = '模型预加载未完成（网络或浏览器限制）。仍可上传 Excel；扫描件将在识别时再试，失败则走 Tesseract。';
+    }
+  });
+}
+
 async function loadSampleDoc(type) {
+  if (type === 'scan') {
+    try {
+      const r = await fetch('samples/scan_packinglist.png', { cache: 'no-store' });
+      if (r.ok) {
+        const blob = await r.blob();
+        if (blob.size > 800) {
+          await handleRealFile(new File([blob], 'scan_packinglist.png', { type: blob.type || 'image/png' }));
+          return;
+        }
+      }
+    } catch (e) { /* generate below */ }
+    showToast('正在生成示例装箱单扫描图并走浏览器 OCR…');
+    const file = await buildDemoScanFile();
+    await handleRealFile(file);
+    return;
+  }
   const map = {
     laptop: ['samples/invoice_laptop.pdf', 'samples/invoice_laptop.csv', 'samples/invoice_laptop.json'],
     furniture: ['samples/booking_furniture.xlsx', 'samples/booking_furniture.json'],
-    csv: ['samples/invoice_laptop.csv', 'samples/invoice_laptop.json'],
-    scan: ['samples/scan_packinglist.png', 'samples/scan_packinglist.json']
+    csv: ['samples/invoice_laptop.csv', 'samples/invoice_laptop.json']
   };
   const paths = map[type] || [];
   for (const path of paths) {
@@ -816,7 +895,7 @@ async function loadSampleDoc(type) {
       return;
     } catch (e) { /* try next candidate */ }
   }
-  showToast('示例文件加载失败。请用 python server.py 打开本站，或直接上传本地文件。');
+  showToast('示例文件加载失败。请直接上传本地文件。');
 }
 
 function applyExtractResult(fileName, sizeStr, result) {
@@ -1515,6 +1594,7 @@ SmartExtract.health().then(h => {
   if (!el) return;
   el.textContent = (h && h.ok) ? '本地 RapidOCR 已连接' : '浏览器 PP-OCRv5（中英扫描件，模型缓存在本机）';
 });
+if (document.getElementById('page-upload')?.classList.contains('active')) preloadOcrEngine();
 </script>
 </body>
 </html>

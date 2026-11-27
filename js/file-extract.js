@@ -224,5 +224,16 @@
     return { fields: parsed.fields, conf: parsed.conf, rawText: text.slice(0, 4000), method: "通用文本解析", engine: "browser" };
   }
 
-  w.SmartExtract = { extractFromFile, health };
+  async function preloadOcr() {
+    try {
+      await loadSmartOcr();
+      if (w.SmartOcr && w.SmartOcr.getEngine) await w.SmartOcr.getEngine();
+      return true;
+    } catch (e) {
+      console.warn("[SmartExtract] OCR 预加载失败", e);
+      return false;
+    }
+  }
+
+  w.SmartExtract = { extractFromFile, health, preloadOcr };
 })(window);
