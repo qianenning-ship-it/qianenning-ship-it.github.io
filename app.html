@@ -290,6 +290,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 .lines-table{width:100%;border-collapse:collapse;font-size:.8rem;}
 .lines-table th,.lines-table td{padding:6px;border-bottom:1px solid var(--g200);text-align:left;}
 .lines-table input{width:100%;border:1px solid var(--g200);border-radius:6px;padding:6px 8px;font-size:.8rem;}
+.fix-bar{background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:10px 12px;margin:10px 0;font-size:.8rem;color:#9a3412;}
+.fix-bar strong{display:block;margin-bottom:6px;}
+.fix-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0;}
 .dual-bar{background:#e8f3ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 12px;font-size:.82rem;margin-bottom:12px;color:#1d4ed8;}
 .dual-bar.warn{background:#fef2f2;border-color:#fca5a5;color:#991b1b;}
 .dual-bar.ok{background:#f0fdf4;border-color:#86efac;color:#047857;}
@@ -497,6 +500,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <span style="font-size:.78rem;color:var(--primary);">支持实时修改后同步到后续制单与校验</span>
         </div>
         <div class="fields-grid" id="fieldsGrid"></div>
+        <div id="fixBar"></div>
         <div class="lines-box" id="linesBox"></div>
         <div class="extract-meta" id="extractMeta"></div>
         <div id="extractFailBanner" class="fail-banner" style="display:none"></div>
@@ -511,7 +515,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
     <!-- ========== GENERATE ========== -->
     <div class="page" id="page-generate">
       <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:4px;">📋 单证同源数据批量生成</h2>
-      <p style="color:var(--g500);font-size:.9rem;margin-bottom:20px;">依托统一标准货物档案，同源输出提单、AMS、报关、ISF、装箱单、VGM、到货通知，彻底消除重复录入导致的错漏</p>
+      <p style="color:var(--g500);font-size:.9rem;margin-bottom:20px;">依托统一标准货物档案，同源输出提单、AMS、报关、ISF、装箱单、VGM、到货通知、订舱确认书，彻底消除重复录入导致的错漏</p>
 
       <div class="source-summary">
         <h3>
@@ -532,6 +536,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <div class="doc-check"><input type="checkbox" checked id="chk-pl"><label for="chk-pl">📦 装箱单 (Packing List)</label></div>
           <div class="doc-check"><input type="checkbox" checked id="chk-vgm"><label for="chk-vgm">⚖️ VGM 称重单 (SOLAS Method 2)</label></div>
           <div class="doc-check"><input type="checkbox" checked id="chk-an"><label for="chk-an">📬 到货通知 (Arrival Notice)</label></div>
+          <div class="doc-check"><input type="checkbox" checked id="chk-bk"><label for="chk-bk">📝 订舱确认书 (Booking Confirmation)</label></div>
         </div>
         <h3 style="margin-top:18px;">🚢 提单船司套版</h3>
         <p style="font-size:.8rem;color:var(--g500);margin:6px 0 0;">同一套档案可切换 COSCO / MSC / MAERSK 版式，预览与下载跟随套版。</p>
@@ -569,6 +574,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
           <div class="check-doc" data-doc="pl" onclick="this.classList.toggle('selected')">📦 装箱单</div>
           <div class="check-doc" data-doc="vgm" onclick="this.classList.toggle('selected')">⚖️ VGM</div>
           <div class="check-doc" data-doc="an" onclick="this.classList.toggle('selected')">📬 到货通知</div>
+          <div class="check-doc" data-doc="bk" onclick="this.classList.toggle('selected')">📝 订舱确认</div>
         </div>
         <p class="stale-note" style="margin-top:12px;">校验对象是「已生成的单证快照」对照当前货物档案，并叠加 ISO 6346 柜号、HS 格式、AMS 24h / ISF 10+2 必填规则。请先在「同源单证生成」落快照；若改过档案请重新生成。</p>
         <button class="btn btn-p btn-lg" onclick="startCheck()">🔍 开始智能校验</button>
@@ -816,7 +822,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
     <h3>第一次使用智单通</h3>
     <ol>
       <li>请用 <strong>Chrome</strong>（Windows / Mac 均可）。Safari 也能进工作台，扫描 OCR 建议 Chrome。</li>
-      <li>扫描件第一次会下载约 <strong>20MB</strong> 中文识别模型，之后缓存在这台电脑的浏览器里，不占你服务器。</li>
+      <li>扫描件第一次会下载约 <strong>20MB</strong> 中文识别模型，之后由 Service Worker 缓存在这台电脑，第二次扫描不必再下。</li>
       <li>按顶栏四步走完：<strong>识别 → 出单 → 校验 → 发单</strong>。发票和装箱单可以一次拖进去，合并成一票。</li>
       <li>公司网若拦 jsDelivr，扫描会失败，请改用 Excel / CSV，或换网络。</li>
     </ol>
@@ -1009,7 +1015,60 @@ function renderLinesBox() {
         </td>
       </tr>`).join('')}</tbody>
     </table>
-    <p style="font-size:.75rem;color:var(--g500);margin-top:8px;">多行时表头品名 / HS / 件数 / 毛重按明细汇总。低置信行改完后点「确认」再出单。</p>`;
+    <p style="font-size:.75rem;color:var(--g500);margin-top:8px;">多行时表头品名 / HS / 件数 / 毛重按明细汇总。低置信行改完后点「确认」再出单。柜号 / HS 格式错误会在上方给出一键修正。</p>`;
+  renderFixBar();
+}
+
+function renderFixBar() {
+  const host = document.getElementById('fixBar');
+  if (!host) return;
+  if (typeof SmartDoc === 'undefined' || !SmartDoc.suggestFixes) { host.innerHTML = ''; return; }
+  const items = SmartDoc.suggestFixes(state.shipment);
+  if (!items.length) { host.innerHTML = ''; return; }
+  host.innerHTML = `<div class="fix-bar">
+    <strong>建议修正 ${items.length} 项（柜号校验位 / HS 点分格式）</strong>
+    ${items.map((it, i) => `<div class="fix-row">${escapeHtml(it.reason)} · ${it.scope === 'line' ? ('第' + ((it.index || 0) + 1) + '行 ') : '表头 '}${escapeHtml(it.field)}：${escapeHtml(it.from)} → <b>${escapeHtml(it.to)}</b>
+      <button class="action-btn" type="button" onclick="applySuggestedFix(${i})">采用</button></div>`).join('')}
+    <button class="btn btn-s" type="button" onclick="applyAllSuggestedFixes()">全部采用</button>
+  </div>`;
+}
+
+function applyOneFix(it) {
+  if (!it) return;
+  if (it.scope === 'header') {
+    state.shipment[it.field] = it.to;
+    const input = document.querySelector('.f-input[data-key="' + it.field + '"]');
+    if (input) input.value = it.to;
+    if (typeof SmartDoc.scoreLine === 'function' && it.field === 'containerNo') {
+      state.fieldConf = state.fieldConf || {};
+      state.fieldConf.containerNo = 100;
+    }
+  } else if (it.scope === 'line' && state.shipment.lines && state.shipment.lines[it.index]) {
+    state.shipment.lines[it.index][it.field] = it.to;
+  }
+}
+
+function applySuggestedFix(i) {
+  const items = SmartDoc.suggestFixes(state.shipment);
+  const it = items[i];
+  if (!it) return;
+  applyOneFix(it);
+  if (typeof SmartDoc.rollupHeader === 'function') SmartDoc.rollupHeader(state.shipment);
+  invalidateApproval('一键修正');
+  saveState();
+  renderLinesBox();
+  showToast('已采用：' + it.from + ' → ' + it.to);
+}
+
+function applyAllSuggestedFixes() {
+  const items = SmartDoc.suggestFixes(state.shipment);
+  if (!items.length) return;
+  items.forEach(applyOneFix);
+  if (typeof SmartDoc.rollupHeader === 'function') SmartDoc.rollupHeader(state.shipment);
+  invalidateApproval('一键修正');
+  saveState();
+  renderLinesBox();
+  showToast('已采用 ' + items.length + ' 项建议');
 }
 
 function confirmCargoLine(i) {
@@ -1549,7 +1608,7 @@ function renderGenSummary() {
 }
 
 function generateDocs() {
-  const ids = (typeof SmartJob !== 'undefined' && SmartJob.DOC_IDS) || ['bl','ams','export','isf','pl','vgm','an'];
+  const ids = (typeof SmartJob !== 'undefined' && SmartJob.DOC_IDS) || ['bl','ams','export','isf','pl','vgm','an','bk'];
   const selected = ids.filter(id => document.getElementById('chk-' + id)?.checked);
   if(selected.length === 0) {
     showToast('⚠️ 请至少勾选一种要生成的单证');
@@ -1585,7 +1644,8 @@ function genCardDefs(s) {
     isf: { title: '📝 ISF 申报表 (10+2)', fields: [['ISF No.', 'ISF' + s.ticketNo.slice(2)], ['Importer', s.consignee], ['Manufacturer', s.shipper], ['Container', s.containerNo]] },
     pl: { title: '📦 装箱单 (Packing List)', fields: [['Marks', s.containerNo || s.ticketNo], ['Pkgs', s.packages], ['G.W.', s.grossWeight], ['Meas.', s.volume], ['明细', typeof SmartDoc !== 'undefined' ? SmartDoc.linesLabel(s) : '']] },
     vgm: { title: '⚖️ VGM 称重单 (SOLAS)', fields: (function(){ const v = typeof SmartDocs !== 'undefined' ? SmartDocs.vgmOf(s) : { label: s.grossWeight, tareLabel: s.tareWeight || '3800 KGS' }; return [['Container', s.containerNo], ['Cargo GW', v.cargoLabel || s.grossWeight], ['Tare', v.tareLabel], ['VGM', v.label], ['Method', 'Method 2']]; })() },
-    an: { title: '📬 到货通知 (Arrival Notice)', fields: [['Consignee', s.consignee], ['Vessel', (s.vessel || '') + ' / ' + (s.voyage || '')], ['ETD', s.etd], ['ETA', (typeof SmartDocs !== 'undefined' ? SmartDocs.etaOf(s) : s.eta) || 'ETD+14d'], ['POD', s.pod]] }
+    an: { title: '📬 到货通知 (Arrival Notice)', fields: [['Consignee', s.consignee], ['Vessel', (s.vessel || '') + ' / ' + (s.voyage || '')], ['ETD', s.etd], ['ETA', (typeof SmartDocs !== 'undefined' ? SmartDocs.etaOf(s) : s.eta) || 'ETD+14d'], ['POD', s.pod]] },
+    bk: { title: '📝 订舱确认书 (Booking Confirmation)', fields: [['Booking', 'BK' + String(s.ticketNo || '').replace(/^SH/, '')], ['Carrier', typeof SmartDocs !== 'undefined' ? SmartDocs.carrierName(state.blCarrier) : (state.blCarrier || '')], ['Shipper', s.shipper], ['POL → POD', `${s.pol} → ${s.pod}`], ['ETD', s.etd], ['Container', s.containerNo]] }
   };
 }
 
@@ -1720,17 +1780,42 @@ function shipmentForDoc(type) {
   return state.shipment;
 }
 
+function stampHintUrl() {
+  try {
+    const origin = location.origin || '';
+    let path = location.pathname || '/';
+    path = path.replace(/index\.html$/i, '').replace(/app\.html$/i, '').replace(/view\.html$/i, '');
+    if (!path.endsWith('/')) path += '/';
+    return origin + path + 'view.html';
+  } catch (e) {
+    return 'view.html';
+  }
+}
 function docOpts(type) {
-  if (type !== 'bl') return {};
   const c = (state.generated.bl && state.generated.bl.carrier) || state.blCarrier || 'generic';
-  return { carrier: c };
+  return {
+    carrier: c,
+    shareCode: state.shareCode || (typeof lastShare !== 'undefined' && lastShare && lastShare.code) || '',
+    shareUrl: (typeof lastShare !== 'undefined' && lastShare && lastShare.url) || stampHintUrl()
+  };
+}
+async function ensureShareStamp() {
+  if (typeof SmartShare === 'undefined' || !SmartShare.encode) return;
+  if (state.shareCode && typeof lastShare !== 'undefined' && lastShare && lastShare.code === state.shareCode) return;
+  try {
+    const pack = currentPack();
+    const share = await SmartShare.encode(pack, { readOnly: true });
+    lastShare = share;
+    state.shareCode = share.code;
+    saveState();
+  } catch (e) { /* ignore */ }
 }
 function buildDocHTML(type) {
   return SmartDocs.build(type, shipmentForDoc(type), docOpts(type));
 }
 function openDocModal(type) {
   state.currentModalDocType = type;
-  const names = { bl:'🚢 海运提单草稿预览', ams:'📋 AMS 舱单预览', export:'📑 出口报关单预览', isf:'📝 ISF 10+2 申报表预览', pl:'📦 装箱单预览', vgm:'⚖️ VGM 称重单预览', an:'📬 到货通知预览' };
+  const names = { bl:'🚢 海运提单草稿预览', ams:'📋 AMS 舱单预览', export:'📑 出口报关单预览', isf:'📝 ISF 10+2 申报表预览', pl:'📦 装箱单预览', vgm:'⚖️ VGM 称重单预览', an:'📬 到货通知预览', bk:'📝 订舱确认书预览' };
   document.getElementById('modalTitle').textContent = `${names[type]} — ${state.shipment.ticketNo}`;
   document.getElementById('modalBody').innerHTML = buildDocHTML(type);
   document.getElementById('docModal').classList.add('show');
@@ -1739,7 +1824,8 @@ function closeDocModal() { document.getElementById('docModal').classList.remove(
 document.getElementById('docModal').addEventListener('click', e => { if(e.target.id === 'docModal') closeDocModal(); });
 document.getElementById('packReviewModal').addEventListener('click', e => { if(e.target.id === 'packReviewModal') closePackReview(); });
 
-function downloadSingleDoc(type, asWord) {
+async function downloadSingleDoc(type, asWord) {
+  await ensureShareStamp();
   const html = SmartDocs.wrap(type, shipmentForDoc(type), docOpts(type));
   const ext = asWord ? 'doc' : 'html';
   const mime = asWord ? 'application/msword' : 'text/html;charset=utf-8';
@@ -1751,6 +1837,7 @@ async function downloadPdfDoc(type) {
   if (typeof SmartPdf === 'undefined') { showToast('PDF 模块未加载'); return; }
   showToast('正在生成 A4 PDF…');
   try {
+    await ensureShareStamp();
     const name = await SmartPdf.exportPdf(type, shipmentForDoc(type), docOpts(type));
     showToast('⬇️ 已下载 ' + name);
   } catch (e) {
@@ -1779,9 +1866,10 @@ async function stashExtractBlobs(files, result) {
   if (metas.length) state.extractFiles = metas;
 }
 
-function printCurrentModalDoc() {
+async function printCurrentModalDoc() {
   const type = state.currentModalDocType;
   if (typeof SmartDocs !== 'undefined' && SmartDocs.print) {
+    await ensureShareStamp();
     const ok = SmartDocs.print(type, shipmentForDoc(type), docOpts(type));
     if (!ok) showToast('请允许弹出窗口后再打印');
     return;
@@ -1795,6 +1883,7 @@ async function downloadDocZip() {
   try {
     await SmartExtract.loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
     if (!window.JSZip) throw new Error('JSZip 未加载');
+    await ensureShareStamp();
     const zip = new window.JSZip();
     const s = state.shipment;
     types.forEach(t => zip.file(`${t.toUpperCase()}_${s.ticketNo}.html`, SmartDocs.wrap(t, shipmentForDoc(t), docOpts(t))));
@@ -3145,6 +3234,9 @@ SmartExtract.health().then(h => {
 if (document.getElementById('page-upload')?.classList.contains('active')) preloadOcrEngine();
 maybeShowTour();
 consumeShareHash();
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
 renderCarrierPicks();
 renderFilings();
 paintVaultStatus();
