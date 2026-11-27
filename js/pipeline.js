@@ -12,6 +12,9 @@
     { key: "volume", label: "体积 / Volume", required: false },
     { key: "pol", label: "起运港 / POL", required: true },
     { key: "pod", label: "目的港 / POD", required: true },
+    { key: "vessel", label: "船名 / Vessel", required: false },
+    { key: "voyage", label: "航次 / Voyage", required: false },
+    { key: "etd", label: "开船时间 / ETD", required: false },
   ];
 
   const ALIASES = {
@@ -28,6 +31,9 @@
     volume: ["volume", "cbm", "measurement", "meas", "体积", "尺码"],
     pol: ["pol", "port of loading", "loading port", "place of receipt", "起运港", "装货港", "发运港"],
     pod: ["pod", "port of discharge", "discharge port", "port of destination", "destination", "目的港", "卸货港", "指运港"],
+    vessel: ["vessel", "vessel name", "vsl", "船名", "船名航次"],
+    voyage: ["voyage", "voy", "voyage no", "航次"],
+    etd: ["etd", "etd date", "sailing", "departure", "开船", "开船日", "预计开船"],
   };
 
   function emptyShipment() {

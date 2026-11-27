@@ -61,6 +61,7 @@ table.cargo th{background:#f1f5f9;font-size:11px}
         ${cell("Shipper / Exporter", s.shipper)}${cell("Consignee", s.consignee)}
         ${cell("Notify Party", s.notifyParty)}${cell("Place of Receipt / POL", s.pol)}
         ${cell("Port of Discharge / POD", s.pod)}${cell("Container / Seal", (s.containerNo || "") + " / " + (s.sealNo || ""))}
+        ${cell("Vessel / Voyage", (s.vessel || "") + " / " + (s.voyage || ""))}${cell("ETD", s.etd)}
       </div>
       <table class="cargo">
         <thead><tr><th>Marks</th><th>No. of Pkgs</th><th>Description of Goods / HS</th><th>Gross Weight</th><th>Measurement</th></tr></thead>

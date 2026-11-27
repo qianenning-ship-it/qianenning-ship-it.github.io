@@ -272,6 +272,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 .filing-item{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--g100);font-size:.84rem;}
 .filing-item:last-child{border:none;}
 .share-box{width:100%;min-height:72px;border:1px solid var(--g200);border-radius:8px;padding:10px 12px;font-size:.78rem;font-family:Consolas,monospace;margin:8px 0 12px;}
+.cutoff-bar{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 16px;}
+.cutoff-chip{background:#fff;border:1px solid var(--g200);border-radius:10px;padding:8px 12px;font-size:.78rem;}
+.cutoff-chip.overdue{background:#fef2f2;border-color:#fca5a5;color:#991b1b;}
+.cutoff-chip.filed{background:#f0fdf4;border-color:#86efac;color:#047857;}
+.cutoff-chip.open{background:#e8f3ff;border-color:#bfdbfe;color:#1d4ed8;}
+.ticket-switch{background:var(--g100);border:1px solid var(--g200);border-radius:8px;padding:8px 10px;font-size:.82rem;max-width:200px;}
+.note-item{font-size:.82rem;padding:8px 0;border-bottom:1px solid var(--g100);}
 .rule-item label{display:flex;align-items:center;gap:8px;cursor:pointer;}
 @media(max-width:900px){.job-grid{grid-template-columns:1fr;}}
 
@@ -356,6 +363,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
       <div class="breadcrumb">智单通 / <strong id="pageName">工作台</strong></div>
     </div>
     <div class="topbar-right">
+      <select class="ticket-switch" id="ticketSwitch" onchange="switchWorkspaceTicket(this.value)" title="切换已挂起的票"></select>
+      <button class="btn btn-s" style="padding:6px 10px;font-size:.78rem;" onclick="cloneCurrentTicket()">复制上一票</button>
       <span class="ticket-pill" id="activeTicketPill">当前档案: SH2024081501</span>
       <input class="search-box" id="globalSearch" placeholder="搜索票号、发货人、柜号..." oninput="handleGlobalSearch(this.value)">
       <button class="notif-btn" onclick="showToast('🔔 海关规则库已同步最新 ISF 10+2 及 AMS 24小时舱单校验规则')">🔔<span class="notif-badge">3</span></button>
@@ -364,6 +373,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 
   <div class="content">
     <div class="flow-steps" id="flowSteps"></div>
+    <div class="cutoff-bar" id="cutoffBar"></div>
 
     <!-- ========== DASHBOARD ========== -->
     <div class="page active" id="page-dashboard">
@@ -540,6 +550,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
           <button class="btn btn-p" onclick="fileChannel('ams')">📡 申报 AMS 24h</button>
           <button class="btn btn-p" onclick="fileChannel('isf')">📡 申报 ISF 10+2</button>
+          <button class="btn btn-s" onclick="downloadEdiDraft('ams')">⬇️ AMS CUSCAR XML</button>
+          <button class="btn btn-s" onclick="downloadEdiDraft('isf')">⬇️ ISF XML</button>
         </div>
         <div id="filingList"></div>
       </div>
@@ -738,6 +750,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 <script src="js/rules.js"></script>
 <script src="js/filing.js"></script>
 <script src="js/share.js"></script>
+<script src="js/edi.js"></script>
 <script>
 SmartAuth.require();
 const AUTH_USER = SmartAuth.current() || { name: 'Demo 单证专员', company: 'Demo 国际货代有限公司', plan: '专业会员版', email: 'demo@smartdoc.com' };
@@ -754,7 +767,10 @@ const DEFAULT_SHIPMENT = {
   grossWeight: '8500 KGS',
   volume: '45.6 CBM',
   pol: 'SHANGHAI, CHINA',
-  pod: 'LOS ANGELES, USA'
+  pod: 'LOS ANGELES, USA',
+  vessel: 'EVER GIVEN',
+  voyage: '001W',
+  etd: '2026-12-05T18:00'
 };
 
 const FIELD_META = SmartDoc.FIELD_META;
@@ -762,7 +778,7 @@ const FIELD_META = SmartDoc.FIELD_META;
 const INITIAL_ARCHIVE = [
   { ...DEFAULT_SHIPMENT, createdAt: '2026-11-25 09:30', docCount: 4, status: '已校验' },
   { ticketNo: 'SH2026112502', createdAt: '2026-11-25 10:15', shipper: 'GUANGZHOU TEXTILE LTD', consignee: 'EAST COAST APPAREL INC', notifyParty: 'SAME AS CONSIGNEE', containerNo: 'COSU8842109', sealNo: 'GZ261102', hsCode: '6204.62.0000', description: 'COTTON TROUSERS', packages: '320 CTNS', grossWeight: '6,200 KGS', volume: '34.2 CBM', pol: 'NANSHA, CHINA', pod: 'NEW YORK, USA', docCount: 3, status: '待校验' },
-  { ticketNo: 'SH2026112503', createdAt: '2026-11-25 11:00', shipper: 'NINGBO MACHINERY CO., LTD', consignee: 'EURO TECH GMBH', notifyParty: 'EURO TECH GMBH', containerNo: 'MAEU9912034', sealNo: 'NB261103', hsCode: '8483.40.9000', description: 'INDUSTRIAL GEARBOXES', packages: '45 PLTS', grossWeight: '14,800 KGS', volume: '28.0 CBM', pol: 'NINGBO, CHINA', pod: 'HAMBURG, GERMANY', docCount: 4, status: '有异常' },
+  { ticketNo: 'SH2026112503', createdAt: '2026-11-25 11:00', shipper: 'NINGBO MACHINERY CO., LTD', consignee: 'EURO TECH GMBH', notifyParty: 'EURO TECH GMBH', containerNo: 'MAEU9912034', sealNo: 'NB261103', hsCode: '8483.40.9000', description: 'INDUSTRIAL GEARBOXES', packages: '45 PLTS', grossWeight: '14,800 KGS', volume: '28.0 CBM', pol: 'NINGBO, CHINA', pod: 'HAMBURG, GERMANY', vessel: 'MAERSK HAMBURG', voyage: '047E', etd: '2026-11-20T10:00', docCount: 4, status: '有异常' },
   { ticketNo: 'SH2026112499', createdAt: '2026-11-24 16:20', shipper: 'FOSHAN FURNITURE GROUP', consignee: 'PACIFIC HOME PTY LTD', notifyParty: 'SAME AS CONSIGNEE', containerNo: 'OOCU7731203', sealNo: 'FS261199', hsCode: '9403.60.9990', description: 'WOODEN DINING TABLES', packages: '180 CTNS', grossWeight: '9,400 KGS', volume: '58.5 CBM', pol: 'YANTIAN, CHINA', pod: 'MELBOURNE, AUSTRALIA', docCount: 4, status: '已校验' },
   { ticketNo: 'SH2026112498', createdAt: '2026-11-24 14:45', shipper: 'XIAMEN CERAMICS CO., LTD', consignee: 'LONDON HOMEWARES LTD', notifyParty: 'SAME AS CONSIGNEE', containerNo: 'MSCU5512897', sealNo: 'XM261198', hsCode: '6912.00.1000', description: 'CERAMIC TABLEWARE', packages: '640 CTNS', grossWeight: '11,200 KGS', volume: '32.0 CBM', pol: 'XIAMEN, CHINA', pod: 'FELIXSTOWE, UK', docCount: 4, status: '已校验' }
 ];
@@ -792,7 +808,8 @@ let state = {
   ack: (JSON.parse(localStorage.getItem('smartdoc_job') || 'null') || {}).ack || null,
   blCarrier: (JSON.parse(localStorage.getItem('smartdoc_job') || 'null') || {}).blCarrier || 'generic',
   filings: (JSON.parse(localStorage.getItem('smartdoc_job') || 'null') || {}).filings || [],
-  shareCode: (JSON.parse(localStorage.getItem('smartdoc_job') || 'null') || {}).shareCode || ''
+  shareCode: (JSON.parse(localStorage.getItem('smartdoc_job') || 'null') || {}).shareCode || '',
+  notes: (JSON.parse(localStorage.getItem('smartdoc_job') || 'null') || {}).notes || []
 };
 
 function saveState() {
@@ -812,7 +829,8 @@ function saveState() {
     ack: state.ack || null,
     blCarrier: state.blCarrier || 'generic',
     filings: state.filings || [],
-    shareCode: state.shareCode || ''
+    shareCode: state.shareCode || '',
+    notes: state.notes || []
   }));
 }
 
@@ -862,6 +880,7 @@ function switchTab(tab, menuEl) {
   if(tab === 'check') renderFilings();
   if(tab === 'settings') renderRules();
   renderFlowSteps(tab);
+  renderCutoffBar();
 }
 
 function renderFlowSteps(tab) {
@@ -890,6 +909,8 @@ function renderFlowSteps(tab) {
 
 function renderDashboard() {
   document.getElementById('activeTicketPill').textContent = '当前档案: ' + state.shipment.ticketNo;
+  renderTicketSwitch();
+  renderCutoffBar();
   document.getElementById('statProcessed').textContent = state.processedCount;
   const pendingCount = state.archive.filter(a => a.status !== '已校验').length;
   document.getElementById('statPending').textContent = pendingCount;
@@ -1238,7 +1259,9 @@ function renderGenSummary() {
     ['航线 POL → POD', `${s.pol} → ${s.pod}`],
     ['件数 / 毛重', `${s.packages} / ${s.grossWeight}`],
     ['体积 Volume', s.volume],
-    ['通知方 Notify Party', s.notifyParty]
+    ['通知方 Notify Party', s.notifyParty],
+    ['船名 / 航次', `${s.vessel || ''} / ${s.voyage || ''}`],
+    ['开船 ETD', s.etd]
   ].map(([l, v]) => `<div class="sf"><div class="sl">${l}</div><div class="sv">${escapeHtml(v)}</div></div>`).join('');
   renderGenDiff();
 }
@@ -1447,7 +1470,11 @@ async function downloadDocZip() {
     if (!window.JSZip) throw new Error('JSZip 未加载');
     const zip = new window.JSZip();
     const s = state.shipment;
-    types.forEach(t => zip.file(`${t.toUpperCase()}_${s.ticketNo}.html`, SmartDocs.wrap(t, shipmentForDoc(t))));
+    types.forEach(t => zip.file(`${t.toUpperCase()}_${s.ticketNo}.html`, SmartDocs.wrap(t, shipmentForDoc(t), docOpts(t))));
+    if (typeof SmartEdi !== 'undefined') {
+      zip.file(SmartEdi.filename('ams', s, { ref: 'DRAFT' }), SmartEdi.build('ams', s, { status: 'draft' }));
+      zip.file(SmartEdi.filename('isf', s, { ref: 'DRAFT' }), SmartEdi.build('isf', s, { status: 'draft' }));
+    }
     zip.file(`SmartDoc_${s.ticketNo}.json`, JSON.stringify(currentPack(), null, 2));
     if (state.checkRows && state.checkRows.length) {
       const selected = types;
@@ -1601,6 +1628,13 @@ function renderCheckTable(selectedDocs) {
   (state.filings || []).filter(f => f.status === 'rejected').forEach(f => {
     extra.push({ type:'error', title: (f.name || f.channel) + ' 申报被拒 ' + (f.ref || ''), desc: (f.reasons || []).join('；'), targetVal: null, idx: -1 });
   });
+  if (typeof SmartFiling !== 'undefined') {
+    const cut = SmartFiling.cutoffState(state.shipment, state.filings || []);
+    ['ams','isf'].forEach(ch => {
+      const row = cut[ch];
+      if (row && row.status === 'overdue') extra.push({ type:'error', title: ch.toUpperCase() + ' 截关已过', desc: row.label + (row.deadline ? '（截止 ' + SmartFiling.fmt(row.deadline) + '）' : ''), targetVal: null, idx: -1 });
+    });
+  }
   issues.push(...extra);
 
   document.getElementById('summaryText').innerHTML = `共校验 <strong>${state.checkRows.length}</strong> 个公共及必填字段：<span style="color:var(--success);font-weight:600;">${okCount} 个通过</span>，<span style="color:var(--warning);font-weight:600;">${warnCount} 个不一致/风险</span>，<span style="color:var(--danger);font-weight:600;">${errCount} 个缺失</span>`;
@@ -1737,6 +1771,7 @@ function loadArchiveIntoWorkspace(ticketNo, action) {
   state.blCarrier = found.blCarrier || (found.generated && found.generated.bl && found.generated.bl.carrier) || state.blCarrier || 'generic';
   state.filings = found.filings || [];
   state.shareCode = found.shareCode || '';
+  state.notes = found.notes || [];
   saveState();
   renderDashboard();
   if(action === 'preview') {
@@ -1770,7 +1805,8 @@ function currentPack() {
     blCarrier: state.blCarrier || 'generic',
     filings: state.filings || [],
     rules: typeof SmartRules !== 'undefined' ? SmartRules.snapshot() : null,
-    shareCode: state.shareCode || ''
+    shareCode: state.shareCode || '',
+    notes: state.notes || []
   });
 }
 
@@ -1917,6 +1953,7 @@ function applyImportedPack(pack, sourceLabel) {
   state.blCarrier = pack.blCarrier || (pack.generated && pack.generated.bl && pack.generated.bl.carrier) || 'generic';
   state.filings = pack.filings || [];
   state.shareCode = pack.shareCode || '';
+  state.notes = pack.notes || [];
   if (pack.rules && typeof SmartRules !== 'undefined') SmartRules.applyImported(pack.rules);
   pushTimeline('收件导入 ' + (sourceLabel || ''));
   SmartExchange.localPush(pack, 'in');
@@ -1954,15 +1991,25 @@ function openJobFolder(ticketNo) {
         <h4>校验</h4>
         <p class="job-list" style="margin-left:0;list-style:none;">${escapeHtml(found.checkSummary || found.status || '未校验')}</p>
         ${found.ack ? `<p style="font-size:.82rem;">协作回执：${escapeHtml(found.ack.status || '')} · ${escapeHtml((found.ack.by && found.ack.by.name) || '')}</p>` : ''}
+        <h4>截关</h4>
+        <p class="job-list" style="margin-left:0;">${jobCutoffHtml(found)}</p>
         <h4>模拟申报</h4>
-        <ul class="job-list">${(found.filings || []).length ? found.filings.map(f => `<li>${escapeHtml((f.name || f.channel) + ' · ' + (f.status || '') + ' · ' + (f.ref || ''))}</li>`).join('') : '<li>尚未申报</li>'}</ul>
+        <ul class="job-list">${(found.filings || []).length ? found.filings.map(f => `<li>${escapeHtml((f.name || f.channel) + ' · ' + (f.status || '') + ' · ' + (f.ref || ''))}${f.late ? ' · 逾时' : ''}</li>`).join('') : '<li>尚未申报</li>'}</ul>
         <h4>发单时间线</h4>
         <ul class="job-list">${tl.length ? tl.map(ev => `<li>${escapeHtml(ev.at || '')} · ${escapeHtml(ev.text || '')}</li>`).join('') : '<li>打开本票作业后会产生记录</li>'}</ul>
       </div>
     </div>
+    <h4 style="margin-top:8px;">批注线程</h4>
+    <div id="jobNotes">${renderNotesHtml(found.notes || [])}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+      <select id="noteField" class="ticket-switch">${noteFieldOptions()}</select>
+      <input id="noteText" class="search-box" style="flex:1;min-width:200px;background:#fff;" placeholder="对本票字段或回执留言，随发单包带走">
+      <button class="btn btn-p" onclick="addJobNote('${escapeHtml(ticketNo)}')">留言</button>
+    </div>
     <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn btn-p" onclick="loadArchiveIntoWorkspace('${escapeHtml(ticketNo)}','generate')">载入并制单</button>
       <button class="btn btn-s" onclick="loadArchiveIntoWorkspace('${escapeHtml(ticketNo)}','check')">载入并校验</button>
+      <button class="btn btn-s" onclick="cloneTicketFrom('${escapeHtml(ticketNo)}')">复制为新票</button>
     </div>`;
   box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
@@ -2003,10 +2050,12 @@ function renderFilings() {
         <strong>${escapeHtml(f.name || f.channel)}</strong>
         <div style="color:var(--g500);font-size:.76rem;">${escapeHtml(f.agency || '')} · ${escapeHtml(f.at || '')}${f.settledAt ? ' → ' + escapeHtml(f.settledAt) : ''}</div>
         ${f.reasons && f.reasons.length ? `<div style="color:var(--danger);margin-top:4px;">${escapeHtml(f.reasons.join('；'))}</div>` : ''}
+        ${f.late ? '<div style="color:#92400e;margin-top:4px;">申报时已过 AMS/ISF 24h 截关</div>' : ''}
       </div>
       <div style="text-align:right;">
         <span class="status-badge ${st}">${label}</span>
         <div style="font-size:.72rem;color:var(--g500);margin-top:4px;">${escapeHtml(f.ref || f.id || '')}</div>
+        <button class="action-btn" style="margin-top:6px;" onclick="downloadEdiRecord('${escapeHtml(f.id)}')">XML</button>
       </div>
     </div>`;
   }).join('');
@@ -2136,6 +2185,124 @@ function redeemShare() {
   } catch (err) {
     showToast(err.message || String(err));
   }
+}
+
+function renderTicketSwitch() {
+  const el = document.getElementById('ticketSwitch');
+  if (!el) return;
+  const cur = state.shipment.ticketNo;
+  const rows = state.archive.slice(0, 16);
+  if (!rows.find(a => a.ticketNo === cur) && cur) rows.unshift({ ticketNo: cur, shipper: state.shipment.shipper });
+  el.innerHTML = rows.map(a => `<option value="${escapeHtml(a.ticketNo)}" ${a.ticketNo === cur ? 'selected' : ''}>${escapeHtml(a.ticketNo)} · ${escapeHtml((a.shipper || '').slice(0, 18))}</option>`).join('');
+}
+
+function switchWorkspaceTicket(ticketNo) {
+  if (!ticketNo || ticketNo === state.shipment.ticketNo) return;
+  const rec = state.archive.find(a => a.ticketNo === state.shipment.ticketNo);
+  upsertArchive(rec && rec.status ? rec.status : '待校验');
+  loadArchiveIntoWorkspace(ticketNo, 'generate');
+}
+
+function cloneTicketFrom(ticketNo) {
+  if (ticketNo && ticketNo !== state.shipment.ticketNo) loadArchiveIntoWorkspace(ticketNo, 'generate');
+  cloneCurrentTicket();
+}
+
+function cloneCurrentTicket() {
+  const rec = state.archive.find(a => a.ticketNo === state.shipment.ticketNo);
+  upsertArchive(rec && rec.status ? rec.status : '待校验');
+  const old = state.shipment.ticketNo;
+  const next = { ...SmartDoc.snapshot(state.shipment), ticketNo: SmartDoc.newTicket(), containerNo: '', sealNo: '', etd: '', voyage: state.shipment.voyage || '' };
+  applyExtractResult('clone-from-' + old, 'clone', {
+    fields: next,
+    conf: {},
+    method: '复制上一票（请改柜号 / 开船时间）',
+    engine: 'clone',
+    files: ['cloned-from-' + old]
+  });
+  state.generated = {};
+  state.filings = [];
+  state.notes = [];
+  state.checkRows = [];
+  state.checkSummary = '';
+  state.ack = null;
+  pushTimeline('从 ' + old + ' 复制为 ' + next.ticketNo + '，请改柜号和 ETD');
+  upsertArchive('待校验');
+  switchTab('upload');
+  showToast('已复制为新票 ' + next.ticketNo + '，请改柜号 / 船期后建档');
+}
+
+function renderCutoffBar() {
+  const box = document.getElementById('cutoffBar');
+  if (!box || typeof SmartFiling === 'undefined') return;
+  const cut = SmartFiling.cutoffState(state.shipment, state.filings || []);
+  const chips = [
+    { title: 'ETD', body: cut.etd ? SmartFiling.fmt(cut.etd) : '未填开船时间', cls: cut.etd ? '' : 'open' },
+    { title: 'AMS 24h', body: (cut.ams.deadline ? SmartFiling.fmt(cut.ams.deadline) + ' · ' : '') + cut.ams.label, cls: cut.ams.status },
+    { title: 'ISF 10+2', body: (cut.isf.deadline ? SmartFiling.fmt(cut.isf.deadline) + ' · ' : '') + cut.isf.label, cls: cut.isf.status }
+  ];
+  box.innerHTML = chips.map(c => `<div class="cutoff-chip ${c.cls}"><strong>${c.title}</strong>　${escapeHtml(c.body)}</div>`).join('');
+}
+
+function jobCutoffHtml(found) {
+  if (typeof SmartFiling === 'undefined') return '—';
+  const cut = SmartFiling.cutoffState(found, found.filings || []);
+  return ['AMS ' + cut.ams.label, 'ISF ' + cut.isf.label].join('；');
+}
+
+function noteFieldOptions() {
+  const keys = [{ key: '', label: '整票' }].concat(FIELD_META).concat([
+    { key: 'filing-ams', label: 'AMS 回执' },
+    { key: 'filing-isf', label: 'ISF 回执' }
+  ]);
+  return keys.map(f => `<option value="${escapeHtml(f.key)}">${escapeHtml(f.label)}</option>`).join('');
+}
+
+function renderNotesHtml(notes) {
+  if (!notes || !notes.length) return '<p style="font-size:.82rem;color:var(--g500);">暂无批注</p>';
+  return notes.map(n => `<div class="note-item"><strong>${escapeHtml(n.by || '')}</strong> · ${escapeHtml(n.at || '')} · ${escapeHtml(n.fieldLabel || n.field || '整票')}<div>${escapeHtml(n.text || '')}</div></div>`).join('');
+}
+
+function addJobNote(ticketNo) {
+  const text = (document.getElementById('noteText') && document.getElementById('noteText').value.trim()) || '';
+  if (!text) { showToast('请填写批注'); return; }
+  const fieldEl = document.getElementById('noteField');
+  const field = fieldEl ? fieldEl.value : '';
+  const fieldLabel = fieldEl && fieldEl.selectedOptions[0] ? fieldEl.selectedOptions[0].textContent : '整票';
+  const note = {
+    at: new Date().toISOString().slice(0, 16).replace('T', ' '),
+    by: AUTH_USER.name,
+    field,
+    fieldLabel,
+    text
+  };
+  if (ticketNo === state.shipment.ticketNo) {
+    state.notes = [note].concat(state.notes || []).slice(0, 40);
+    pushTimeline('批注 ' + fieldLabel);
+    const rec = state.archive.find(a => a.ticketNo === ticketNo);
+    upsertArchive(rec && rec.status ? rec.status : '待校验');
+  } else {
+    const found = state.archive.find(a => a.ticketNo === ticketNo);
+    if (!found) return;
+    found.notes = [note].concat(found.notes || []).slice(0, 40);
+    saveState();
+  }
+  openJobFolder(ticketNo);
+  showToast('批注已写入作业夹');
+}
+
+function downloadEdiDraft(channel) {
+  if (typeof SmartEdi === 'undefined') { showToast('报文模块未加载'); return; }
+  const xml = SmartEdi.build(channel, state.shipment, { status: 'draft', ref: 'DRAFT' });
+  triggerDownload(SmartEdi.filename(channel, state.shipment, { ref: 'DRAFT' }), xml, 'application/xml;charset=utf-8');
+  showToast('已下载 ' + channel.toUpperCase() + ' XML 草稿');
+}
+
+function downloadEdiRecord(id) {
+  const rec = (state.filings || []).find(f => f.id === id);
+  if (!rec) { downloadEdiDraft('ams'); return; }
+  const xml = SmartEdi.build(rec.channel, state.shipment, rec);
+  triggerDownload(SmartEdi.filename(rec.channel, state.shipment, rec), xml, 'application/xml;charset=utf-8');
 }
 
 function consumeShareHash() {

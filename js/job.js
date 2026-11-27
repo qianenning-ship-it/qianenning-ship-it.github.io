@@ -53,6 +53,7 @@
       blCarrier: state.blCarrier || "generic",
       filings: state.filings || [],
       shareCode: state.shareCode || "",
+      notes: state.notes || [],
     };
   }
 

@@ -28,6 +28,7 @@
       tl: (pack.timeline || []).slice(0, 12),
       files: pack.extractFiles || [],
       ack: pack.ack || null,
+      n: (pack.notes || []).slice(0, 20),
     };
   }
 
@@ -50,6 +51,7 @@
       timeline: c.tl || c.timeline || [],
       extractFiles: c.files || c.extractFiles || [],
       ack: c.ack || null,
+      notes: c.n || c.notes || [],
       remark: "分享码载入",
     };
   }
