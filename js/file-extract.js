@@ -136,10 +136,56 @@
     return w.SmartOcr;
   }
 
+  function blobToImage(blob) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(img);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("图片无法解码"));
+      };
+      img.src = url;
+    });
+  }
+
+  async function enhanceImageBlob(blob) {
+    try {
+      const img = await blobToImage(blob);
+      const maxSide = 1600;
+      const scale = Math.min(1, maxSide / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+      const w = Math.max(1, Math.round((img.naturalWidth || 1) * scale));
+      const h = Math.max(1, Math.round((img.naturalHeight || 1) * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+      const imageData = ctx.getImageData(0, 0, w, h);
+      const d = imageData.data;
+      const contrast = 1.28;
+      const intercept = 128 * (1 - contrast);
+      for (let i = 0; i < d.length; i += 4) {
+        let g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+        g = contrast * g + intercept;
+        g = g < 0 ? 0 : g > 255 ? 255 : g;
+        d[i] = d[i + 1] = d[i + 2] = g;
+      }
+      ctx.putImageData(imageData, 0, 0);
+      return await canvasToBlob(canvas);
+    } catch (e) {
+      return blob;
+    }
+  }
+
   async function ocrBlob(blob) {
+    const enhanced = await enhanceImageBlob(blob);
     try {
       await loadSmartOcr();
-      const r = await w.SmartOcr.recognize(blob);
+      const r = await w.SmartOcr.recognize(enhanced);
       const text = (r && r.text) || "";
       if (text.replace(/\s/g, "").length >= 4) {
         return { text, method: "图片 OCR（浏览器 PP-OCRv5 / ONNX）", engine: (r && r.engine) || "onnx" };
@@ -148,7 +194,7 @@
       console.warn("[SmartExtract] ONNX OCR 失败，改用 Tesseract", e);
     }
     await ensureTesseract();
-    const { data } = await w.Tesseract.recognize(blob, "chi_sim+eng", { logger: () => {} });
+    const { data } = await w.Tesseract.recognize(enhanced, "chi_sim+eng", { logger: () => {} });
     return { text: (data && data.text) || "", method: "图片 OCR（浏览器 Tesseract 中英）", engine: "tesseract" };
   }
 

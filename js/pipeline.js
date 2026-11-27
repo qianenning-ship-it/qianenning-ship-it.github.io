@@ -101,15 +101,43 @@
     return /^\d{4}\.\d{2}\.\d{2,4}$/.test(s) || /^\d{8,10}$/.test(s);
   }
 
+  function harvestFuzzyContainer(text, fields) {
+    if (fields.containerNo && iso6346Valid(fields.containerNo)) return;
+    const t = String(text || "").toUpperCase();
+    const re = /\b([A-Z]{3}[UJZ])[\s\-]?([0-9OIL]{6,8})\b/g;
+    let m;
+    let fallback = "";
+    while ((m = re.exec(t))) {
+      let digits = m[2].replace(/O/g, "0").replace(/[IL]/g, "1");
+      if (digits.length < 7) continue;
+      digits = digits.slice(0, 7);
+      const code = m[1] + digits;
+      if (!/^[A-Z]{4}\d{7}$/.test(code)) continue;
+      if (iso6346Valid(code)) {
+        fields.containerNo = code;
+        return;
+      }
+      if (!fallback) fallback = code;
+    }
+    if (!fields.containerNo && fallback) fields.containerNo = fallback;
+  }
+
   function harvestRegex(text, fields) {
     const t = String(text || "");
     if (!fields.containerNo) {
-      const m = t.match(/\b([A-Z]{4}\u0020?\d{3}\u0020?\d{3}\u0020?\d)\b/i) || t.match(/\b([A-Z]{4}\d{7})\b/i);
-      if (m) fields.containerNo = m[1].toUpperCase().replace(/\s/g, "");
+      const m =
+        t.match(/\b([A-Z]{4}[\s\-]?\d{7})\b/i) ||
+        t.match(/\b([A-Z]{4}\u0020?\d{3}\u0020?\d{3}\u0020?\d)\b/i);
+      if (m) fields.containerNo = m[1].toUpperCase().replace(/[\s-]/g, "");
     }
+    harvestFuzzyContainer(t, fields);
     if (!fields.hsCode) {
-      const m = t.match(/\b(\d{4}\.\d{2}\.\d{2,4})\b/) || t.match(/\bHS[^\d]{0,8}(\d{8,10})\b/i);
-      if (m) fields.hsCode = normalizeHs(m[1]);
+      const m =
+        t.match(/\b(\d{4}\.\d{2}\.\d{2,4})\b/) ||
+        t.match(/\bHS[^\d]{0,8}(\d{8,10})\b/i) ||
+        t.match(/\b(\d{4}[\s.]\d{2}[\s.]\d{4})\b/) ||
+        t.match(/\b(8471\d{6}|9403\d{6}|8483\d{6}|6204\d{6}|6912\d{6})\b/);
+      if (m) fields.hsCode = normalizeHs(m[1].replace(/\s/g, "."));
     }
     if (!fields.grossWeight) {
       const m = t.match(/([\d,.]+)\s*(KGS|KG|MT|TONS?)\b/i);
@@ -123,6 +151,12 @@
       const m = t.match(/(\d+)\s*(CTNS|CARTONS|PKGS|PACKAGES|PLTS|PALLETS|件数)\b/i);
       if (m) fields.packages = m[1] + " " + String(m[2]).toUpperCase().replace("件数", "CTNS");
     }
+  }
+
+  function assignField(fields, conf, key, val, score) {
+    if (!key || !val || fields[key]) return;
+    fields[key] = key === "hsCode" ? normalizeHs(val) : val;
+    conf[key] = score;
   }
 
   function splitCsvLine(line) {
@@ -139,18 +173,41 @@
   function parseLabeledText(text) {
     const fields = emptyShipment();
     const conf = {};
-    String(text || "")
+    const lines = String(text || "")
       .split(/\r?\n/)
-      .forEach((line) => {
-        const parts = line.split(/[:：\t]/);
-        if (parts.length < 2) return;
-        const key = aliasKey(parts[0]);
-        const val = parts.slice(1).join(":").trim();
-        if (key && val && !fields[key]) {
-          fields[key] = key === "hsCode" ? normalizeHs(val) : val;
-          conf[key] = 98;
+      .map((l) => l.replace(/\s+/g, " ").trim())
+      .filter(Boolean);
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const colonParts = line.split(/[:：\t]/);
+      let key = aliasKey(colonParts[0]);
+      let val = colonParts.slice(1).join(":").trim();
+      if (key && val) {
+        assignField(fields, conf, key, val, 98);
+        continue;
+      }
+      const spaced = line.match(/^(.{2,32}?)[:：]?\s+([A-Za-z0-9].+)$/);
+      if (spaced) {
+        key = aliasKey(spaced[1]);
+        if (key && spaced[2]) {
+          assignField(fields, conf, key, spaced[2].trim(), 93);
+          continue;
         }
-      });
+      }
+      key = aliasKey(line.replace(/[:：]\s*$/, ""));
+      if (key && !fields[key] && i + 1 < lines.length) {
+        const next = lines[i + 1];
+        const nextHead = next.split(/[:：\t]/)[0];
+        const nextKeyed = !!(aliasKey(nextHead) && /[:：]/.test(next));
+        const nextLabelOnly = !!aliasKey(next.replace(/[:：]\s*$/, "")) && next.length < 28 && !/[0-9]/.test(next);
+        if (!nextKeyed && !nextLabelOnly) {
+          assignField(fields, conf, key, next, 88);
+          i += 1;
+        }
+      }
+    }
+
     harvestRegex(text, fields);
     FIELD_META.forEach((f) => {
       if (fields[f.key] && !conf[f.key]) conf[f.key] = 90;

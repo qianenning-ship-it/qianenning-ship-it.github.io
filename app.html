@@ -136,6 +136,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 .ocr-panel p{font-size:.8rem;color:var(--g600);margin:6px 0 8px;}
 .ocr-bar{height:6px;background:#e2e8f0;border-radius:99px;overflow:hidden;}
 .ocr-bar span{display:block;height:100%;width:0;background:var(--primary);transition:width .25s ease;}
+.flow-steps{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
+.flow-step{flex:1;min-width:120px;border:1px solid var(--g200);background:#fff;border-radius:10px;padding:10px 12px;text-align:left;cursor:pointer;font-size:.8rem;color:var(--g600);}
+.flow-step b{display:block;color:var(--g900);font-size:.86rem;margin-bottom:2px;}
+.flow-step.on{border-color:var(--primary);background:var(--primary-light);color:var(--primary);}
+.flow-step.on b{color:var(--primary);}
+.flow-step.done{border-color:#86efac;background:#f0fdf4;}
+.flow-step.done b{color:#047857;}
 
 /* GENERATE PAGE */
 .source-summary{background:var(--white);border-radius:var(--radius);padding:24px;border:1px solid var(--g200);margin-bottom:24px;}
@@ -329,6 +336,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
   </header>
 
   <div class="content">
+    <div class="flow-steps" id="flowSteps"></div>
 
     <!-- ========== DASHBOARD ========== -->
     <div class="page active" id="page-dashboard">
@@ -725,6 +733,31 @@ function switchTab(tab, menuEl) {
   if(tab === 'upload') preloadOcrEngine();
   if(tab === 'dashboard') renderDashboard();
   if(tab === 'exchange') renderExchange();
+  renderFlowSteps(tab);
+}
+
+function renderFlowSteps(tab) {
+  const box = document.getElementById('flowSteps');
+  if (!box) return;
+  const cur = tab || (document.querySelector('.menu-item.active') || {}).dataset.tab || 'dashboard';
+  const filled = FIELD_META.filter(f => String(state.shipment[f.key] || '').trim()).length;
+  const genN = Object.keys(state.generated || {}).length;
+  const rec = state.archive.find(a => a.ticketNo === state.shipment.ticketNo);
+  const checked = rec && rec.status === '已校验';
+  const sent = (typeof SmartExchange !== 'undefined' && SmartExchange.localList)
+    ? SmartExchange.localList().some(x => x.ticketNo === state.shipment.ticketNo)
+    : false;
+  const steps = [
+    { tab: 'upload', title: '1 识别提取', hint: filled ? ('已填 ' + filled + ' 项') : '上传或点示例' },
+    { tab: 'generate', title: '2 同源出单', hint: genN ? ('已出 ' + genN + ' 套') : '确认建档后生成' },
+    { tab: 'check', title: '3 智能校验', hint: checked ? '已通过' : '对快照做规则校验' },
+    { tab: 'exchange', title: '4 发单收件', hint: sent ? '本票已发过' : '把单证交给协作方' }
+  ];
+  const doneOf = { upload: filled >= 6, generate: genN > 0, check: !!checked, exchange: !!sent };
+  box.innerHTML = steps.map(s => `
+    <button type="button" class="flow-step ${s.tab === cur ? 'on' : ''} ${doneOf[s.tab] ? 'done' : ''}" onclick="switchTab('${s.tab}')">
+      <b>${s.title}${doneOf[s.tab] ? ' ✓' : ''}</b>${s.hint}
+    </button>`).join('');
 }
 
 function renderDashboard() {
@@ -873,7 +906,7 @@ async function loadSampleDoc(type) {
   }
   const map = {
     laptop: ['samples/invoice_laptop.pdf', 'samples/invoice_laptop.csv', 'samples/invoice_laptop.json'],
-    furniture: ['samples/booking_furniture.xlsx', 'samples/booking_furniture.json'],
+    furniture: ['samples/booking_furniture.xlsx', 'samples/booking_furniture.csv', 'samples/booking_furniture.json'],
     csv: ['samples/invoice_laptop.csv', 'samples/invoice_laptop.json']
   };
   const paths = map[type] || [];
@@ -944,6 +977,7 @@ function applyExtractResult(fileName, sizeStr, result) {
   document.getElementById('extractMeta').innerHTML = `
     <div>识别引擎：<strong>${escapeHtml(result.engine || 'browser')}</strong>　方法：<strong>${escapeHtml(result.method || '')}</strong>${result.elapsedMs ? '　耗时 ' + result.elapsedMs + ' ms' : ''}</div>
     ${raw ? `<div class="raw-text">${escapeHtml(raw)}</div>` : ''}`;
+  renderFlowSteps('upload');
 }
 
 function updateShipmentField(key, val) {
@@ -1070,6 +1104,7 @@ function generateDocs() {
   upsertArchive('待校验');
   addActivity('blue', `票号 ${s.ticketNo} — 同源生成 ${selected.length} 套单证并写入档案快照`);
   showToast(`🚀 已基于同源档案生成 ${selected.length} 套单证快照`);
+  renderFlowSteps('generate');
 }
 
 function shipmentForDoc(type) {
@@ -1586,6 +1621,7 @@ function submitFeedback() {
 
 renderDashboard();
 renderArchive();
+renderFlowSteps('dashboard');
 const initTab = new URLSearchParams(location.search).get('tab');
 if(initTab) switchTab(initTab);
 
